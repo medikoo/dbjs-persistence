@@ -70,11 +70,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_getCustom: d(notImplemented),
 	loadValue: d(function (id) {
-		var objId;
 		this._ensureOpen();
-		id = ensureString(id);
-		objId = id.split('/', 1)[0];
-		return this._loadValue(objId, id);
+		return this._loadValue(ensureString(id));
 	}),
 	_loadValue: d(notImplemented),
 	loadObject: d(function (id) {
