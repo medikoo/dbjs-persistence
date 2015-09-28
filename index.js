@@ -22,12 +22,11 @@ var group             = require('es5-ext/array/#/group')
   , PersistenceDriver = require('./abstract')
 
   , push = Array.prototype.push, keys = Object.keys
-  , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , byStamp = function (a, b) { return a.stamp - b.stamp; }
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
 
-var TextFileDriver = module.exports = Object.defineProperties(function (dbjs, data) {
+var TextFileDriver = module.exports = function (dbjs, data) {
 	if (!(this instanceof TextFileDriver)) return new TextFileDriver(dbjs, data);
 	ensureObject(data);
 	this.dirPath = resolve(ensureString(data.path));
@@ -36,9 +35,7 @@ var TextFileDriver = module.exports = Object.defineProperties(function (dbjs, da
 		this.isClosed = true;
 		this.emitError(err);
 	}.bind(this));
-}, {
-	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
-});
+};
 setPrototypeOf(TextFileDriver, PersistenceDriver);
 
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
