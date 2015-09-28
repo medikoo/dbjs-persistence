@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "es5-ext": "^0.10.7",
-    "event-emitter": "git://github.com/medikoo/event-emitter",
+    "event-emitter": "git://github.com/medikoo/event-emitter#0c7fb0c16c3b27390e7912bb",
     "fs2": "^0.2.3",
     "d": "^0.1.1",
     "deferred": "0.7.3",
