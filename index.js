@@ -39,6 +39,7 @@ var TextFileDriver = module.exports = function (dbjs, data) {
 setPrototypeOf(TextFileDriver, PersistenceDriver);
 
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
+	constructor: d(TextFileDriver),
 	_getCustom: d(function (key) {
 		return this._custom(function (data) { return data[key]; });
 	}),
