@@ -78,7 +78,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				if (!data.hasOwnProperty(key)) return;
 				delete data[key];
 			} else {
-				value = String(value);
 				if (data[key] === value) return;
 				data[key] = value;
 			}

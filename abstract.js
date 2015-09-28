@@ -16,6 +16,7 @@ var clear          = require('es5-ext/array/#/clear')
   , ensureDatabase = require('dbjs/valid-dbjs')
   , Event          = require('dbjs/_setup/event')
   , unserialize    = require('dbjs/_setup/unserialize/value')
+  , serialize      = require('dbjs/_setup/serialize/value')
   , once           = require('timers-ext/once')
 
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
@@ -62,7 +63,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	isClosed: d(false),
 	getCustom: d(function (key) {
 		this._ensureOpen();
-		return this._getCustom(this._ensureCustomKey(key));
+		return this._getCustom(this._ensureCustomKey(key))(function (value) {
+			if (!value) return;
+			return unserialize(value, this.db.objects);
+		}.bind(this));
 	}),
 	_getCustom: d(notImplemented),
 	loadValue: d(function (id) {
@@ -86,6 +90,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_loadAll: d(notImplemented),
 	storeCustom: d(function (key, value) {
 		this._ensureOpen();
+		if (value !== undefined) value = serialize(value);
 		return this._storeCustom(this._ensureCustomKey(key), value);
 	}),
 	_storeCustom: d(notImplemented),
