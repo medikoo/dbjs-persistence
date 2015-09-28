@@ -57,7 +57,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return key;
 	}),
 	_ensureOpen: d(function () {
-		if (this.isClosed) throw new Error("Database access was closed");
+		if (this.isClosed) throw new Error("Database not accessible");
 	}),
 	isClosed: d(false),
 	getCustom: d(function (key) {
