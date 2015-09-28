@@ -32,7 +32,10 @@ var TextFileDriver = module.exports = Object.defineProperties(function (dbjs, da
 	ensureObject(data);
 	this.dirPath = resolve(ensureString(data.path));
 	PersistenceDriver.call(this, dbjs, data);
-	this.dbDir = mkdir(this.dirPath, { intermediate: true }).aside(null, this.emitError);
+	this.dbDir = mkdir(this.dirPath, { intermediate: true }).aside(null, function (err) {
+		this.isClosed = true;
+		this.emitError(err);
+	}.bind(this));
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
