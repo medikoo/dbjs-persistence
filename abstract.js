@@ -13,13 +13,17 @@ var clear          = require('es5-ext/array/#/clear')
   , autoBind       = require('d/auto-bind')
   , lazy           = require('d/lazy')
   , ee             = require('event-emitter')
+  , getStamp       = require('time-uuid/time')
   , ensureDatabase = require('dbjs/valid-dbjs')
+  , ensureType     = require('dbjs/valid-dbjs-type')
   , Event          = require('dbjs/_setup/event')
   , unserialize    = require('dbjs/_setup/unserialize/value')
   , serialize      = require('dbjs/_setup/serialize/value')
+  , resolveKeyPath = require('dbjs/_setup/utils/resolve-property-path')
   , once           = require('timers-ext/once')
 
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
+  , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
   , create = Object.create, stringify = JSON.stringify;
 
 var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
@@ -101,6 +105,49 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._storeEvents(ensureArray(events));
 	}),
 	_storeEvents: d(notImplemented),
+	trackComputed: d(function (type, keyPath) {
+		var names, key, onAdd, onDelete;
+		ensureType(type);
+		names = tokenize(ensureString(keyPath));
+		this._ensureOpen();
+		key = names[names.length - 1];
+		onAdd = function (obj) {
+			var observable, value, stamp;
+			obj = resolveObject(obj, names);
+			if (!obj) return null;
+			if (obj.isKeyStatic(key)) {
+				value = obj[key];
+				stamp = 0;
+			} else {
+				observable = obj._getObservable_(key);
+				observable.on('change', this._onComputedChange);
+				value = observable.value;
+				stamp = observable.lastModified;
+			}
+			this._storeComputed(obj.__id__ + '/' + key, serialize(value), stamp);
+		}.bind(this);
+		onDelete = function (obj) {
+			obj = resolveObject(obj, names);
+			if (!obj) return null;
+			if (obj.isKeyStatic(key)) return;
+			obj._getObservable_(key).off('chnge', this._onComputedChange);
+		}.bind(this);
+		type.instances.forEach(onAdd);
+		type.instances.on('change', function (event) {
+			if (event.type === 'add') {
+				onAdd(event.value);
+				return;
+			}
+			if (event.type === 'delete') {
+				onDelete(event.value);
+				return;
+			}
+			if (event.type === 'batch') {
+				if (event.added) event.added.forEach(onAdd);
+				if (event.deleted) event.deleted.forEach(onDelete);
+			}
+		});
+	}),
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;
@@ -108,7 +155,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_close: d(notImplemented)
 }, autoBind({
-	emitError: d(emitError)
+	emitError: d(emitError),
+	_onComputedChange: d(function (event) {
+		if (event.target.object.conctrutor === event.target.object.database.Base) return;
+		this._storeComputed(event.target.dbId, serialize(event.newValue),
+			event.dbjs ? event.dbjs.stamp : getStamp());
+	})
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_eventsToStore: d(function () { return []; }),

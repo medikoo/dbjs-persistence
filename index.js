@@ -90,9 +90,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				stamp: event.stamp,
 				value: serialize(event.value)
 			};
-			return writeFile(resolve(this.dirPath, id), toArray(map, function (data, id) {
-				return id + '\n' + data.stamp + '\n' + data.value;
-			}, this, byStamp).join('\n\n'));
+			return this._writeObjectFile(map, id);
 		}.bind(this));
 	}),
 	_storeEvents: d(function (events) {
@@ -106,14 +104,38 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						value: serialize(event.value)
 					};
 				});
-				return writeFile(resolve(this.dirPath, id), toArray(map.regular, function (data, id) {
-					return id + '\n' + data.stamp + '\n' + data.value;
-				}, this, byStamp).join('\n\n'));
+				return this._writeObjectFile(map, id);
 			}.bind(this));
 		}, this);
 	}),
 	_close: d(function () {
 		// Nothing to do
+	}),
+	_storeComputed: d(function (id, value, stamp) {
+		return this._getObjectFile(id.split('/', 1)[0])(function (map) {
+			var old = map.computed[id];
+			if (old) {
+				if (old.stamp === stamp) {
+					if (old.value === value) return;
+					++stamp; // most likely model update
+				}
+				old.value = value;
+				old.stamp = stamp;
+			} else {
+				map.computed[id] = {
+					value: value,
+					stamp: stamp
+				};
+			}
+			return this._writeObjectFile(map, id);
+		});
+	}),
+	_writeObjectFile: d(function (map, id) {
+		return writeFile(resolve(this.dirPath, id), toArray(map.regular, function (data, id) {
+			return id + '\n' + data.stamp + '\n' + data.value;
+		}, this, byStamp).concat(toArray(map.computed, function (data, id) {
+			return '=' + id + '\n' + data.stamp + '\n' + data.value;
+		}, this, byStamp)).join('\n\n'));
 	})
 }, lazy({
 	_custom: d(function () {
