@@ -60,12 +60,14 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return result;
 		}.bind(this));
 	}),
+	_getAllObjectsIds: d(function () {
+		return readdir(this.dirPath, { type: { file: true } }).invoke('filter', isId);
+	}),
 	_loadAll: d(function () {
 		return this.dbDir()(function () {
-			return readdir(this.dirPath, { type: { file: true } })(function (data) {
+			return this._getAllObjectsIds()(function (data) {
 				var result = [];
 				return deferred.map(data, function (id) {
-					if (!isId(id)) return;
 					return this._loadObject(id).aside(function (events) { push.apply(result, events); });
 				}, this)(result);
 			}.bind(this));
