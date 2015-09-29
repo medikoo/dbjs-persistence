@@ -112,7 +112,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		key = names[names.length - 1];
 		onAdd = function (obj) {
-			var observable, value, stamp, id;
+			var observable, value, stamp, id, sValue;
 			obj = resolveObject(obj, names);
 			if (!obj) return null;
 			if (obj.isKeyStatic(key)) {
@@ -125,17 +125,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				stamp = observable.lastModified;
 			}
 			id = obj.__id__ + '/' + key;
-			value = serialize(value);
+			sValue = serialize(value);
 			this._getComputed(id)(function (old) {
 				if (old) {
 					if (old.stamp === stamp) {
-						if (old.value === value) return;
+						if (old.value === sValue) return;
 						++stamp; // most likely model update
 					} else if (old.stamp > stamp) {
 						stamp = old.stamp + 1;
 					}
 				}
-				return this._storeComputed(id, value, stamp);
+				return this._storeComputed(id, sValue, stamp);
 			}).done();
 		}.bind(this);
 		onDelete = function (obj) {
