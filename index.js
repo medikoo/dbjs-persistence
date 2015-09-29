@@ -118,6 +118,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				if (old.stamp === stamp) {
 					if (old.value === value) return;
 					++stamp; // most likely model update
+				} else if (old.stamp > stamp) {
+					stamp = old.stamp + 1;
 				}
 				old.value = value;
 				old.stamp = stamp;
