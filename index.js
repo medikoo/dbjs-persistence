@@ -159,10 +159,17 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
-						map.regular[data[0]] = {
-							stamp: Number(data[1]),
-							value: data[2]
-						};
+						if (data[0][0] === '=') {
+							map.computed[data[0].slice(1)] = {
+								stamp: Number(data[1]),
+								value: data[2]
+							};
+						} else {
+							map.regular[data[0]] = {
+								stamp: Number(data[1]),
+								value: data[2]
+							};
+						}
 					});
 				} catch (ignore) {}
 				return map;
