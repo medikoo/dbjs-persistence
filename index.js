@@ -46,14 +46,14 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_loadValue: d(function (id) {
 		var objId = id.split('/', 1)[0];
 		return this._getObjectFile(objId)(function (map) {
-			if (!map[id]) return null;
-			return this._importValue(id, map[id].value, map.stamp);
+			if (!map.regular[id]) return null;
+			return this._importValue(id, map.regular[id].value, map.stamp);
 		}.bind(this));
 	}),
 	_loadObject: d(function (id) {
 		return this._getObjectFile(id)(function (map) {
 			var result = [];
-			forEach(map, function (data, id) {
+			forEach(map.regular, function (data, id) {
 				var event = this._importValue(id, data.value, data.stamp);
 				if (event) result.push(event);
 			}, this, byStamp);
@@ -86,7 +86,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_storeEvent: d(function (event) {
 		var id = event.object.master.__id__;
 		return this._getObjectFile(id)(function (map) {
-			map[event.object.__valueId__] = {
+			map.regular[event.object.__valueId__] = {
 				stamp: event.stamp,
 				value: serialize(event.value)
 			};
@@ -101,12 +101,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			var events = data[id];
 			return this._getObjectFile(id)(function (map) {
 				events.forEach(function (event) {
-					map[event.object.__valueId__] = {
+					map.regular[event.object.__valueId__] = {
 						stamp: event.stamp,
 						value: serialize(event.value)
 					};
 				});
-				return writeFile(resolve(this.dirPath, id), toArray(map, function (data, id) {
+				return writeFile(resolve(this.dirPath, id), toArray(map.regular, function (data, id) {
 					return id + '\n' + data.stamp + '\n' + data.value;
 				}, this, byStamp).join('\n\n'));
 			}.bind(this));
@@ -131,12 +131,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 }), memoizeMethods({
 	_getObjectFile: d(function (id) {
 		return this.dbDir()(function () {
+			var map = { regular: create(null), computed: create(null) };
 			return readFile(resolve(this.dirPath, id))(function (data) {
-				var map = create(null);
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
-						map[data[0]] = {
+						map.regular[data[0]] = {
 							stamp: Number(data[1]),
 							value: data[2]
 						};
@@ -145,7 +145,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				return map;
 			}, function (err) {
 				if (err.code !== 'ENOENT') throw err;
-				return create(null);
+				return map;
 			});
 		}.bind(this));
 	}, { primitive: true })
