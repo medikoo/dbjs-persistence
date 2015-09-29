@@ -111,18 +111,17 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_close: d(function () {
 		// Nothing to do
 	}),
+	_getComputed: d(function (id) {
+		return this._getObjectFile(id.split('/', 1)[0])(function (map) {
+			return map.computed[id] || null;
+		});
+	}),
 	_storeComputed: d(function (id, value, stamp) {
 		return this._getObjectFile(id.split('/', 1)[0])(function (map) {
 			var old = map.computed[id];
 			if (old) {
-				if (old.stamp === stamp) {
-					if (old.value === value) return;
-					++stamp; // most likely model update
-				} else if (old.stamp > stamp) {
-					stamp = old.stamp + 1;
-				}
-				old.value = value;
 				old.stamp = stamp;
+				old.value = value;
 			} else {
 				map.computed[id] = {
 					value: value,
