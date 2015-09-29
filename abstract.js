@@ -135,6 +135,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp = old.stamp + 1;
 					}
 				}
+				this.emit('update:computed',
+					{ id: id, value: value, stamp: stamp, type: type, keyPath: keyPath });
 				return this._storeComputed(id, sValue, stamp);
 			}).done();
 		}.bind(this);
