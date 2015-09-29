@@ -2,7 +2,8 @@
 
 'use strict';
 
-var group             = require('es5-ext/array/#/group')
+var aFrom             = require('es5-ext/array/from')
+  , group             = require('es5-ext/array/#/group')
   , assign            = require('es5-ext/object/assign')
   , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
@@ -12,6 +13,7 @@ var group             = require('es5-ext/array/#/group')
   , d                 = require('d')
   , lazy              = require('d/lazy')
   , memoizeMethods    = require('memoizee/methods')
+  , Set               = require('es6-set')
   , deferred          = require('deferred')
   , resolve           = require('path').resolve
   , mkdir             = require('fs2/mkdir')
@@ -60,14 +62,11 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return result;
 		}.bind(this));
 	}),
-	_getAllObjectsIds: d(function () {
-		return readdir(this.dirPath, { type: { file: true } }).invoke('filter', isId);
-	}),
 	_loadAll: d(function () {
 		return this.dbDir()(function () {
-			return this._getAllObjectsIds()(function (data) {
+			return this._allObjectsIds(function (data) {
 				var result = [];
-				return deferred.map(data, function (id) {
+				return deferred.map(aFrom(data), function (id) {
 					return this._loadObject(id).aside(function (events) { push.apply(result, events); });
 				}, this)(result);
 			}.bind(this));
@@ -134,6 +133,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 	_writeObjectFile: d(function (map, id) {
+		this._allObjectsIds.aside(function (set) { set.add(id); });
 		return writeFile(resolve(this.dirPath, id), toArray(map.regular, function (data, id) {
 			return id + '\n' + data.stamp + '\n' + data.value;
 		}, this, byStamp).concat(toArray(map.computed, function (data, id) {
@@ -141,6 +141,11 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this, byStamp)).join('\n\n'));
 	})
 }, lazy({
+	_allObjectsIds: d(function () {
+		return readdir(this.dirPath, { type: { file: true } })(function (data) {
+			return new Set(data.filter(isId));
+		});
+	}),
 	_custom: d(function () {
 		return this.dbDir()(function () {
 			return readFile(resolve(this.dirPath, '_custom'))(function (str) {
