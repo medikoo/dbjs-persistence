@@ -106,12 +106,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_storeEvents: d(notImplemented),
 	trackComputed: d(function (type, keyPath) {
-		var names, key, onAdd, onDelete, eventName;
+		var names, key, onAdd, onDelete, eventName, map;
 		ensureType(type);
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
 		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
+		map = this._getAllComputed(keyPath);
 		onAdd = function (obj) {
 			var observable, value, stamp, id, sValue;
 			obj = resolveObject(obj, names);
@@ -136,7 +137,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp = old.stamp + 1;
 					}
 				}
-				this.emit(eventName, { id: id, value: value, stamp: stamp, type: type, keyPath: keyPath });
+				if (map[id]) {
+					map[id].value = value;
+					map[id].stamp = stamp;
+				} else {
+					map[id] = {
+						value: value,
+						stamp: stamp
+					};
+				}
+				this.emit(eventName, map[id]);
 				return this._storeComputed(id, sValue, stamp);
 			}).done();
 		}.bind(this);
@@ -161,8 +171,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (event.deleted) event.deleted.forEach(onDelete);
 			}
 		});
+		return map;
 	}),
 	_getComputed: d(notImplemented),
+	_getAllComputed: d(notImplemented),
 	_storeComputed: d(notImplemented),
 	close: d(function () {
 		this._ensureOpen();
