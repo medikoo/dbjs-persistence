@@ -117,7 +117,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	_getAllComputed: d(function (keyPath) {
 		var map = create(null);
-		return this._allObjectIds.map(function (id) {
+		return this._allObjectsIds.map(function (id) {
 			return this._getObjectFile(id)(function (objectMap) {
 				if (objectMap['=' + keyPath]) map[id] = objectMap['=' + keyPath];
 			});
