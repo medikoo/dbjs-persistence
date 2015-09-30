@@ -124,7 +124,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this)(map);
 	}),
 	_storeComputed: d(function (id, value, stamp) {
-		return this._getObjectFile(id.split('/', 1)[0])(function (map) {
+		var objId = id.split('/', 1)[0];
+		return this._getObjectFile(objId)(function (map) {
 			var old = map.computed[id];
 			if (old) {
 				old.stamp = stamp;
@@ -135,7 +136,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					stamp: stamp
 				};
 			}
-			return this._writeObjectFile(map, id);
+			return this._writeObjectFile(map, objId);
 		}.bind(this));
 	}),
 	_writeObjectFile: d(function (map, id) {
