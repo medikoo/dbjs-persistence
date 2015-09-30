@@ -23,7 +23,7 @@ var aFrom             = require('es5-ext/array/from')
   , serialize         = require('dbjs/_setup/serialize/value')
   , PersistenceDriver = require('./abstract')
 
-  , push = Array.prototype.push, keys = Object.keys
+  , isArray = Array.isArray, push = Array.prototype.push, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , byStamp = function (a, b) { return a.stamp - b.stamp; }
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
@@ -144,7 +144,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return writeFile(resolve(this.dirPath, id), toArray(map.regular, function (data, id) {
 			return id + '\n' + data.stamp + '\n' + data.value;
 		}, this, byStamp).concat(toArray(map.computed, function (data, id) {
-			return '=' + id + '\n' + data.stamp + '\n' + data.value;
+			return '=' + id + '\n' + data.stamp + '\n' +
+				(isArray(data.value) ? stringify(data.value) : data.value);
 		}, this, byStamp)).join('\n\n'));
 	})
 }, lazy({
@@ -176,7 +177,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						if (data[0][0] === '=') {
 							map.computed[data[0].slice(1)] = {
 								stamp: Number(data[1]),
-								value: data[2]
+								value: (data[2][0] === '[') ? parse(data[2]) : data[2]
 							};
 						} else {
 							map.regular[data[0]] = {
