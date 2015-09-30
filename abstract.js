@@ -185,7 +185,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 }, autoBind({
 	emitError: d(emitError),
 	_onComputedChange: d(function (event) {
-		if (event.target.object.conctrutor === event.target.object.database.Base) return;
+		if (event.target.object.constructor === event.target.object.database.Base) return;
 		this._storeComputed(event.target.dbId, serialize(event.newValue),
 			event.dbjs ? event.dbjs.stamp : getStamp());
 	})
