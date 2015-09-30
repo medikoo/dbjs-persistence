@@ -176,7 +176,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				}
 				this.emit(eventName, map[id]);
 				return this._storeComputed(id, sValue, stamp);
-			}).done();
+			}.bind(this)).done();
 		}.bind(this);
 		onDelete = function (obj) {
 			obj = resolveObject(obj, names);
