@@ -3,11 +3,13 @@
 'use strict';
 
 var clear          = require('es5-ext/array/#/clear')
+  , isCopy         = require('es5-ext/array/#/is-copy')
   , ensureArray    = require('es5-ext/array/valid-array')
   , assign         = require('es5-ext/object/assign')
   , ensureCallable = require('es5-ext/object/valid-callable')
   , ensureObject   = require('es5-ext/object/valid-object')
   , ensureString   = require('es5-ext/object/validate-stringifiable-value')
+  , isSet          = require('es6-set/is-set')
   , emitError      = require('event-emitter/emit-error')
   , d              = require('d')
   , autoBind       = require('d/auto-bind')
@@ -22,6 +24,7 @@ var clear          = require('es5-ext/array/#/clear')
   , resolveKeyPath = require('dbjs/_setup/utils/resolve-property-path')
   , once           = require('timers-ext/once')
 
+  , isArray = Array.isArray
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
   , create = Object.create, stringify = JSON.stringify;
@@ -106,13 +109,28 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_storeEvents: d(notImplemented),
 	trackComputed: d(function (type, keyPath) {
-		var names, key, onAdd, onDelete, eventName, map;
+		var names, key, onAdd, onDelete, eventName, map, listener;
 		ensureType(type);
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
 		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
 		map = this._getAllComputed(keyPath);
+		listener = function (event) {
+			var sValue, id = event.target.dbId, stamp;
+			if (event.target.object.constructor === event.target.object.database.Base) return;
+			if (isSet(event.target)) {
+				sValue = [];
+				event.target.forEach(function (value) { sValue.push(serialize(value)); });
+			} else {
+				sValue = serialize(event.newValue);
+			}
+			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
+			map[id].value = sValue;
+			map[id].stamp = stamp;
+			this.emit(eventName, map[id]);
+			this._storeComputed(id, sValue, stamp);
+		}.bind(this);
 		onAdd = function (obj) {
 			var observable, value, stamp, id, sValue;
 			obj = resolveObject(obj, names);
@@ -121,28 +139,38 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				value = obj[key];
 				stamp = 0;
 			} else {
+				value = obj._get_(key);
 				observable = obj._getObservable_(key);
-				observable.on('change', this._onComputedChange);
-				value = observable.value;
 				stamp = observable.lastModified;
+				if (isSet(value)) value.on('change', listener);
+				else observable.on('change', listener);
 			}
 			id = obj.__id__ + '/' + key;
-			sValue = serialize(value);
+			if (isSet(value)) {
+				sValue = [];
+				value.forEach(function (value) { sValue.push(serialize(value)); });
+			} else {
+				sValue = serialize(value);
+			}
 			this._getComputed(id)(function (old) {
 				if (old) {
 					if (old.stamp === stamp) {
-						if (old.value === sValue) return;
+						if (isArray(sValue)) {
+							if (isCopy.call(old.value, sValue)) return;
+						} else {
+							if (old.value === sValue) return;
+						}
 						++stamp; // most likely model update
 					} else if (old.stamp > stamp) {
 						stamp = old.stamp + 1;
 					}
 				}
 				if (map[id]) {
-					map[id].value = value;
+					map[id].value = sValue;
 					map[id].stamp = stamp;
 				} else {
 					map[id] = {
-						value: value,
+						value: sValue,
 						stamp: stamp
 					};
 				}
@@ -154,7 +182,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			obj = resolveObject(obj, names);
 			if (!obj) return null;
 			if (obj.isKeyStatic(key)) return;
-			obj._getObservable_(key).off('change', this._onComputedChange);
+			obj._getObservable_(key).off('change', listener);
 		}.bind(this);
 		type.instances.forEach(onAdd);
 		type.instances.on('change', function (event) {
@@ -183,12 +211,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_close: d(notImplemented)
 }, autoBind({
-	emitError: d(emitError),
-	_onComputedChange: d(function (event) {
-		if (event.target.object.constructor === event.target.object.database.Base) return;
-		this._storeComputed(event.target.dbId, serialize(event.newValue),
-			event.dbjs ? event.dbjs.stamp : getStamp());
-	})
+	emitError: d(emitError)
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_eventsToStore: d(function () { return []; }),
