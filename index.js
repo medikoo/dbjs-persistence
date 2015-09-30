@@ -136,7 +136,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				};
 			}
 			return this._writeObjectFile(map, id);
-		});
+		}.bind(this));
 	}),
 	_writeObjectFile: d(function (map, id) {
 		this._allObjectsIds.aside(function (set) { set.add(id); });
