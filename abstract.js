@@ -147,7 +147,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			obj._getObservable_(key).off('change', this._onComputedChange);
 		}.bind(this);
 		type.instances.forEach(onAdd);
-		type.instances.on('chnge', function (event) {
+		type.instances.on('change', function (event) {
 			if (event.type === 'add') {
 				onAdd(event.value);
 				return;
