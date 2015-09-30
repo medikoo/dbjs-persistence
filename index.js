@@ -42,9 +42,7 @@ setPrototypeOf(TextFileDriver, PersistenceDriver);
 
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
-	_getCustom: d(function (key) {
-		return this._custom(function (data) { return data[key]; });
-	}),
+	_getCustom: d(function (key) { return this._custom(function (data) { return data[key]; }); }),
 	_loadValue: d(function (id) {
 		var objId = id.split('/', 1)[0];
 		return this._getObjectFile(objId)(function (map) {
