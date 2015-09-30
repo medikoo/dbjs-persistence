@@ -106,11 +106,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_storeEvents: d(notImplemented),
 	trackComputed: d(function (type, keyPath) {
-		var names, key, onAdd, onDelete;
+		var names, key, onAdd, onDelete, eventName;
 		ensureType(type);
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
+		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
 		onAdd = function (obj) {
 			var observable, value, stamp, id, sValue;
 			obj = resolveObject(obj, names);
@@ -135,8 +136,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp = old.stamp + 1;
 					}
 				}
-				this.emit('update:computed',
-					{ id: id, value: value, stamp: stamp, type: type, keyPath: keyPath });
+				this.emit(eventName, { id: id, value: value, stamp: stamp, type: type, keyPath: keyPath });
 				return this._storeComputed(id, sValue, stamp);
 			}).done();
 		}.bind(this);
@@ -144,10 +144,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			obj = resolveObject(obj, names);
 			if (!obj) return null;
 			if (obj.isKeyStatic(key)) return;
-			obj._getObservable_(key).off('chnge', this._onComputedChange);
+			obj._getObservable_(key).off('change', this._onComputedChange);
 		}.bind(this);
 		type.instances.forEach(onAdd);
-		type.instances.on('change', function (event) {
+		type.instances.on('chnge', function (event) {
 			if (event.type === 'add') {
 				onAdd(event.value);
 				return;
