@@ -63,7 +63,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_loadAll: d(function () {
 		var promise = this.dbDir()(function () {
 			return this._allObjectsIds(function (data) {
-				var result = [], progress = 0;
+				var result = [], progress = 1;
 				return deferred.map(aFrom(data), function (id) {
 					return this._loadObject(id).aside(function (events) {
 						push.apply(result, events);
