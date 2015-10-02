@@ -28,7 +28,7 @@ var clear          = require('es5-ext/array/#/clear')
   , isArray = Array.isArray
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
-  , create = Object.create, stringify = JSON.stringify;
+  , create = Object.create;
 
 var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
 	var autoSaveFilter, options;
@@ -60,23 +60,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
 		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
-	_ensureCustomKey: d(function (key) {
-		key = ensureString(key);
-		if (key[0] !== '_') {
-			throw new Error("Provided key " + stringify(key) + " is not a valid custom key");
-		}
-		return key;
-	}),
 	_ensureOpen: d(function () {
 		if (this.isClosed) throw new Error("Database not accessible");
 	}),
 	isClosed: d(false),
 	getCustom: d(function (key) {
 		this._ensureOpen();
-		return this._getCustom(this._ensureCustomKey(key))(function (value) {
-			if (!value) return;
-			return unserialize(value, this.db.objects);
-		}.bind(this));
+		return this._getCustom(ensureString(key));
 	}),
 	_getCustom: d(notImplemented),
 	loadValue: d(function (id) {
@@ -97,8 +87,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_loadAll: d(notImplemented),
 	storeCustom: d(function (key, value) {
 		this._ensureOpen();
-		if (value !== undefined) value = serialize(value);
-		return this._storeCustom(this._ensureCustomKey(key), value);
+		return this._storeCustom(ensureString(key), value);
 	}),
 	_storeCustom: d(notImplemented),
 	storeEvent: d(function (event) {

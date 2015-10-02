@@ -87,7 +87,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				data[key] = value;
 			}
 			return writeFile(resolve(this.dirPath, '_custom'), stringify(data));
-		});
+		}.bind(this));
 	}),
 	_storeEvent: d(function (event) {
 		var id = event.object.master.__id__;
@@ -211,7 +211,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}, function (err) {
 				if (err.code !== 'ENOENT') throw err;
 				return {};
-			})({});
+			});
 		}.bind(this));
 	})
 }), memoizeMethods({

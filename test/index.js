@@ -33,7 +33,8 @@ module.exports = function (t, a, d) {
 		driver.storeEvent(zzz._lastOwnEvent_),
 		driver.storeEvent(bar._lastOwnEvent_),
 		driver.storeEvent(foo._lastOwnEvent_),
-		driver.storeEvent(aaa._lastOwnEvent_)
+		driver.storeEvent(aaa._lastOwnEvent_),
+		driver.storeCustom('elo', 'marko')
 	)(function () {
 		return driver.storeEvents([
 			new Event(aaa.getOwnDescriptor('sdfds'), 'sdfs'),
@@ -66,6 +67,8 @@ module.exports = function (t, a, d) {
 				return driver.loadValue('bar/miszka')(function (event) {
 					a(db.bar.miszka, 343);
 				});
+			})(function () {
+				return driver.getCustom('elo')(function (value) { a(value, 'marko'); });
 			})(function () {
 				return driver.close();
 			});
@@ -102,8 +105,8 @@ module.exports = function (t, a, d) {
 			});
 		})(function () {
 			return deferred(
-				//rmdir(dbPath, { recursive: true, force: true }),
-				//rmdir(dbCopyPath, { recursive: true, force: true })
+				rmdir(dbPath, { recursive: true, force: true }),
+				rmdir(dbCopyPath, { recursive: true, force: true })
 			);
 		});
 	}).done(function () { d(); }, d);
