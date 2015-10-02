@@ -14,8 +14,8 @@
     "url": "git://github.com/medikoo/dbjs-persistence.git"
   },
   "dependencies": {
-    "es5-ext": "^0.10.7",
-    "es6-set": "^0.1.1",
+    "es5-ext": "^0.10.8",
+    "es6-set": "^0.1.2",
     "event-emitter": "^0.3.4",
     "fs2": "^0.2.3",
     "d": "^0.1.1",
