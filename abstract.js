@@ -14,6 +14,7 @@ var clear          = require('es5-ext/array/#/clear')
   , d              = require('d')
   , autoBind       = require('d/auto-bind')
   , lazy           = require('d/lazy')
+  , debug          = require('debug-ext')('db')
   , ee             = require('event-emitter')
   , getStamp       = require('time-uuid/time')
   , ensureDatabase = require('dbjs/valid-dbjs')
@@ -39,6 +40,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 	dbjs.objects.on('update', function (event) {
 		if (event.sourceId === 'persistentLayer') return;
 		if (!autoSaveFilter(event)) return;
+		debug("persistent update %s %s", event.object.__valueId__, event.stamp);
 		this._eventsToStore.push(event);
 		this._exportEvents();
 	}.bind(this));

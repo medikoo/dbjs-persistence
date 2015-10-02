@@ -19,6 +19,7 @@
     "event-emitter": "git://github.com/medikoo/event-emitter#0c7fb0c16c3b27390e7912bb",
     "fs2": "^0.2.3",
     "d": "^0.1.1",
+    "debug-ext": "1",
     "deferred": "0.7.3",
     "dbjs": "git://github.com/medikoo/dbjs.git#a6915412a585eb5722d0077f60ed6b05a5f7e570",
     "memoizee": "0.3.9",
