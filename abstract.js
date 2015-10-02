@@ -49,6 +49,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 });
 
 var notImplemented = function () { throw new Error("Not implemented"); };
+var ensureDriver   = require('./ensure');
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_importValue: d(function (id, value, stamp) {
@@ -206,6 +207,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_getComputed: d(notImplemented),
 	_getAllComputed: d(notImplemented),
 	_storeComputed: d(notImplemented),
+	export: d(function (externalStore) {
+		ensureDriver(externalStore);
+		this._ensureOpen();
+		return this._exportAll(externalStore);
+	}),
+	_storeRaw: d(notImplemented),
+	_exportAll: d(notImplemented),
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;

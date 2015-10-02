@@ -154,6 +154,47 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return '=' + id + '\n' + data.stamp + '\n' +
 				(isArray(data.value) ? stringify(data.value) : data.value);
 		}, this, byStamp)).join('\n\n'));
+	}),
+	_storeRaw: d(function (id, data) {
+		var objId;
+		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
+		if (id[0] === '=') objId = id.slice(1).split('/', 1)[0];
+		else objId = id.split('/', 1)[0];
+		return this._getObjectFile(objId)(function (map) {
+			if (id[0] === '=') map.computed[id.slice(1)] = data;
+			else map.regular[id] = data;
+			return this._writeObjectFile(map, objId);
+		}.bind(this));
+	}),
+	_exportAll: d(function (destDriver) {
+		var count = 0;
+		var promise = this.dbDir()(function () {
+			return deferred(
+				this._allObjectsIds(function (data) {
+					return deferred.map(aFrom(data), function (objId) {
+						return this._getObjectFile(objId)(function (map) {
+							return deferred(
+								deferred.map(keys(map.regular), function (id) {
+									if (!(++count % 1000)) promise.emit('progress');
+									return destDriver._storeRaw(id, this[id]);
+								}, map.regular),
+								deferred.map(keys(map.computed), function (id) {
+									if (!(++count % 1000)) promise.emit('progress');
+									return destDriver._storeRaw('=' + id, this[id]);
+								}, map.computed)
+							);
+						}.bind(this));
+					}, this);
+				}.bind(this)),
+				this._custom(function (custom) {
+					return deferred.map(keys(custom), function (key) {
+						if (!(++count % 1000)) promise.emit('progress');
+						return destDriver._storeRaw('_' + key, custom[key]);
+					});
+				})
+			);
+		}.bind(this));
+		return promise;
 	})
 }, lazy({
 	_allObjectsIds: d(function () {
@@ -171,7 +212,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				if (err.code !== 'ENOENT') throw err;
 				return {};
 			})({});
-		});
+		}.bind(this));
 	})
 }), memoizeMethods({
 	_getObjectFile: d(function (id) {
