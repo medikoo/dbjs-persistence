@@ -68,7 +68,7 @@ module.exports = function (t, a, d) {
 			})(function () {
 				return driver.close();
 			});
-		})(function () {
+		})(deferred.delay(function () {
 			var db = new Database()
 			  , driver = t(db, { path: dbPath });
 			return driver.loadAll()(function () {
@@ -82,7 +82,7 @@ module.exports = function (t, a, d) {
 			})(function () {
 				return driver.close();
 			});
-		})(function () {
+		}, 100))(function () {
 			return rmdir(dbPath, { recursive: true, force: true });
 		});
 	}).done(function () { d(); }, d);
