@@ -1,6 +1,6 @@
 {
   "name": "dbjs-persistence",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Persistence for dbjs",
   "author": "Mariusz Nowak <medyk@medikoo.com> (http://www.medikoo.com/)",
   "keywords": [
