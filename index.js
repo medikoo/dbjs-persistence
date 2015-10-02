@@ -61,14 +61,21 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_loadAll: d(function () {
-		return this.dbDir()(function () {
+		var promise = this.dbDir()(function () {
 			return this._allObjectsIds(function (data) {
-				var result = [];
+				var result = [], progress = 0;
 				return deferred.map(aFrom(data), function (id) {
-					return this._loadObject(id).aside(function (events) { push.apply(result, events); });
+					return this._loadObject(id).aside(function (events) {
+						push.apply(result, events);
+						if (events.length > (progress * 1000)) {
+							++progress;
+							promise.emit('progress');
+						}
+					});
 				}, this)(result);
 			}.bind(this));
 		}.bind(this));
+		return promise;
 	}),
 	_storeCustom: d(function (key, value) {
 		return this._custom(function (data) {
