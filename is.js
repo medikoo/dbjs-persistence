@@ -1,8 +1,11 @@
 'use strict';
 
-var Driver;
-
-module.exports = function (x) { return x instanceof Driver; };
-
-// Require after exports cause of circular reference
-Driver = require('./abstract');
+module.exports = function (x) {
+	if (!x) return false;
+	if (typeof x.isClosed !== 'boolean') return false;
+	if (typeof x.loadObject !== 'function') return false;
+	if (typeof x.storeEvent !== 'function') return false;
+	if (typeof x.trackComputed !== 'function') return false;
+	if (typeof x.constructor.defaultAutoSaveFilter !== 'function') return false;
+	return true;
+};

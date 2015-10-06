@@ -24,6 +24,7 @@ var clear          = require('es5-ext/array/#/clear')
   , serialize      = require('dbjs/_setup/serialize/value')
   , resolveKeyPath = require('dbjs/_setup/utils/resolve-property-path')
   , once           = require('timers-ext/once')
+  , ensureDriver   = require('./ensure')
 
   , isArray = Array.isArray
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
@@ -49,7 +50,6 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 });
 
 var notImplemented = function () { throw new Error("Not implemented"); };
-var ensureDriver   = require('./ensure');
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_importValue: d(function (id, value, stamp) {
