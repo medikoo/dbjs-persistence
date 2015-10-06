@@ -25,7 +25,7 @@ var aFrom             = require('es5-ext/array/from')
 
   , isArray = Array.isArray, push = Array.prototype.push, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
-  , byStamp = function (a, b) { return a.stamp - b.stamp; }
+  , byStamp = function (a, b) { return this[a].stamp - this[b].stamp; }
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
 
 var TextFileDriver = module.exports = function (dbjs, data) {
