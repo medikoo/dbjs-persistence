@@ -149,10 +149,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_writeObjectFile: d(function (map, objId) {
 		this._allObjectsIds.aside(function (set) { set.add(objId); });
 		return writeFile(resolve(this.dirPath, objId), toArray(map.regular, function (data, id) {
-			return id + '\n' + data.stamp + '\n' + data.value;
+			return id + '\n' + data.stamp + '\n' + ((data.value === '') ? '-' : data.value);
 		}, this, byStamp).concat(toArray(map.computed, function (data, id) {
 			return '=' + id + '\n' + data.stamp + '\n' +
-				(isArray(data.value) ? stringify(data.value) : data.value);
+				(isArray(data.value) ? stringify(data.value) : ((data.value === '') ? '-' : data.value));
 		}, this, byStamp)).join('\n\n'));
 	}),
 	_storeRaw: d(function (id, data) {
@@ -219,18 +219,24 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return this.dbDir()(function () {
 			var map = { regular: create(null), computed: create(null) };
 			return readFile(resolve(this.dirPath, id))(function (data) {
+				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
 						if (data[0][0] === '=') {
+							value = data[2];
+							if (value[0] === '[') value = parse(data[2]);
+							else if (value === '-') value = '';
 							map.computed[data[0].slice(1)] = {
 								stamp: Number(data[1]),
-								value: (data[2][0] === '[') ? parse(data[2]) : data[2]
+								value: value
 							};
 						} else {
+							value = data[2];
+							if (value === '-') value = '';
 							map.regular[data[0]] = {
 								stamp: Number(data[1]),
-								value: data[2]
+								value: value
 							};
 						}
 					});
