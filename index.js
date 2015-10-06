@@ -67,7 +67,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				return deferred.map(aFrom(data), function (id) {
 					return this._loadObject(id).aside(function (events) {
 						push.apply(result, events);
-						if (events.length > (progress * 1000)) {
+						if (result.length > (progress * 1000)) {
 							++progress;
 							promise.emit('progress');
 						}
