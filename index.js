@@ -146,9 +146,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return this._writeObjectFile(map, objId);
 		}.bind(this));
 	}),
-	_writeObjectFile: d(function (map, id) {
-		this._allObjectsIds.aside(function (set) { set.add(id); });
-		return writeFile(resolve(this.dirPath, id), toArray(map.regular, function (data, id) {
+	_writeObjectFile: d(function (map, objId) {
+		this._allObjectsIds.aside(function (set) { set.add(objId); });
+		return writeFile(resolve(this.dirPath, objId), toArray(map.regular, function (data, id) {
 			return id + '\n' + data.stamp + '\n' + data.value;
 		}, this, byStamp).concat(toArray(map.computed, function (data, id) {
 			return '=' + id + '\n' + data.stamp + '\n' +
