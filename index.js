@@ -50,8 +50,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return this._importValue(id, map.regular[id].value, map.stamp);
 		}.bind(this));
 	}),
-	_loadObject: d(function (id) {
-		return this._getObjectFile(id)(function (map) {
+	_loadObject: d(function (objId) {
+		return this._getObjectFile(objId)(function (map) {
 			var result = [];
 			forEach(map.regular, function (data, id) {
 				var event = this._importValue(id, data.value, data.stamp);
