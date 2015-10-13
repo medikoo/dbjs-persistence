@@ -124,9 +124,11 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	_getAllComputed: d(function (keyPath) {
 		var map = create(null);
-		return this._allObjectsIds.map(function (id) {
-			return this._getObjectFile(id)(function (objectMap) {
-				if (objectMap.computed[keyPath]) map[id] = objectMap.computed[keyPath];
+		return this._allObjectsIds(aFrom).map(function (objId) {
+			return this._getObjectFile(objId)(function (objectMap) {
+				if (objectMap.computed[objId + '/' + keyPath]) {
+					map[objId] = objectMap.computed[objId + '/' + keyPath];
+				}
 			});
 		}, this)(map);
 	}),
