@@ -121,7 +121,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			map[id].value = sValue;
 			map[id].stamp = stamp;
 			this.emit(eventName, map[id]);
-			this._storeComputed(id, sValue, stamp);
+			this._storeComputed(id, sValue, stamp).done();
 		}.bind(this);
 		onAdd = function (obj) {
 			var observable, value, stamp, id, sValue;
