@@ -16,7 +16,7 @@ module.exports = function (opts, copyOpts) {
 		db.Object.prototype.defineProperties({
 			bar: { value: 'elo' },
 			computed: { value: function () {
-				return 'foo' + this.bar;
+				return 'foo' + (this.bar || '');
 			} },
 			computedSet: { value: function () {
 				return [this.bar, this.computed];
@@ -24,9 +24,16 @@ module.exports = function (opts, copyOpts) {
 		});
 
 		zzz.delete('bar');
-		driver.trackComputed(db.Object, 'computed');
-		driver.trackComputed(db.Object, 'computedSet');
+		aaa.bar = null;
 		return deferred(
+			driver.trackComputed(db.Object, 'computed')(function (map) {
+				a(map.foo.value, '3fooelo', "Computed: initial #1");
+				a(map.aaa.value, '3foo', "Computed: initial #2");
+			}),
+			driver.trackComputed(db.Object, 'computedSet')(function (map) {
+				a.deep(map.foo.value, ['3elo', '3fooelo'], "Computed set: initial #1");
+				a.deep(map.aaa.value, ['3foo'], "Computed set: initial #2");
+			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
 			driver.storeEvent(foo._lastOwnEvent_),
@@ -47,28 +54,38 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				var db = new Database()
 				  , driver = t(db, opts);
-				return driver.loadObject('foo')(function () {
-					a(db.foo.constructor, db.Object);
-					a(db.aaa, undefined);
-					a(db.bar, undefined);
-					a(db.zzz, undefined);
-					a(db.foo.raz, 'marko');
-					a(db.foo.bal, false);
-					a(db.foo.ole, 767);
-					return driver.loadValue('bar')(function (event) {
-						a(event.object, db.bar);
-						a(event.value, db.Object.prototype);
-						a(db.bar.constructor, db.Object);
-						a(db.bar.miszka, undefined);
+				return driver.trackComputed(db.Object, 'computed')(function (map) {
+					a(map.foo.value, '3fooelo');
+					a(map.aaa.value, '3foo');
+				})(function () {
+					return driver.trackComputed(db.Object, 'computedSet')(function (map) {
+						a.deep(map.foo.value, ['3elo', '3fooelo']);
+						a.deep(map.aaa.value, ['3foo']);
 					});
 				})(function () {
-					return driver.loadValue('bar/miszka')(function (event) {
-						a(db.bar.miszka, 343);
+					return driver.loadObject('foo')(function () {
+						a(db.foo.constructor, db.Object);
+						a(db.aaa, undefined);
+						a(db.bar, undefined);
+						a(db.zzz, undefined);
+						a(db.foo.raz, 'marko');
+						a(db.foo.bal, false);
+						a(db.foo.ole, 767);
+						return driver.loadValue('bar')(function (event) {
+							a(event.object, db.bar);
+							a(event.value, db.Object.prototype);
+							a(db.bar.constructor, db.Object);
+							a(db.bar.miszka, undefined);
+						});
+					})(function () {
+						return driver.loadValue('bar/miszka')(function (event) {
+							a(db.bar.miszka, 343);
+						});
+					})(function () {
+						return driver.getCustom('elo')(function (value) { a(value, 'marko'); });
+					})(function () {
+						return driver.close();
 					});
-				})(function () {
-					return driver.getCustom('elo')(function (value) { a(value, 'marko'); });
-				})(function () {
-					return driver.close();
 				});
 			})(function () {
 				var db = new Database()

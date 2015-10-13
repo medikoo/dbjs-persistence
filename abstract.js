@@ -2,7 +2,8 @@
 
 'use strict';
 
-var clear          = require('es5-ext/array/#/clear')
+var aFrom          = require('es5-ext/array/from')
+  , clear          = require('es5-ext/array/#/clear')
   , isCopy         = require('es5-ext/array/#/is-copy')
   , ensureArray    = require('es5-ext/array/valid-array')
   , assign         = require('es5-ext/object/assign')
@@ -10,6 +11,7 @@ var clear          = require('es5-ext/array/#/clear')
   , ensureObject   = require('es5-ext/object/valid-object')
   , ensureString   = require('es5-ext/object/validate-stringifiable-value')
   , isSet          = require('es6-set/is-set')
+  , deferred       = require('deferred')
   , emitError      = require('event-emitter/emit-error')
   , d              = require('d')
   , autoBind       = require('d/auto-bind')
@@ -101,13 +103,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_storeEvents: d(notImplemented),
 	trackComputed: d(function (type, keyPath) {
-		var names, key, onAdd, onDelete, eventName, map, listener;
+		var names, key, onAdd, onDelete, eventName, mapPromise, listener;
 		ensureType(type);
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
 		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
-		map = this._getAllComputed(keyPath);
+		mapPromise = this._getAllComputed(keyPath);
 		listener = function (event) {
 			var sValue, id = event.target.dbId, stamp;
 			if (event.target.object.constructor === event.target.object.database.Base) return;
@@ -118,15 +120,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				sValue = serialize(event.newValue);
 			}
 			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
-			map[id].value = sValue;
-			map[id].stamp = stamp;
-			this.emit(eventName, map[id]);
-			this._storeComputed(id, sValue, stamp).done();
+			mapPromise.aside(function (map) {
+				map[id].value = sValue;
+				map[id].stamp = stamp;
+				this.emit(eventName, map[id]);
+				this._storeComputed(id, sValue, stamp).done();
+			});
 		}.bind(this);
 		onAdd = function (obj) {
-			var observable, value, stamp, id, sValue;
+			var observable, value, stamp, id, objId, sValue;
 			obj = resolveObject(obj, names);
 			if (!obj) return null;
+			objId = obj.__id__;
 			if (obj.isKeyStatic(key)) {
 				value = obj[key];
 				stamp = 0;
@@ -137,38 +142,41 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (isSet(value)) value.on('change', listener);
 				else observable.on('change', listener);
 			}
-			id = obj.__id__ + '/' + key;
+			id = objId + '/' + key;
 			if (isSet(value)) {
 				sValue = [];
 				value.forEach(function (value) { sValue.push(serialize(value)); });
 			} else {
 				sValue = serialize(value);
 			}
-			this._getComputed(id)(function (old) {
-				if (old) {
-					if (old.stamp === stamp) {
-						if (isArray(sValue)) {
-							if (isCopy.call(old.value, sValue)) return;
-						} else {
-							if (old.value === sValue) return;
+			return this._getComputed(id)(function (old) {
+				return mapPromise(function (map) {
+					if (old) {
+						map[objId] = old;
+						if (old.stamp === stamp) {
+							if (isArray(sValue)) {
+								if (isCopy.call(old.value, sValue)) return;
+							} else {
+								if (old.value === sValue) return;
+							}
+							++stamp; // most likely model update
+						} else if (old.stamp > stamp) {
+							stamp = old.stamp + 1;
 						}
-						++stamp; // most likely model update
-					} else if (old.stamp > stamp) {
-						stamp = old.stamp + 1;
 					}
-				}
-				if (map[id]) {
-					map[id].value = sValue;
-					map[id].stamp = stamp;
-				} else {
-					map[id] = {
-						value: sValue,
-						stamp: stamp
-					};
-				}
-				this.emit(eventName, map[id]);
-				return this._storeComputed(id, sValue, stamp);
-			}.bind(this)).done();
+					if (map[objId]) {
+						map[objId].value = sValue;
+						map[objId].stamp = stamp;
+					} else {
+						map[objId] = {
+							value: sValue,
+							stamp: stamp
+						};
+					}
+					this.emit(eventName, map[objId]);
+					return this._storeComputed(id, sValue, stamp);
+				}.bind(this));
+			}.bind(this));
 		}.bind(this);
 		onDelete = function (obj) {
 			obj = resolveObject(obj, names);
@@ -176,10 +184,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (obj.isKeyStatic(key)) return;
 			obj._getObservable_(key).off('change', listener);
 		}.bind(this);
-		type.instances.forEach(onAdd);
 		type.instances.on('change', function (event) {
 			if (event.type === 'add') {
-				onAdd(event.value);
+				onAdd(event.value).done();
 				return;
 			}
 			if (event.type === 'delete') {
@@ -187,11 +194,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				return;
 			}
 			if (event.type === 'batch') {
-				if (event.added) event.added.forEach(onAdd);
+				if (event.added) deferred.map(event.added, onAdd).done();
 				if (event.deleted) event.deleted.forEach(onDelete);
 			}
 		});
-		return map;
+		return deferred.map(aFrom(type.instances), onAdd)(mapPromise);
 	}),
 	_getComputed: d(notImplemented),
 	_getAllComputed: d(notImplemented),
