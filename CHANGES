@@ -1,3 +1,7 @@
+v0.0.4  --  2015.10.13
+* Fix computed properties handling
+* Generalize tests
+
 v0.0.3  --  2015.10.12
 * `is` and `ensure` utils
 * Export raw data functionality
