@@ -1,6 +1,6 @@
 {
   "name": "dbjs-persistence",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Persistence for dbjs",
   "author": "Mariusz Nowak <medyk@medikoo.com> (http://www.medikoo.com/)",
   "keywords": [
@@ -27,7 +27,7 @@
     "timers-ext": "0.1"
   },
   "devDependencies": {
-    "tad": "^0.2.3",
+    "tad": "^0.2.4",
     "xlint": "^0.2.2",
     "xlint-jslint-medikoo": "^0.1.4"
   },

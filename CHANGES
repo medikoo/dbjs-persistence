@@ -1,3 +1,8 @@
+v0.0.5  --  2015.10.15
+* Improve tests
+* Reconfigure handling of computed results
+* Make 'close' operation safe
+
 v0.0.4  --  2015.10.13
 * Fix computed properties handling
 * Generalize tests
