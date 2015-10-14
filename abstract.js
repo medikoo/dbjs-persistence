@@ -222,8 +222,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_eventsToStore: d(function () { return []; }),
 	_exportEvents: d(function () {
 		return once(function () {
-			this.storeEvents(this._eventsToStore);
+			var promise = this.storeEvents(this._eventsToStore);
 			clear.call(this._eventsToStore);
+			promise.done();
 		}.bind(this));
 	})
 }))));
