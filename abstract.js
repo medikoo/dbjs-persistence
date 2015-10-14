@@ -124,7 +124,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				map[objId].value = sValue;
 				map[objId].stamp = stamp;
 				this.emit(eventName, map[objId]);
-				this._storeComputed(keyPath).done();
+				this._storeComputed(objId, keyPath, map[objId]).done();
 			}.bind(this));
 		}.bind(this);
 		onAdd = function (obj) {
@@ -173,7 +173,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						};
 					}
 					this.emit(eventName, map[objId]);
-					return this._storeComputed(keyPath);
+					return this._storeComputed(objId, keyPath, map[objId]);
 				}.bind(this));
 			}.bind(this));
 		}.bind(this);
