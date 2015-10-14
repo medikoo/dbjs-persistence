@@ -44,13 +44,13 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_getCustom: d(function (key) { return this._custom(function (data) { return data[key]; }); }),
 	_loadValue: d(function (id) {
 		var objId = id.split('/', 1)[0], keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectFile(objId)(function (map) {
+		return this._getObjectStorage(objId)(function (map) {
 			if (!map[keyPath]) return null;
 			return this._importValue(id, map[keyPath].value, map.stamp);
 		}.bind(this));
 	}),
 	_loadObject: d(function (objId) {
-		return this._getObjectFile(objId)(function (map) {
+		return this._getObjectStorage(objId)(function (map) {
 			var result = [];
 			forEach(map, function (data, keyPath) {
 				var id = objId + (keyPath === '.' ? '' : '/' + keyPath);
@@ -92,7 +92,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_storeEvent: d(function (event) {
 		var objId = event.object.master.__id__
 		  , keyPath = event.object.__valueId__.slice(objId.length + 1) || '.';
-		return this._getObjectFile(objId)(function (map) {
+		return this._getObjectStorage(objId)(function (map) {
 			map[keyPath] = {
 				stamp: event.stamp,
 				value: serialize(event.value)
@@ -104,7 +104,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		var data = group.call(events, function (event) { return event.object.master.__id__; });
 		return deferred.map(keys(data), function (objId) {
 			var events = data[objId];
-			return this._getObjectFile(objId)(function (map) {
+			return this._getObjectStorage(objId)(function (map) {
 				events.forEach(function (event) {
 					map[event.object.__valueId__.slice(objId.length + 1) || '.'] = {
 						stamp: event.stamp,
@@ -119,11 +119,11 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		// Nothing to do
 	}),
 	_getComputed: d(function (objId, keyPath) {
-		return this._getComputedFile(keyPath)(function (map) { return map[objId] || null; });
+		return this._getComputedStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
-	_getComputedMap: d(function (keyPath) { return this._getComputedFile(keyPath); }),
+	_getComputedMap: d(function (keyPath) { return this._getComputedStorage(keyPath); }),
 	_storeComputed: d(function (keyPath) {
-		return this._getComputedFile(keyPath)(function (map) {
+		return this._getComputedStorage(keyPath)(function (map) {
 			return this._writeStorage('=' + keyPath, map);
 		}.bind(this));
 	}),
@@ -148,7 +148,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}
 		objId = id.split('/', 1)[0];
 		keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectFile(objId)(function (map) {
+		return this._getObjectStorage(objId)(function (map) {
 			map[keyPath] = data;
 			return this._writeStorage(objId, map);
 		}.bind(this));
@@ -158,7 +158,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		var promise = this.dbDir()(function () {
 			return readdir(this.dirPath, { type: { file: true } }).map(function (name) {
 				if (isId(name)) {
-					return this._getObjectFile(name)(function (map) {
+					return this._getObjectStorage(name)(function (map) {
 						return deferred.map(keys(map), function (keyPath) {
 							var postfix = keyPath === '.' ? '' : '/' + keyPath;
 							if (!(++count % 1000)) promise.emit('progress');
@@ -168,7 +168,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				}
 				if (name[0] === '=') {
 					name = name.slice(1);
-					return this._getComputedFile(name)(function (map) {
+					return this._getComputedStorage(name)(function (map) {
 						return deferred.map(keys(map), function (objId) {
 							if (!(++count % 1000)) promise.emit('progress');
 							return destDriver._storeRaw('=' + objId  + '/' + name, this[objId]);
@@ -206,7 +206,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }), memoizeMethods({
-	_getObjectFile: d(function (objId) {
+	_getObjectStorage: d(function (objId) {
 		return this.dbDir()(function () {
 			var map = create(null);
 			return readFile(resolve(this.dirPath, objId))(function (data) {
@@ -229,7 +229,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}, { primitive: true }),
-	_getComputedFile: d(function (keyPath) {
+	_getComputedStorage: d(function (keyPath) {
 		return this.dbDir()(function () {
 			var map = create(null);
 			return readFile(resolve(this.dirPath, '=' + keyPath))(function (data) {
