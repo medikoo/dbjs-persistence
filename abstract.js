@@ -142,7 +142,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (isSet(value)) value.on('change', listener);
 				else observable.on('change', listener);
 			}
-			id = objId + '/' + key;
+			id = objId + '/' + keyPath;
 			if (isSet(value)) {
 				sValue = [];
 				value.forEach(function (value) { sValue.push(serialize(value)); });
