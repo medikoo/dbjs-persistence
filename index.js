@@ -140,7 +140,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
-			keyPath = id.slice(0, index);
+			keyPath = id.slice(1, index);
 			objId = id.slice(index + 1);
 			return this._getComputedMap(keyPath)(function (map) {
 				map[objId] = data;

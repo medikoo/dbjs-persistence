@@ -131,6 +131,9 @@ module.exports = function (opts, copyOpts) {
 						a(db.aaa.constructor, db.Object);
 						a(db.zzz.constructor, db.Object);
 						a(db.bar.miszka, 343);
+						return driverCopy._getComputed('foo', 'computed')(function (data) {
+							a(data.value, '3foomiszka');
+						});
 					});
 				})(function () {
 					return deferred(driver.close(), driverCopy.close());
