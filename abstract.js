@@ -124,11 +124,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				map[id].value = sValue;
 				map[id].stamp = stamp;
 				this.emit(eventName, map[id]);
-				this._storeComputed(id, sValue, stamp).done();
+				this._storeComputed(event.object.master.__id__, keyPath, sValue, stamp).done();
 			});
 		}.bind(this);
 		onAdd = function (obj) {
-			var observable, value, stamp, id, objId, sValue;
+			var observable, value, stamp, objId, sValue;
 			obj = resolveObject(obj, names);
 			if (!obj) return null;
 			objId = obj.__id__;
@@ -142,14 +142,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (isSet(value)) value.on('change', listener);
 				else observable.on('change', listener);
 			}
-			id = objId + '/' + keyPath;
 			if (isSet(value)) {
 				sValue = [];
 				value.forEach(function (value) { sValue.push(serialize(value)); });
 			} else {
 				sValue = serialize(value);
 			}
-			return this._getComputed(id)(function (old) {
+			return this._getComputed(objId, keyPath)(function (old) {
 				return mapPromise(function (map) {
 					if (old) {
 						map[objId] = old;
@@ -174,7 +173,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						};
 					}
 					this.emit(eventName, map[objId]);
-					return this._storeComputed(id, sValue, stamp);
+					return this._storeComputed(objId, keyPath, sValue, stamp);
 				}.bind(this));
 			}.bind(this));
 		}.bind(this);
