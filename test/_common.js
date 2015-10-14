@@ -5,14 +5,8 @@ var deferred = require('deferred')
   , Event    = require('dbjs/_setup/event');
 
 module.exports = function (opts, copyOpts) {
-	return function (t, a, d) {
-		var db = new Database()
-		  , driver = t(db, opts)
-		  , aaa = db.Object.newNamed('aaa')
-		  , bar = db.Object.newNamed('bar')
-		  , foo = db.Object.newNamed('foo')
-		  , zzz = db.Object.newNamed('zzz');
-
+	var getDatabase = function () {
+		var db = new Database();
 		db.Object.prototype.defineProperties({
 			bar: { value: 'elo' },
 			computed: { value: function () {
@@ -22,6 +16,15 @@ module.exports = function (opts, copyOpts) {
 				return [this.bar, this.computed];
 			}, multiple: true }
 		});
+		return db;
+	};
+	return function (t, a, d) {
+		var db = getDatabase()
+		  , driver = t(db, opts)
+		  , aaa = db.Object.newNamed('aaa')
+		  , bar = db.Object.newNamed('bar')
+		  , foo = db.Object.newNamed('foo')
+		  , zzz = db.Object.newNamed('zzz');
 
 		zzz.delete('bar');
 		aaa.bar = null;
@@ -52,7 +55,7 @@ module.exports = function (opts, copyOpts) {
 			])(function () {
 				return driver.close();
 			})(function () {
-				var db = new Database()
+				var db = getDatabase()
 				  , driver = t(db, opts);
 				return driver.trackComputed(db.Object, 'computed')(function (map) {
 					a(map.foo.value, '3fooelo');
@@ -63,6 +66,10 @@ module.exports = function (opts, copyOpts) {
 						a.deep(map.aaa.value, ['3foo']);
 					});
 				})(function () {
+					return driver._getComputed('foo', 'computed')(function (data) {
+						a(data.value, '3fooelo');
+					});
+				})(function () {
 					return driver.loadObject('foo')(function () {
 						a(db.foo.constructor, db.Object);
 						a(db.aaa, undefined);
@@ -71,11 +78,16 @@ module.exports = function (opts, copyOpts) {
 						a(db.foo.raz, 'marko');
 						a(db.foo.bal, false);
 						a(db.foo.ole, 767);
+						a(db.foo.computed, 'fooelo');
 						return driver.loadValue('bar')(function (event) {
 							a(event.object, db.bar);
 							a(event.value, db.Object.prototype);
 							a(db.bar.constructor, db.Object);
 							a(db.bar.miszka, undefined);
+						});
+					})(function () {
+						return driver._getComputed('foo', 'computed')(function (data) {
+							a(data.value, '3fooelo');
 						});
 					})(function () {
 						return driver.loadValue('bar/miszka')(function (event) {
@@ -84,11 +96,16 @@ module.exports = function (opts, copyOpts) {
 					})(function () {
 						return driver.getCustom('elo')(function (value) { a(value, 'marko'); });
 					})(function () {
+						db.foo.bar = 'miszka';
+						return driver._getComputed('foo', 'computed')(function (data) {
+							a(data.value, '3foomiszka');
+						});
+					})(deferred.delay(function () {
 						return driver.close();
-					});
+					}, 100));
 				});
 			})(function () {
-				var db = new Database()
+				var db = getDatabase()
 				  , driver = t(db, opts);
 				return driver.loadAll()(function () {
 					a(db.foo.constructor, db.Object);
@@ -102,8 +119,8 @@ module.exports = function (opts, copyOpts) {
 					return driver.close();
 				});
 			})(function () {
-				var db = new Database()
-				  , driver = t(new Database(), opts)
+				var db = getDatabase()
+				  , driver = t(getDatabase(), opts)
 				  , driverCopy = t(db, copyOpts);
 				return driver.export(driverCopy)(function () {
 					return driverCopy.loadAll()(function () {
