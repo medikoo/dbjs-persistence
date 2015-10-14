@@ -100,9 +100,9 @@ module.exports = function (opts, copyOpts) {
 						return driver._getComputed('foo', 'computed')(function (data) {
 							a(data.value, '3foomiszka');
 						});
-					})(deferred.delay(function () {
+					})(function () {
 						return driver.close();
-					}, 100));
+					});
 				});
 			})(function () {
 				var db = getDatabase()

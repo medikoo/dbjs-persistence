@@ -212,6 +212,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;
+		if (this._eventsToStore.length) {
+			this._closeDeferred = deferred();
+			return this._closeDeferred.promise;
+		}
 		return this._close();
 	}),
 	_close: d(notImplemented)
@@ -222,8 +226,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_eventsToStore: d(function () { return []; }),
 	_exportEvents: d(function () {
 		return once(function () {
-			var promise = this.storeEvents(this._eventsToStore);
+			var promise = this._storeEvents(this._eventsToStore);
 			clear.call(this._eventsToStore);
+			if (this._closeDeferred) {
+				this._closeDeferred.resolve(promise = promise(function () {
+					return this._close();
+				}.bind(this)));
+				return;
+			}
 			promise.done();
 		}.bind(this));
 	})
