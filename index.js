@@ -136,11 +136,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this, byStamp).join('\n\n'));
 	}),
 	_storeRaw: d(function (id, data) {
-		var objId, keyPath;
+		var objId, keyPath, index;
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
 		if (id[0] === '=') {
-			objId = id.slice(1).split('/', 1)[0];
-			keyPath = id.slice(objId.length + 2);
+			index = id.lastIndexOf(':');
+			keyPath = id.slice(0, index);
+			objId = id.slice(index + 1);
 			return this._getComputedMap(keyPath)(function (map) {
 				map[objId] = data;
 				return this._writeStorage('=' + keyPath, map);
@@ -171,7 +172,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					return this._getComputedStorage(name)(function (map) {
 						return deferred.map(keys(map), function (objId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('=' + objId  + '/' + name, this[objId]);
+							return destDriver._storeRaw('=' + name  + ':' + objId, this[objId]);
 						}, map);
 					});
 				}
