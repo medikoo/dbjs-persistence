@@ -111,7 +111,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
 		mapPromise = this._getComputedMap(keyPath);
 		listener = function (event) {
-			var sValue, id = event.target.dbId, stamp;
+			var sValue, stamp, objId = event.target.object.master.__id__;
 			if (event.target.object.constructor === event.target.object.database.Base) return;
 			if (isSet(event.target)) {
 				sValue = [];
@@ -121,11 +121,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
 			mapPromise.aside(function (map) {
-				map[id].value = sValue;
-				map[id].stamp = stamp;
-				this.emit(eventName, map[id]);
+				map[objId].value = sValue;
+				map[objId].stamp = stamp;
+				this.emit(eventName, map[objId]);
 				this._storeComputed(keyPath).done();
-			});
+			}.bind(this));
 		}.bind(this);
 		onAdd = function (obj) {
 			var observable, value, stamp, objId, sValue;
