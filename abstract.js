@@ -109,7 +109,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		key = names[names.length - 1];
 		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
-		mapPromise = this._getAllComputed(keyPath);
+		mapPromise = this._getComputedMap(keyPath);
 		listener = function (event) {
 			var sValue, id = event.target.dbId, stamp;
 			if (event.target.object.constructor === event.target.object.database.Base) return;
@@ -124,7 +124,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				map[id].value = sValue;
 				map[id].stamp = stamp;
 				this.emit(eventName, map[id]);
-				this._storeComputed(event.object.master.__id__, keyPath, sValue, stamp).done();
+				this._storeComputed(keyPath).done();
 			});
 		}.bind(this);
 		onAdd = function (obj) {
@@ -173,7 +173,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						};
 					}
 					this.emit(eventName, map[objId]);
-					return this._storeComputed(objId, keyPath, sValue, stamp);
+					return this._storeComputed(keyPath);
 				}.bind(this));
 			}.bind(this));
 		}.bind(this);
@@ -200,7 +200,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return deferred.map(aFrom(type.instances), onAdd)(mapPromise);
 	}),
 	_getComputed: d(notImplemented),
-	_getAllComputed: d(notImplemented),
+	_getComputedMap: d(notImplemented),
 	_storeComputed: d(notImplemented),
 	export: d(function (externalStore) {
 		ensureDriver(externalStore);

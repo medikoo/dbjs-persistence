@@ -2,8 +2,7 @@
 
 'use strict';
 
-var aFrom             = require('es5-ext/array/from')
-  , group             = require('es5-ext/array/#/group')
+var group             = require('es5-ext/array/#/group')
   , assign            = require('es5-ext/object/assign')
   , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
@@ -44,16 +43,17 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 	_getCustom: d(function (key) { return this._custom(function (data) { return data[key]; }); }),
 	_loadValue: d(function (id) {
-		var objId = id.split('/', 1)[0];
+		var objId = id.split('/', 1)[0], keyPath = id.slice(objId.length + 1) || '.';
 		return this._getObjectFile(objId)(function (map) {
-			if (!map.regular[id]) return null;
-			return this._importValue(id, map.regular[id].value, map.stamp);
+			if (!map[keyPath]) return null;
+			return this._importValue(id, map[keyPath].value, map.stamp);
 		}.bind(this));
 	}),
 	_loadObject: d(function (objId) {
 		return this._getObjectFile(objId)(function (map) {
 			var result = [];
-			forEach(map.regular, function (data, id) {
+			forEach(map, function (data, keyPath) {
+				var id = objId + (keyPath === '.' ? '' : '/' + keyPath);
 				var event = this._importValue(id, data.value, data.stamp);
 				if (event) result.push(event);
 			}, this, byStamp);
@@ -62,10 +62,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	_loadAll: d(function () {
 		var promise = this.dbDir()(function () {
-			return this._allObjectsIds(function (data) {
+			return readdir(this.dirPath, { type: { file: true } })(function (data) {
 				var result = [], progress = 1;
-				return deferred.map(aFrom(data), function (id) {
-					return this._loadObject(id).aside(function (events) {
+				return deferred.map(data.filter(isId), function (objId) {
+					return this._loadObject(objId).aside(function (events) {
 						push.apply(result, events);
 						if (result.length > (progress * 1000)) {
 							++progress;
@@ -90,27 +90,28 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_storeEvent: d(function (event) {
-		var id = event.object.master.__id__;
-		return this._getObjectFile(id)(function (map) {
-			map.regular[event.object.__valueId__] = {
+		var objId = event.object.master.__id__
+		  , keyPath = event.object.__valueId__.slice(objId.length + 1) || '.';
+		return this._getObjectFile(objId)(function (map) {
+			map[keyPath] = {
 				stamp: event.stamp,
 				value: serialize(event.value)
 			};
-			return this._writeObjectFile(map, id);
+			return this._writeStorage(objId, map);
 		}.bind(this));
 	}),
 	_storeEvents: d(function (events) {
 		var data = group.call(events, function (event) { return event.object.master.__id__; });
-		return deferred.map(keys(data), function (id) {
-			var events = data[id];
-			return this._getObjectFile(id)(function (map) {
+		return deferred.map(keys(data), function (objId) {
+			var events = data[objId];
+			return this._getObjectFile(objId)(function (map) {
 				events.forEach(function (event) {
-					map.regular[event.object.__valueId__] = {
+					map[event.object.__valueId__.slice(objId.length + 1) || '.'] = {
 						stamp: event.stamp,
 						value: serialize(event.value)
 					};
 				});
-				return this._writeObjectFile(map, id);
+				return this._writeStorage(objId, map);
 			}.bind(this));
 		}, this);
 	}),
@@ -118,83 +119,71 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		// Nothing to do
 	}),
 	_getComputed: d(function (objId, keyPath) {
-		return this._getObjectFile(objId)(function (map) {
-			return map.computed[objId + '/' + keyPath] || null;
-		});
+		return this._getComputedFile(keyPath)(function (map) { return map[objId] || null; });
 	}),
-	_getAllComputed: d(function (keyPath) {
-		var map = create(null);
-		return this._allObjectsIds(aFrom).map(function (objId) {
-			return this._getObjectFile(objId)(function (objectMap) {
-				if (objectMap.computed[objId + '/' + keyPath]) {
-					map[objId] = objectMap.computed[objId + '/' + keyPath];
-				}
-			});
-		}, this)(map);
-	}),
-	_storeComputed: d(function (objId, keyPath, value, stamp) {
-		var id = objId + '/' + keyPath;
-		return this._getObjectFile(objId)(function (map) {
-			var old = map.computed[id];
-			if (old) {
-				old.stamp = stamp;
-				old.value = value;
-			} else {
-				map.computed[id] = {
-					value: value,
-					stamp: stamp
-				};
-			}
-			return this._writeObjectFile(map, objId);
+	_getComputedMap: d(function (keyPath) { return this._getComputedFile(keyPath); }),
+	_storeComputed: d(function (keyPath) {
+		return this._getComputedFile(keyPath)(function (map) {
+			return this._writeStorage('=' + keyPath, map);
 		}.bind(this));
 	}),
-	_writeObjectFile: d(function (map, objId) {
-		this._allObjectsIds.aside(function (set) { set.add(objId); });
-		return writeFile(resolve(this.dirPath, objId), toArray(map.regular, function (data, id) {
-			return id + '\n' + data.stamp + '\n' + ((data.value === '') ? '-' : data.value);
-		}, this, byStamp).concat(toArray(map.computed, function (data, id) {
-			return '=' + id + '\n' + data.stamp + '\n' +
-				(isArray(data.value) ? stringify(data.value) : ((data.value === '') ? '-' : data.value));
-		}, this, byStamp)).join('\n\n'));
+	_writeStorage: d(function (name, map) {
+		return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
+			var value = data.value;
+			if (value === '') value = '-';
+			else if (isArray(value)) value = stringify(value);
+			return id + '\n' + data.stamp + '\n' + value;
+		}, this, byStamp).join('\n\n'));
 	}),
 	_storeRaw: d(function (id, data) {
-		var objId;
+		var objId, keyPath;
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
-		if (id[0] === '=') objId = id.slice(1).split('/', 1)[0];
-		else objId = id.split('/', 1)[0];
+		if (id[0] === '=') {
+			objId = id.slice(1).split('/', 1)[0];
+			keyPath = id.slice(objId.length + 2);
+			return this._getComputedMap(keyPath)(function (map) {
+				map[objId] = data;
+				return this._writeStorage('=' + keyPath, map);
+			}.bind(this));
+		}
+		objId = id.split('/', 1)[0];
+		keyPath = id.slice(objId.length + 1) || '.';
 		return this._getObjectFile(objId)(function (map) {
-			if (id[0] === '=') map.computed[id.slice(1)] = data;
-			else map.regular[id] = data;
-			return this._writeObjectFile(map, objId);
+			map[keyPath] = data;
+			return this._writeStorage(objId, map);
 		}.bind(this));
 	}),
 	_exportAll: d(function (destDriver) {
 		var count = 0;
 		var promise = this.dbDir()(function () {
-			return deferred(
-				this._allObjectsIds(function (data) {
-					return deferred.map(aFrom(data), function (objId) {
-						return this._getObjectFile(objId)(function (map) {
-							return deferred(
-								deferred.map(keys(map.regular), function (id) {
-									if (!(++count % 1000)) promise.emit('progress');
-									return destDriver._storeRaw(id, this[id]);
-								}, map.regular),
-								deferred.map(keys(map.computed), function (id) {
-									if (!(++count % 1000)) promise.emit('progress');
-									return destDriver._storeRaw('=' + id, this[id]);
-								}, map.computed)
-							);
-						}.bind(this));
-					}, this);
-				}.bind(this)),
-				this._custom(function (custom) {
-					return deferred.map(keys(custom), function (key) {
-						if (!(++count % 1000)) promise.emit('progress');
-						return destDriver._storeRaw('_' + key, custom[key]);
+			return readdir(this.dirPath, { type: { file: true } }).map(function (name) {
+				if (isId(name)) {
+					return this._getObjectFile(name)(function (map) {
+						return deferred.map(keys(map), function (keyPath) {
+							var postfix = keyPath === '.' ? '' : '/' + keyPath;
+							if (!(++count % 1000)) promise.emit('progress');
+							return destDriver._storeRaw(name + postfix, this[keyPath]);
+						}, map);
 					});
-				})
-			);
+				}
+				if (name[0] === '=') {
+					name = name.slice(1);
+					return this._getComputedFile(name)(function (map) {
+						return deferred.map(keys(map), function (objId) {
+							if (!(++count % 1000)) promise.emit('progress');
+							return destDriver._storeRaw('=' + objId  + '/' + name, this[objId]);
+						}, map);
+					});
+				}
+				if (name === '_custom') {
+					this._custom(function (custom) {
+						return deferred.map(keys(custom), function (key) {
+							if (!(++count % 1000)) promise.emit('progress');
+							return destDriver._storeRaw('_' + key, custom[key]);
+						});
+					});
+				}
+			}.bind(this));
 		}.bind(this));
 		return promise;
 	})
@@ -217,30 +206,44 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }), memoizeMethods({
-	_getObjectFile: d(function (id) {
+	_getObjectFile: d(function (objId) {
 		return this.dbDir()(function () {
-			var map = { regular: create(null), computed: create(null) };
-			return readFile(resolve(this.dirPath, id))(function (data) {
+			var map = create(null);
+			return readFile(resolve(this.dirPath, objId))(function (data) {
 				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
-						if (data[0][0] === '=') {
-							value = data[2];
-							if (value[0] === '[') value = parse(data[2]);
-							else if (value === '-') value = '';
-							map.computed[data[0].slice(1)] = {
-								stamp: Number(data[1]),
-								value: value
-							};
-						} else {
-							value = data[2];
-							if (value === '-') value = '';
-							map.regular[data[0]] = {
-								stamp: Number(data[1]),
-								value: value
-							};
-						}
+						value = data[2];
+						if (value === '-') value = '';
+						map[data[0]] = {
+							stamp: Number(data[1]),
+							value: value
+						};
+					});
+				} catch (ignore) {}
+				return map;
+			}, function (err) {
+				if (err.code !== 'ENOENT') throw err;
+				return map;
+			});
+		}.bind(this));
+	}, { primitive: true }),
+	_getComputedFile: d(function (keyPath) {
+		return this.dbDir()(function () {
+			var map = create(null);
+			return readFile(resolve(this.dirPath, '=' + keyPath))(function (data) {
+				var value;
+				try {
+					String(data).split('\n\n').forEach(function (data) {
+						data = data.split('\n');
+						value = data[2];
+						if (value[0] === '[') value = parse(data[2]);
+						else if (value === '-') value = '';
+						map[data[0]] = {
+							stamp: Number(data[1]),
+							value: value
+						};
 					});
 				} catch (ignore) {}
 				return map;
