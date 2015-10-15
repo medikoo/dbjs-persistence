@@ -21,9 +21,9 @@
     "d": "^0.1.1",
     "debug-ext": "1",
     "deferred": "0.7.3",
-    "dbjs": "git://github.com/medikoo/dbjs.git#19538144c0906b2b39072462bdbaa62f95142739",
+    "dbjs": "git://github.com/medikoo/dbjs.git#517a1004b102adc0156e038d8a0b1399649dab94",
     "memoizee": "0.3.9",
-    "observable-set": "0.0.3",
+    "observable-set": "0.0.4",
     "time-uuid": "1",
     "timers-ext": "0.1"
   },
