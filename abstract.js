@@ -181,8 +181,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					};
 				}
 				this.emit(eventName, map[objId]);
-				++this._runningOperations;
-				return this._storeIndexedValue(objId, keyPath, map[objId]).finally(this._onOperationEnd);
+				return this._storeIndexedValue(objId, keyPath, map[objId]);
 			}.bind(this);
 			onDelete = function (obj) {
 				obj = resolveObject(obj, names);
@@ -192,7 +191,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this);
 			set.on('change', function (event) {
 				if (event.type === 'add') {
-					onAdd(event.value).done();
+					++this._runningOperations;
+					onAdd(event.value).finally(this._onOperationEnd).done();
 					return;
 				}
 				if (event.type === 'delete') {
@@ -200,11 +200,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					return;
 				}
 				if (event.type === 'batch') {
-					if (event.added) deferred.map(event.added, onAdd).done();
+					if (event.added) {
+						++this._runningOperations;
+						deferred.map(event.added, onAdd).finally(this._onOperationEnd).done();
+					}
 					if (event.deleted) event.deleted.forEach(onDelete);
 				}
-			});
-			return deferred.map(aFrom(set), onAdd)(map);
+			}.bind(this));
+			++this._runningOperations;
+			return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd)(map);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_getIndexedValue: d(notImplemented),
