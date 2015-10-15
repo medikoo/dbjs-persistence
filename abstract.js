@@ -207,8 +207,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					if (event.deleted) event.deleted.forEach(onDelete);
 				}
 			}.bind(this));
-			++this._runningOperations;
-			return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd)(map);
+			return deferred.map(aFrom(set), onAdd)(map);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_getIndexedValue: d(notImplemented),
