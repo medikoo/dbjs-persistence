@@ -223,6 +223,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_storeCustom: d(notImplemented),
 
 	// Any data
+	_getRaw: d(notImplemented),
 	_storeRaw: d(notImplemented),
 
 	// Storage export/import

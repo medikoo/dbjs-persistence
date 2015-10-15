@@ -135,6 +135,17 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Any data
+	_getRaw: d(function (id) {
+		var objId, keyPath, index;
+		if (id[0] === '_') return this._getCustom(id.slice(1));
+		if (id[0] === '=') {
+			index = id.lastIndexOf(':');
+			return this._getIndexedValue(id.slice(index + 1), id.slice(1, index));
+		}
+		objId = id.split('/', 1)[0];
+		keyPath = id.slice(objId.length + 1) || '.';
+		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
+	}),
 	_storeRaw: d(function (id, data) {
 		var objId, keyPath, index;
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);

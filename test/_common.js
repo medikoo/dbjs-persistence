@@ -53,6 +53,10 @@ module.exports = function (opts, copyOpts) {
 				new Event(foo.getOwnDescriptor('ole'), 767),
 				new Event(bar.getOwnDescriptor('ssss'), 343)
 			])(function () {
+				return driver._getRaw('foo')(function (data) {
+					a(data.value, '7Object#');
+				});
+			})(function () {
 				return driver.close();
 			})(function () {
 				var db = getDatabase()
