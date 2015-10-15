@@ -29,11 +29,11 @@ module.exports = function (opts, copyOpts) {
 		zzz.delete('bar');
 		aaa.bar = null;
 		return deferred(
-			driver.trackComputed(db.Object, 'computed')(function (map) {
+			driver.indexKeyPath('computed')(function (map) {
 				a(map.foo.value, '3fooelo', "Computed: initial #1");
 				a(map.aaa.value, '3foo', "Computed: initial #2");
 			}),
-			driver.trackComputed(db.Object, 'computedSet')(function (map) {
+			driver.indexKeyPath('computedSet')(function (map) {
 				a.deep(map.foo.value, ['3elo', '3fooelo'], "Computed set: initial #1");
 				a.deep(map.aaa.value, ['3foo'], "Computed set: initial #2");
 			}),
@@ -57,11 +57,11 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				var db = getDatabase()
 				  , driver = t(db, opts);
-				return driver.trackComputed(db.Object, 'computed')(function (map) {
+				return driver.indexKeyPath('computed')(function (map) {
 					a(map.foo.value, '3fooelo');
 					a(map.aaa.value, '3foo');
 				})(function () {
-					return driver.trackComputed(db.Object, 'computedSet')(function (map) {
+					return driver.indexKeyPath('computedSet')(function (map) {
 						a.deep(map.foo.value, ['3elo', '3fooelo']);
 						a.deep(map.aaa.value, ['3foo']);
 					});

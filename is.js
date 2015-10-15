@@ -5,7 +5,7 @@ module.exports = function (x) {
 	if (typeof x.isClosed !== 'boolean') return false;
 	if (typeof x.loadObject !== 'function') return false;
 	if (typeof x.storeEvent !== 'function') return false;
-	if (typeof x.trackComputed !== 'function') return false;
+	if (typeof x.indexKeyPath !== 'function') return false;
 	if (typeof x.constructor.defaultAutoSaveFilter !== 'function') return false;
 	return true;
 };

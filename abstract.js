@@ -113,9 +113,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._storeEvents(events).finally(this._onOperationEnd);
 	}),
 	_storeEvents: d(notImplemented),
-	trackComputed: d(function (type, keyPath) {
-		var names, key, onAdd, onDelete, eventName, mapPromise, listener;
-		ensureType(type);
+	indexKeyPath: d(function (keyPath/*, type*/) {
+		var names, key, onAdd, onDelete, eventName, mapPromise, listener, type = arguments[1];
+		if (type != null) ensureType(type);
+		else type = this.db.Object;
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
