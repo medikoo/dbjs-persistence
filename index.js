@@ -121,7 +121,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_getComputed: d(function (objId, keyPath) {
 		return this._getComputedStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
-	_getComputedMap: d(function (keyPath) { return this._getComputedStorage(keyPath); }),
+	_getIndexedMap: d(function (keyPath) { return this._getComputedStorage(keyPath); }),
 	_storeComputed: d(function (objId, keyPath, data) {
 		return this._getComputedStorage(keyPath)(function (map) {
 			return this._writeStorage('=' + keyPath, map);
@@ -142,7 +142,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			index = id.lastIndexOf(':');
 			keyPath = id.slice(1, index);
 			objId = id.slice(index + 1);
-			return this._getComputedMap(keyPath)(function (map) {
+			return this._getIndexedMap(keyPath)(function (map) {
 				map[objId] = data;
 				return this._writeStorage('=' + keyPath, map);
 			}.bind(this));
