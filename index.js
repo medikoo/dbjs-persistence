@@ -24,8 +24,11 @@ var group             = require('es5-ext/array/#/group')
 
   , isArray = Array.isArray, push = Array.prototype.push, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
-  , byStamp = function (a, b) { return this[a].stamp - this[b].stamp; }
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
+
+var byStamp = function (a, b) {
+	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
+};
 
 var TextFileDriver = module.exports = function (dbjs, data) {
 	if (!(this instanceof TextFileDriver)) return new TextFileDriver(dbjs, data);
