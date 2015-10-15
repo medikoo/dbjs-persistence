@@ -53,6 +53,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 var notImplemented = function () { throw new Error("Not implemented"); };
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
+	// Database data
 	_importValue: d(function (id, value, stamp) {
 		var proto;
 		if (this._loadedEventsMap[id + '.' + stamp]) return;
@@ -61,58 +62,49 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
 		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
-	_ensureOpen: d(function () {
-		if (this.isClosed) throw new Error("Database not accessible");
-	}),
-	isClosed: d(false),
-	getCustom: d(function (key) {
-		key = ensureString(key);
-		this._ensureOpen();
-		++this._runningOperations;
-		return this._getCustom(key).finally(this._onOperationEnd);
-	}),
-	_getCustom: d(notImplemented),
 	loadValue: d(function (id) {
 		id = ensureString(id);
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._loadValue(id).finally(this._onOperationEnd);
 	}),
-	_loadValue: d(notImplemented),
 	loadObject: d(function (id) {
 		id = ensureString(id);
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._loadObject(id).finally(this._onOperationEnd);
 	}),
-	_loadObject: d(notImplemented),
 	loadAll: d(function () {
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._loadAll().finally(this._onOperationEnd);
 	}),
-	_loadAll: d(notImplemented),
-	storeCustom: d(function (key, value) {
-		key = ensureString(key);
-		this._ensureOpen();
-		++this._runningOperations;
-		return this._storeCustom(ensureString(key), value).finally(this._onOperationEnd);
-	}),
-	_storeCustom: d(notImplemented),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._storeEvent(event).finally(this._onOperationEnd);
 	}),
-	_storeEvent: d(notImplemented),
 	storeEvents: d(function (events) {
 		events = ensureArray(events);
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._storeEvents(events).finally(this._onOperationEnd);
 	}),
+	_cueEvent: d(function (event) {
+		if (!this._eventsToStore.length) {
+			++this._runningOperations;
+			this._exportEvents();
+		}
+		this._eventsToStore.push(event);
+	}),
+	_loadValue: d(notImplemented),
+	_loadObject: d(notImplemented),
+	_loadAll: d(notImplemented),
+	_storeEvent: d(notImplemented),
 	_storeEvents: d(notImplemented),
+
+	// Indexed database data
 	indexKeyPath: d(function (keyPath/*, set*/) {
 		var names, key, onAdd, onDelete, eventName, listener, set = arguments[1];
 		if (set != null) ensureObservableSet(set);
@@ -213,14 +205,35 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
 	_storeIndexedValue: d(notImplemented),
+
+	// Custom data
+	getCustom: d(function (key) {
+		key = ensureString(key);
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._getCustom(key).finally(this._onOperationEnd);
+	}),
+	storeCustom: d(function (key, value) {
+		key = ensureString(key);
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._storeCustom(ensureString(key), value).finally(this._onOperationEnd);
+	}),
+	_storeCustom: d(notImplemented),
+	_getCustom: d(notImplemented),
+
+	// Storage export/import
 	export: d(function (externalStore) {
 		ensureDriver(externalStore);
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._exportAll(externalStore).finally(this._onOperationEnd);
 	}),
-	_storeRaw: d(notImplemented),
 	_exportAll: d(notImplemented),
+	_storeRaw: d(notImplemented),
+
+	// Clonnection related
+	isClosed: d(false),
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;
@@ -230,15 +243,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		return this._close();
 	}),
-	_close: d(notImplemented),
+	_ensureOpen: d(function () {
+		if (this.isClosed) throw new Error("Database not accessible");
+	}),
 	_runningOperations: d(0),
-	_cueEvent: d(function (event) {
-		if (!this._eventsToStore.length) {
-			++this._runningOperations;
-			this._exportEvents();
-		}
-		this._eventsToStore.push(event);
-	})
+	_close: d(notImplemented)
 }, autoBind({
 	emitError: d(emitError),
 	_onOperationEnd: d(function () {
