@@ -44,8 +44,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 		if (event.sourceId === 'persistentLayer') return;
 		if (!autoSaveFilter(event)) return;
 		debug("persistent update %s %s", event.object.__valueId__, event.stamp);
-		this._eventsToStore.push(event);
-		this._exportEvents();
+		this._cueEvent(event);
 	}.bind(this));
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
@@ -67,39 +66,51 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	isClosed: d(false),
 	getCustom: d(function (key) {
+		key = ensureString(key);
 		this._ensureOpen();
-		return this._getCustom(ensureString(key));
+		++this._runningOperations;
+		return this._getCustom(key).finally(this._onOperationEnd);
 	}),
 	_getCustom: d(notImplemented),
 	loadValue: d(function (id) {
+		id = ensureString(id);
 		this._ensureOpen();
-		return this._loadValue(ensureString(id));
+		++this._runningOperations;
+		return this._loadValue(id).finally(this._onOperationEnd);
 	}),
 	_loadValue: d(notImplemented),
 	loadObject: d(function (id) {
-		this._ensureOpen();
 		id = ensureString(id);
-		return this._loadObject(id);
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._loadObject(id).finally(this._onOperationEnd);
 	}),
 	_loadObject: d(notImplemented),
 	loadAll: d(function () {
 		this._ensureOpen();
-		return this._loadAll();
+		++this._runningOperations;
+		return this._loadAll().finally(this._onOperationEnd);
 	}),
 	_loadAll: d(notImplemented),
 	storeCustom: d(function (key, value) {
+		key = ensureString(key);
 		this._ensureOpen();
-		return this._storeCustom(ensureString(key), value);
+		++this._runningOperations;
+		return this._storeCustom(ensureString(key), value).finally(this._onOperationEnd);
 	}),
 	_storeCustom: d(notImplemented),
 	storeEvent: d(function (event) {
+		event = ensureObject(event);
 		this._ensureOpen();
-		return this._storeEvent(ensureObject(event));
+		++this._runningOperations;
+		return this._storeEvent(event).finally(this._onOperationEnd);
 	}),
 	_storeEvent: d(notImplemented),
 	storeEvents: d(function (events) {
+		events = ensureArray(events);
 		this._ensureOpen();
-		return this._storeEvents(ensureArray(events));
+		++this._runningOperations;
+		return this._storeEvents(events).finally(this._onOperationEnd);
 	}),
 	_storeEvents: d(notImplemented),
 	trackComputed: d(function (type, keyPath) {
@@ -109,7 +120,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		key = names[names.length - 1];
 		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
-		mapPromise = this._getComputedMap(keyPath);
+		++this._runningOperations;
+		mapPromise = this._getComputedMap(keyPath).finally(this._onOperationEnd);
 		listener = function (event) {
 			var sValue, stamp, objId = event.target.object.master.__id__;
 			if (event.target.object.constructor === event.target.object.database.Base) return;
@@ -124,7 +136,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				map[objId].value = sValue;
 				map[objId].stamp = stamp;
 				this.emit(eventName, map[objId]);
-				this._storeComputed(objId, keyPath, map[objId]).done();
+				++this._runningOperations;
+				this._storeComputed(objId, keyPath, map[objId]).finally(this._onOperationEnd).done();
 			}.bind(this));
 		}.bind(this);
 		onAdd = function (obj) {
@@ -148,6 +161,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			} else {
 				sValue = serialize(value);
 			}
+			++this._runningOperations;
 			return this._getComputed(objId, keyPath)(function (old) {
 				return mapPromise(function (map) {
 					if (old) {
@@ -175,7 +189,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					this.emit(eventName, map[objId]);
 					return this._storeComputed(objId, keyPath, map[objId]);
 				}.bind(this));
-			}.bind(this));
+			}.bind(this)).finally(this._onOperationEnd);
 		}.bind(this);
 		onDelete = function (obj) {
 			obj = resolveObject(obj, names);
@@ -205,22 +219,36 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	export: d(function (externalStore) {
 		ensureDriver(externalStore);
 		this._ensureOpen();
-		return this._exportAll(externalStore);
+		++this._runningOperations;
+		return this._exportAll(externalStore).finally(this._onOperationEnd);
 	}),
 	_storeRaw: d(notImplemented),
 	_exportAll: d(notImplemented),
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;
-		if (this._eventsToStore.length) {
+		if (this._runningOperations) {
 			this._closeDeferred = deferred();
 			return this._closeDeferred.promise;
 		}
 		return this._close();
 	}),
-	_close: d(notImplemented)
+	_close: d(notImplemented),
+	_runningOperations: d(0),
+	_cueEvent: d(function (event) {
+		if (!this._eventsToStore.length) {
+			++this._runningOperations;
+			this._exportEvents();
+		}
+		this._eventsToStore.push(event);
+	})
 }, autoBind({
-	emitError: d(emitError)
+	emitError: d(emitError),
+	_onOperationEnd: d(function () {
+		if (--this._runningOperations) return;
+		if (!this._closeDeferred) return;
+		this._closeDeferred.resolve(this._close());
+	})
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_eventsToStore: d(function () { return []; }),
@@ -228,13 +256,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return once(function () {
 			var promise = this._storeEvents(this._eventsToStore);
 			clear.call(this._eventsToStore);
-			if (this._closeDeferred) {
-				this._closeDeferred.resolve(promise = promise(function () {
-					return this._close();
-				}.bind(this)));
-				return;
-			}
-			promise.done();
+			promise.finally(this._onOperationEnd).done();
 		}.bind(this));
 	})
 }))));
