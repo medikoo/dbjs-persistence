@@ -114,7 +114,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_storeEvents: d(notImplemented),
 	indexKeyPath: d(function (keyPath/*, set*/) {
-		var names, key, onAdd, onDelete, eventName, mapPromise, listener, set = arguments[1];
+		var names, key, onAdd, onDelete, eventName, listener, set = arguments[1];
 		if (set != null) ensureObservableSet(set);
 		else set = this.db.Object.instances;
 		names = tokenize(ensureString(keyPath));
@@ -122,97 +122,90 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		key = names[names.length - 1];
 		eventName = 'computed:' + keyPath;
 		++this._runningOperations;
-		mapPromise = this._getIndexedMap(keyPath).finally(this._onOperationEnd);
-		listener = function (event) {
-			var sValue, stamp, objId = event.target.object.master.__id__;
-			if (event.target.object.constructor === event.target.object.database.Base) return;
-			if (isSet(event.target)) {
-				sValue = [];
-				event.target.forEach(function (value) { sValue.push(serialize(value)); });
-			} else {
-				sValue = serialize(event.newValue);
-			}
-			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
-			mapPromise.aside(function (map) {
+		return this._getIndexedMap(keyPath)(function (map) {
+			listener = function (event) {
+				var sValue, stamp, objId = event.target.object.master.__id__;
+				if (event.target.object.constructor === event.target.object.database.Base) return;
+				if (isSet(event.target)) {
+					sValue = [];
+					event.target.forEach(function (value) { sValue.push(serialize(value)); });
+				} else {
+					sValue = serialize(event.newValue);
+				}
+				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
 				map[objId].value = sValue;
 				map[objId].stamp = stamp;
 				this.emit(eventName, map[objId]);
 				++this._runningOperations;
 				this._storeIndexedValue(objId, keyPath, map[objId]).finally(this._onOperationEnd).done();
-			}.bind(this));
-		}.bind(this);
-		onAdd = function (obj) {
-			var observable, value, stamp, objId, sValue;
-			obj = resolveObject(obj, names);
-			if (!obj) return null;
-			objId = obj.__id__;
-			if (obj.isKeyStatic(key)) {
-				value = obj[key];
-				stamp = 0;
-			} else {
-				value = obj._get_(key);
-				observable = obj._getObservable_(key);
-				stamp = observable.lastModified;
-				if (isSet(value)) value.on('change', listener);
-				else observable.on('change', listener);
-			}
-			if (isSet(value)) {
-				sValue = [];
-				value.forEach(function (value) { sValue.push(serialize(value)); });
-			} else {
-				sValue = serialize(value);
-			}
-			++this._runningOperations;
-			return this._getIndexedValue(objId, keyPath)(function (old) {
-				return mapPromise(function (map) {
-					if (old) {
-						map[objId] = old;
-						if (old.stamp === stamp) {
-							if (isArray(sValue)) {
-								if (isCopy.call(old.value, sValue)) return;
-							} else {
-								if (old.value === sValue) return;
-							}
-							++stamp; // most likely model update
-						} else if (old.stamp > stamp) {
-							stamp = old.stamp + 1;
+			}.bind(this);
+			onAdd = function (obj) {
+				var observable, value, stamp, objId, sValue, old;
+				obj = resolveObject(obj, names);
+				if (!obj) return null;
+				objId = obj.__id__;
+				if (obj.isKeyStatic(key)) {
+					value = obj[key];
+					stamp = 0;
+				} else {
+					value = obj._get_(key);
+					observable = obj._getObservable_(key);
+					stamp = observable.lastModified;
+					if (isSet(value)) value.on('change', listener);
+					else observable.on('change', listener);
+				}
+				if (isSet(value)) {
+					sValue = [];
+					value.forEach(function (value) { sValue.push(serialize(value)); });
+				} else {
+					sValue = serialize(value);
+				}
+				old = map[objId];
+				if (old) {
+					if (old.stamp === stamp) {
+						if (isArray(sValue)) {
+							if (isCopy.call(old.value, sValue)) return;
+						} else {
+							if (old.value === sValue) return;
 						}
+						++stamp; // most likely model update
+					} else if (old.stamp > stamp) {
+						stamp = old.stamp + 1;
 					}
-					if (map[objId]) {
-						map[objId].value = sValue;
-						map[objId].stamp = stamp;
-					} else {
-						map[objId] = {
-							value: sValue,
-							stamp: stamp
-						};
-					}
-					this.emit(eventName, map[objId]);
-					return this._storeIndexedValue(objId, keyPath, map[objId]);
-				}.bind(this));
-			}.bind(this)).finally(this._onOperationEnd);
-		}.bind(this);
-		onDelete = function (obj) {
-			obj = resolveObject(obj, names);
-			if (!obj) return null;
-			if (obj.isKeyStatic(key)) return;
-			obj._getObservable_(key).off('change', listener);
-		}.bind(this);
-		set.on('change', function (event) {
-			if (event.type === 'add') {
-				onAdd(event.value).done();
-				return;
-			}
-			if (event.type === 'delete') {
-				onDelete(event.value);
-				return;
-			}
-			if (event.type === 'batch') {
-				if (event.added) deferred.map(event.added, onAdd).done();
-				if (event.deleted) event.deleted.forEach(onDelete);
-			}
-		});
-		return deferred.map(aFrom(set), onAdd)(mapPromise);
+					old.value = sValue;
+					old.stamp = stamp;
+				} else {
+					map[objId] = {
+						value: sValue,
+						stamp: stamp
+					};
+				}
+				this.emit(eventName, map[objId]);
+				++this._runningOperations;
+				return this._storeIndexedValue(objId, keyPath, map[objId]).finally(this._onOperationEnd);
+			}.bind(this);
+			onDelete = function (obj) {
+				obj = resolveObject(obj, names);
+				if (!obj) return null;
+				if (obj.isKeyStatic(key)) return;
+				obj._getObservable_(key).off('change', listener);
+			}.bind(this);
+			set.on('change', function (event) {
+				if (event.type === 'add') {
+					onAdd(event.value).done();
+					return;
+				}
+				if (event.type === 'delete') {
+					onDelete(event.value);
+					return;
+				}
+				if (event.type === 'batch') {
+					if (event.added) deferred.map(event.added, onAdd).done();
+					if (event.deleted) event.deleted.forEach(onDelete);
+				}
+			});
+			return deferred.map(aFrom(set), onAdd)(map);
+		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
