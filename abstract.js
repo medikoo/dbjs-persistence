@@ -138,7 +138,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				map[objId].stamp = stamp;
 				this.emit(eventName, map[objId]);
 				++this._runningOperations;
-				this._storeComputed(objId, keyPath, map[objId]).finally(this._onOperationEnd).done();
+				this._storeIndexedValue(objId, keyPath, map[objId]).finally(this._onOperationEnd).done();
 			}.bind(this));
 		}.bind(this);
 		onAdd = function (obj) {
@@ -188,7 +188,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						};
 					}
 					this.emit(eventName, map[objId]);
-					return this._storeComputed(objId, keyPath, map[objId]);
+					return this._storeIndexedValue(objId, keyPath, map[objId]);
 				}.bind(this));
 			}.bind(this)).finally(this._onOperationEnd);
 		}.bind(this);
@@ -216,7 +216,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
-	_storeComputed: d(notImplemented),
+	_storeIndexedValue: d(notImplemented),
 	export: d(function (externalStore) {
 		ensureDriver(externalStore);
 		this._ensureOpen();
