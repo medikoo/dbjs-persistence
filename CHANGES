@@ -1,3 +1,7 @@
+v0.0.6  --  2015.10.15
+* Improve operations queue handling
+* Improval internal methods names
+
 v0.0.5  --  2015.10.15
 * Improve tests
 * Reconfigure handling of computed results
