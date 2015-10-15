@@ -23,6 +23,7 @@
     "deferred": "0.7.3",
     "dbjs": "git://github.com/medikoo/dbjs.git#258d1b1662bfca18668c16c46380140960be080c",
     "memoizee": "0.3.9",
+    "observable-set": "0.0.3",
     "time-uuid": "1",
     "timers-ext": "0.1"
   },

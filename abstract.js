@@ -2,31 +2,32 @@
 
 'use strict';
 
-var aFrom          = require('es5-ext/array/from')
-  , clear          = require('es5-ext/array/#/clear')
-  , isCopy         = require('es5-ext/array/#/is-copy')
-  , ensureArray    = require('es5-ext/array/valid-array')
-  , assign         = require('es5-ext/object/assign')
-  , ensureCallable = require('es5-ext/object/valid-callable')
-  , ensureObject   = require('es5-ext/object/valid-object')
-  , ensureString   = require('es5-ext/object/validate-stringifiable-value')
-  , isSet          = require('es6-set/is-set')
-  , deferred       = require('deferred')
-  , emitError      = require('event-emitter/emit-error')
-  , d              = require('d')
-  , autoBind       = require('d/auto-bind')
-  , lazy           = require('d/lazy')
-  , debug          = require('debug-ext')('db')
-  , ee             = require('event-emitter')
-  , getStamp       = require('time-uuid/time')
-  , ensureDatabase = require('dbjs/valid-dbjs')
-  , ensureType     = require('dbjs/valid-dbjs-type')
-  , Event          = require('dbjs/_setup/event')
-  , unserialize    = require('dbjs/_setup/unserialize/value')
-  , serialize      = require('dbjs/_setup/serialize/value')
-  , resolveKeyPath = require('dbjs/_setup/utils/resolve-property-path')
-  , once           = require('timers-ext/once')
-  , ensureDriver   = require('./ensure')
+var aFrom               = require('es5-ext/array/from')
+  , clear               = require('es5-ext/array/#/clear')
+  , isCopy              = require('es5-ext/array/#/is-copy')
+  , ensureArray         = require('es5-ext/array/valid-array')
+  , assign              = require('es5-ext/object/assign')
+  , ensureCallable      = require('es5-ext/object/valid-callable')
+  , ensureObject        = require('es5-ext/object/valid-object')
+  , ensureString        = require('es5-ext/object/validate-stringifiable-value')
+  , isSet               = require('es6-set/is-set')
+  , deferred            = require('deferred')
+  , emitError           = require('event-emitter/emit-error')
+  , d                   = require('d')
+  , autoBind            = require('d/auto-bind')
+  , lazy                = require('d/lazy')
+  , debug               = require('debug-ext')('db')
+  , ee                  = require('event-emitter')
+  , getStamp            = require('time-uuid/time')
+  , ensureObservableSet = require('observable-set/valid-observable-set')
+  , ensureDatabase      = require('dbjs/valid-dbjs')
+  , ensureType          = require('dbjs/valid-dbjs-type')
+  , Event               = require('dbjs/_setup/event')
+  , unserialize         = require('dbjs/_setup/unserialize/value')
+  , serialize           = require('dbjs/_setup/serialize/value')
+  , resolveKeyPath      = require('dbjs/_setup/utils/resolve-property-path')
+  , once                = require('timers-ext/once')
+  , ensureDriver        = require('./ensure')
 
   , isArray = Array.isArray
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
@@ -113,14 +114,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._storeEvents(events).finally(this._onOperationEnd);
 	}),
 	_storeEvents: d(notImplemented),
-	indexKeyPath: d(function (keyPath/*, type*/) {
-		var names, key, onAdd, onDelete, eventName, mapPromise, listener, type = arguments[1];
-		if (type != null) ensureType(type);
-		else type = this.db.Object;
+	indexKeyPath: d(function (keyPath/*, set*/) {
+		var names, key, onAdd, onDelete, eventName, mapPromise, listener, set = arguments[1];
+		if (set != null) ensureObservableSet(set);
+		else set = this.db.Object.instances;
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
-		eventName = 'computed:' + type.__id__ + '#/' + keyPath;
+		eventName = 'computed:' + keyPath;
 		++this._runningOperations;
 		mapPromise = this._getIndexedMap(keyPath).finally(this._onOperationEnd);
 		listener = function (event) {
@@ -198,7 +199,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (obj.isKeyStatic(key)) return;
 			obj._getObservable_(key).off('change', listener);
 		}.bind(this);
-		type.instances.on('change', function (event) {
+		set.on('change', function (event) {
 			if (event.type === 'add') {
 				onAdd(event.value).done();
 				return;
@@ -212,7 +213,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (event.deleted) event.deleted.forEach(onDelete);
 			}
 		});
-		return deferred.map(aFrom(type.instances), onAdd)(mapPromise);
+		return deferred.map(aFrom(set), onAdd)(mapPromise);
 	}),
 	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
