@@ -44,7 +44,8 @@ setPrototypeOf(TextFileDriver, PersistenceDriver);
 
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
-	_getCustom: d(function (key) { return this._custom(function (data) { return data[key]; }); }),
+
+	// Database data
 	_loadValue: d(function (id) {
 		var objId = id.split('/', 1)[0], keyPath = id.slice(objId.length + 1) || '.';
 		return this._getObjectStorage(objId)(function (map) {
@@ -80,18 +81,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 		return promise;
 	}),
-	_storeCustom: d(function (key, value) {
-		return this._custom(function (data) {
-			if (value === undefined) {
-				if (!data.hasOwnProperty(key)) return;
-				delete data[key];
-			} else {
-				if (data[key] === value) return;
-				data[key] = value;
-			}
-			return writeFile(resolve(this.dirPath, '_custom'), stringify(data));
-		}.bind(this));
-	}),
 	_storeEvent: d(function (event) {
 		var objId = event.object.master.__id__
 		  , keyPath = event.object.__valueId__.slice(objId.length + 1) || '.';
@@ -118,9 +107,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		}, this);
 	}),
-	_close: d(function () {
-		// Nothing to do
-	}),
+
+	// Indexed database data
 	_getIndexedValue: d(function (objId, keyPath) {
 		return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
@@ -130,14 +118,23 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return this._writeStorage('=' + keyPath, map);
 		}.bind(this));
 	}),
-	_writeStorage: d(function (name, map) {
-		return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
-			var value = data.value;
-			if (value === '') value = '-';
-			else if (isArray(value)) value = stringify(value);
-			return id + '\n' + data.stamp + '\n' + value;
-		}, this, byStamp).join('\n\n'));
+
+	// Custom data
+	_getCustom: d(function (key) { return this._custom(function (data) { return data[key]; }); }),
+	_storeCustom: d(function (key, value) {
+		return this._custom(function (data) {
+			if (value === undefined) {
+				if (!data.hasOwnProperty(key)) return;
+				delete data[key];
+			} else {
+				if (data[key] === value) return;
+				data[key] = value;
+			}
+			return writeFile(resolve(this.dirPath, '_custom'), stringify(data));
+		}.bind(this));
 	}),
+
+	// Any data
 	_storeRaw: d(function (id, data) {
 		var objId, keyPath, index;
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
@@ -157,6 +154,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return this._writeStorage(objId, map);
 		}.bind(this));
 	}),
+
+	// Storage import/export
 	_exportAll: d(function (destDriver) {
 		var count = 0;
 		var promise = this.dbDir()(function () {
@@ -190,6 +189,21 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		}.bind(this));
 		return promise;
+	}),
+
+	// Connection related
+	_close: d(function () {
+		// Nothing to do
+	}),
+
+	// Specific to driver
+	_writeStorage: d(function (name, map) {
+		return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
+			var value = data.value;
+			if (value === '') value = '-';
+			else if (isArray(value)) value = stringify(value);
+			return id + '\n' + data.stamp + '\n' + value;
+		}, this, byStamp).join('\n\n'));
 	})
 }, lazy({
 	_allObjectsIds: d(function () {
