@@ -163,7 +163,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				sValue = serialize(value);
 			}
 			++this._runningOperations;
-			return this._getComputed(objId, keyPath)(function (old) {
+			return this._getIndexedValue(objId, keyPath)(function (old) {
 				return mapPromise(function (map) {
 					if (old) {
 						map[objId] = old;
@@ -214,7 +214,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		});
 		return deferred.map(aFrom(type.instances), onAdd)(mapPromise);
 	}),
-	_getComputed: d(notImplemented),
+	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
 	_storeComputed: d(notImplemented),
 	export: d(function (externalStore) {

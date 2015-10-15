@@ -66,7 +66,7 @@ module.exports = function (opts, copyOpts) {
 						a.deep(map.aaa.value, ['3foo']);
 					});
 				})(function () {
-					return driver._getComputed('foo', 'computed')(function (data) {
+					return driver._getIndexedValue('foo', 'computed')(function (data) {
 						a(data.value, '3fooelo');
 					});
 				})(function () {
@@ -86,7 +86,7 @@ module.exports = function (opts, copyOpts) {
 							a(db.bar.miszka, undefined);
 						});
 					})(function () {
-						return driver._getComputed('foo', 'computed')(function (data) {
+						return driver._getIndexedValue('foo', 'computed')(function (data) {
 							a(data.value, '3fooelo');
 						});
 					})(function () {
@@ -97,7 +97,7 @@ module.exports = function (opts, copyOpts) {
 						return driver.getCustom('elo')(function (value) { a(value, 'marko'); });
 					})(function () {
 						db.foo.bar = 'miszka';
-						return driver._getComputed('foo', 'computed')(function (data) {
+						return driver._getIndexedValue('foo', 'computed')(function (data) {
 							a(data.value, '3foomiszka');
 						});
 					})(function () {
@@ -131,7 +131,7 @@ module.exports = function (opts, copyOpts) {
 						a(db.aaa.constructor, db.Object);
 						a(db.zzz.constructor, db.Object);
 						a(db.bar.miszka, 343);
-						return driverCopy._getComputed('foo', 'computed')(function (data) {
+						return driverCopy._getIndexedValue('foo', 'computed')(function (data) {
 							a(data.value, '3foomiszka');
 						});
 					});

@@ -118,7 +118,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_close: d(function () {
 		// Nothing to do
 	}),
-	_getComputed: d(function (objId, keyPath) {
+	_getIndexedValue: d(function (objId, keyPath) {
 		return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
 	_getIndexedMap: d(function (keyPath) { return this._getIndexStorage(keyPath); }),
