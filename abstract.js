@@ -62,6 +62,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
 		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
+	getValue: d(function (id) {
+		id = ensureString(id);
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._getRaw(id).finally(this._onOperationEnd);
+	}),
 	loadValue: d(function (id) {
 		id = ensureString(id);
 		this._ensureOpen();
