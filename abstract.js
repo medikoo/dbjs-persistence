@@ -219,8 +219,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._storeCustom(ensureString(key), value).finally(this._onOperationEnd);
 	}),
-	_storeCustom: d(notImplemented),
 	_getCustom: d(notImplemented),
+	_storeCustom: d(notImplemented),
+
+	// Any data
+	_storeRaw: d(notImplemented),
 
 	// Storage export/import
 	export: d(function (externalStore) {
@@ -230,7 +233,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._exportAll(externalStore).finally(this._onOperationEnd);
 	}),
 	_exportAll: d(notImplemented),
-	_storeRaw: d(notImplemented),
 
 	// Clonnection related
 	isClosed: d(false),
