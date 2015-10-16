@@ -25,7 +25,7 @@ var aFrom               = require('es5-ext/array/from')
   , ensureObservableSet = require('observable-set/valid-observable-set')
   , ensureDatabase      = require('dbjs/valid-dbjs')
   , Event               = require('dbjs/_setup/event')
-  , unserialize         = require('dbjs/_setup/unserialize/value')
+  , unserializeValue    = require('dbjs/_setup/unserialize/value')
   , serialize           = require('dbjs/_setup/serialize/value')
   , resolveKeyPath      = require('dbjs/_setup/utils/resolve-property-path')
   , once                = require('timers-ext/once')
@@ -68,7 +68,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var proto;
 		if (this._loadedEventsMap[id + '.' + stamp]) return;
 		this._loadedEventsMap[id + '.' + stamp] = true;
-		value = unserialize(value, this.db.objects);
+		value = unserializeValue(value, this.db.objects);
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
 		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
