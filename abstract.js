@@ -107,8 +107,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	loadAll: d(function () {
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getAllObjectIds().map(this.loadObject, this).invoke(flatten)
-			.finally(this._onOperationEnd);
+		return this._loadAll().finally(this._onOperationEnd);
 	}),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
@@ -129,7 +128,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		this._eventsToStore.push(event);
 	}),
-	_getAllObjectIds: d(notImplemented),
 	_storeEvent: d(notImplemented),
 	_storeEvents: d(notImplemented),
 

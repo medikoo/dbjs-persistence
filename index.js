@@ -3,6 +3,7 @@
 'use strict';
 
 var compact           = require('es5-ext/array/#/compact')
+  , flatten           = require('es5-ext/array/#/flatten')
   , group             = require('es5-ext/array/#/group')
   , assign            = require('es5-ext/object/assign')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
@@ -85,10 +86,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Database data
-	_getAllObjectIds: d(function () {
-		return readdir(this.dirPath, { type: { file: true } })(function (data) {
-			return data.filter(isId).sort();
-		});
+	_loadAll: d(function () {
+		return this._getAllObjectIds().map(function (objId) {
+			return this.loadObject(objId);
+		}, this).invoke(flatten);
 	}),
 	_storeEvent: d(function (event) {
 		var objId = event.object.master.__id__
@@ -185,6 +186,11 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Specific to driver
+	_getAllObjectIds: d(function () {
+		return readdir(this.dirPath, { type: { file: true } })(function (data) {
+			return data.filter(isId).sort();
+		});
+	}),
 	_writeStorage: d(function (name, map) {
 		return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
 			var value = data.value;
