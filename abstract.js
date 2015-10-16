@@ -74,11 +74,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._loadValue(id).finally(this._onOperationEnd);
 	}),
-	loadObject: d(function (id) {
-		id = ensureString(id);
+	loadObject: d(function (objId) {
+		objId = ensureString(objId);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._loadObject(id).finally(this._onOperationEnd);
+		return this._loadObject(objId).finally(this._onOperationEnd);
 	}),
 	loadAll: d(function () {
 		this._ensureOpen();
