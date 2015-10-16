@@ -4,7 +4,6 @@
 
 var group             = require('es5-ext/array/#/group')
   , assign            = require('es5-ext/object/assign')
-  , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , toArray           = require('es5-ext/object/to-array')
   , ensureObject      = require('es5-ext/object/valid-object')
@@ -22,7 +21,7 @@ var group             = require('es5-ext/array/#/group')
   , serialize         = require('dbjs/_setup/serialize/value')
   , PersistenceDriver = require('./abstract')
 
-  , isArray = Array.isArray, push = Array.prototype.push, keys = Object.keys
+  , isArray = Array.isArray, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
 
