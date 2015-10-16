@@ -2,38 +2,39 @@
 
 'use strict';
 
-var aFrom               = require('es5-ext/array/from')
-  , compact             = require('es5-ext/array/#/compact')
-  , clear               = require('es5-ext/array/#/clear')
-  , flatten             = require('es5-ext/array/#/flatten')
-  , isCopy              = require('es5-ext/array/#/is-copy')
-  , ensureArray         = require('es5-ext/array/valid-array')
-  , assign              = require('es5-ext/object/assign')
-  , ensureCallable      = require('es5-ext/object/valid-callable')
-  , ensureObject        = require('es5-ext/object/valid-object')
-  , ensureString        = require('es5-ext/object/validate-stringifiable-value')
-  , isSet               = require('es6-set/is-set')
-  , ensureSet           = require('es6-set/valid-set')
-  , memoizeMethods      = require('memoizee/methods')
-  , deferred            = require('deferred')
-  , emitError           = require('event-emitter/emit-error')
-  , d                   = require('d')
-  , autoBind            = require('d/auto-bind')
-  , lazy                = require('d/lazy')
-  , debug               = require('debug-ext')('db')
-  , ee                  = require('event-emitter')
-  , getStamp            = require('time-uuid/time')
-  , ensureObservableSet = require('observable-set/valid-observable-set')
-  , ensureDatabase      = require('dbjs/valid-dbjs')
-  , Event               = require('dbjs/_setup/event')
-  , unserializeValue    = require('dbjs/_setup/unserialize/value')
-  , serializeValue      = require('dbjs/_setup/serialize/value')
-  , serializeKey        = require('dbjs/_setup/serialize/key')
-  , resolveKeyPath      = require('dbjs/_setup/utils/resolve-property-path')
-  , once                = require('timers-ext/once')
-  , ensureDriver        = require('./ensure')
+var aFrom                 = require('es5-ext/array/from')
+  , compact               = require('es5-ext/array/#/compact')
+  , clear                 = require('es5-ext/array/#/clear')
+  , flatten               = require('es5-ext/array/#/flatten')
+  , isCopy                = require('es5-ext/array/#/is-copy')
+  , ensureArray           = require('es5-ext/array/valid-array')
+  , assign                = require('es5-ext/object/assign')
+  , ensureCallable        = require('es5-ext/object/valid-callable')
+  , ensureObject          = require('es5-ext/object/valid-object')
+  , ensureString          = require('es5-ext/object/validate-stringifiable-value')
+  , isSet                 = require('es6-set/is-set')
+  , ensureSet             = require('es6-set/valid-set')
+  , memoizeMethods        = require('memoizee/methods')
+  , deferred              = require('deferred')
+  , emitError             = require('event-emitter/emit-error')
+  , d                     = require('d')
+  , autoBind              = require('d/auto-bind')
+  , lazy                  = require('d/lazy')
+  , debug                 = require('debug-ext')('db')
+  , ee                    = require('event-emitter')
+  , getStamp              = require('time-uuid/time')
+  , ensureObservableSet   = require('observable-set/valid-observable-set')
+  , ensureDatabase        = require('dbjs/valid-dbjs')
+  , Event                 = require('dbjs/_setup/event')
+  , unserializeValue      = require('dbjs/_setup/unserialize/value')
+  , serializeValue        = require('dbjs/_setup/serialize/value')
+  , serializeKey          = require('dbjs/_setup/serialize/key')
+  , resolveKeyPath        = require('dbjs/_setup/utils/resolve-property-path')
+  , once                  = require('timers-ext/once')
+  , ensureDriver          = require('./ensure')
+  , resolveMultipleEvents = require('./lib/resolve-multiple-events')
+  , resolveEventKeys      = require('./lib/resolve-event-keys')
 
-  , isArray = Array.isArray
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
@@ -209,23 +210,22 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getIndexedMap(name)(function (map) {
 			listener = function (event) {
-				var sValue, stamp, objId = event.target.object.master.__id__, indexEvent, old;
+				var sValue, sKeys, stamp, objId = event.target.object.master.__id__, indexEvent;
 				if (event.target.object.constructor === event.target.object.database.Base) return;
+				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
 				if (isSet(event.target)) {
-					sValue = [];
-					event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
+					sKeys = [];
+					event.target.forEach(function (value) { sKeys.push(serializeKey(value)); });
+					sValue = resolveMultipleEvents(stamp, sKeys, map[objId].value);
 				} else {
 					sValue = serializeValue(event.newValue);
 				}
-				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
-				old = map[objId].value;
 				map[objId].value = sValue;
 				map[objId].stamp = stamp;
 				indexEvent = {
 					objId: objId,
 					name: name,
-					data: map[objId],
-					old: old
+					data: map[objId]
 				};
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + objId, indexEvent);
@@ -233,7 +233,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				this._storeIndexedValue(objId, name, map[objId]).finally(this._onOperationEnd).done();
 			}.bind(this);
 			onAdd = function (obj) {
-				var observable, value, stamp, objId, sValue, data, old, indexEvent;
+				var observable, value, stamp, objId, sKeys, sValue, data, indexEvent;
 				obj = resolveObject(obj, names);
 				if (!obj) return null;
 				objId = obj.__id__;
@@ -247,17 +247,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					if (isSet(value)) value.on('change', listener);
 					else observable.on('change', listener);
 				}
+				data = map[objId];
 				if (isSet(value)) {
-					sValue = [];
-					value.forEach(function (value) { sValue.push(serializeKey(value)); });
+					sKeys = [];
+					value.forEach(function (value) { sKeys.push(serializeKey(value)); });
 				} else {
 					sValue = serializeValue(value);
 				}
-				data = map[objId];
 				if (data) {
 					if (data.stamp === stamp) {
-						if (isArray(sValue)) {
-							if (isCopy.call(data.value, sValue)) return;
+						if (sKeys) {
+							if (isCopy.call(resolveEventKeys(data.value), sKeys)) return;
 						} else {
 							if (data.value === sValue) return;
 						}
@@ -265,20 +265,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					} else if (data.stamp > stamp) {
 						stamp = data.stamp + 1;
 					}
-					old = data.value;
-					data.value = sValue;
+					data.value = sKeys ? resolveMultipleEvents(stamp, sKeys, data.value) : sValue;
 					data.stamp = stamp;
 				} else {
 					map[objId] = {
-						value: sValue,
+						value: sKeys ? resolveMultipleEvents(stamp, sKeys) : sValue,
 						stamp: stamp
 					};
 				}
 				indexEvent = {
 					objId: objId,
 					name: name,
-					data: map[objId],
-					old: old
+					data: map[objId]
 				};
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + objId, indexEvent);
