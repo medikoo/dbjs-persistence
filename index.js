@@ -56,6 +56,13 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		keyPath = id.slice(objId.length + 1) || '.';
 		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
 	}),
+	_getRawObject: d(function (objId) {
+		return this._getObjectStorage(objId)(function (map) {
+			return toArray(map, function (data, keyPath) {
+				return { id: (keyPath === '.') ? objId : objId + '/' + keyPath, data: data };
+			}, null, byStamp);
+		});
+	}),
 	_storeRaw: d(function (id, data) {
 		var objId, keyPath, index;
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
@@ -77,23 +84,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Database data
-	_loadObject: d(function (objId) {
-		return this._getObjectStorage(objId)(function (map) {
-			var result = [];
-			forEach(map, function (data, keyPath) {
-				var id = objId + (keyPath === '.' ? '' : '/' + keyPath);
-				var event = this._importValue(id, data.value, data.stamp);
-				if (event) result.push(event);
-			}, this, byStamp);
-			return result;
-		}.bind(this));
-	}),
 	_loadAll: d(function () {
 		var promise = this.dbDir()(function () {
 			return readdir(this.dirPath, { type: { file: true } })(function (data) {
 				var result = [], progress = 1;
 				return deferred.map(data.filter(isId), function (objId) {
-					return this._loadObject(objId).aside(function (events) {
+					return this.loadObject(objId).aside(function (events) {
 						push.apply(result, events);
 						if (result.length > (progress * 1000)) {
 							++progress;

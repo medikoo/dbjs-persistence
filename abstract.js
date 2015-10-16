@@ -3,6 +3,7 @@
 'use strict';
 
 var aFrom               = require('es5-ext/array/from')
+  , compact             = require('es5-ext/array/#/compact')
   , clear               = require('es5-ext/array/#/clear')
   , isCopy              = require('es5-ext/array/#/is-copy')
   , ensureArray         = require('es5-ext/array/valid-array')
@@ -57,6 +58,7 @@ var notImplemented = function () { throw new Error("Not implemented"); };
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(notImplemented),
+	_getRawObject: d(notImplemented),
 	_storeRaw: d(notImplemented),
 
 	// Database data
@@ -70,10 +72,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	getValue: d(function (id) {
 		id = ensureString(id);
-		if (!isDbId(id)) throw new TypeError(id + " is not an database value id");
+		if (!isDbId(id)) throw new TypeError(id + " is not a database value id");
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._getRaw(id).finally(this._onOperationEnd);
+	}),
+	getObject: d(function (objId) {
+		objId = ensureString(objId);
+		if (!isObjectId(objId)) throw new TypeError(objId + " is not a database object id");
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._getRawObject(objId).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
 		return this.getValue(id)(function (data) {
@@ -82,10 +91,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	loadObject: d(function (objId) {
-		objId = ensureString(objId);
-		this._ensureOpen();
-		++this._runningOperations;
-		return this._loadObject(objId).finally(this._onOperationEnd);
+		return this.getObject(objId)(function (data) {
+			if (!data) return null;
+			return compact.call(data.map(function (data) {
+				return this._importValue(data.id, data.data.value, data.data.stamp);
+			}, this));
+		}.bind(this));
 	}),
 	loadAll: d(function () {
 		this._ensureOpen();
@@ -111,8 +122,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		this._eventsToStore.push(event);
 	}),
-	_loadValue: d(notImplemented),
-	_loadObject: d(notImplemented),
 	_loadAll: d(notImplemented),
 	_storeEvent: d(notImplemented),
 	_storeEvents: d(notImplemented),
