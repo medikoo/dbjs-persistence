@@ -29,6 +29,8 @@ var aFrom               = require('es5-ext/array/from')
   , ensureDriver        = require('./ensure')
 
   , isArray = Array.isArray
+  , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-z]*$/)
+  , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
   , create = Object.create;
@@ -64,15 +66,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	getValue: d(function (id) {
 		id = ensureString(id);
+		if (!isDbId(id)) throw new TypeError(id + " is not an database value id");
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._getRaw(id).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
-		id = ensureString(id);
-		this._ensureOpen();
-		++this._runningOperations;
-		return this._loadValue(id).finally(this._onOperationEnd);
+		return this.getValue(id)(function (data) {
+			if (!data) return null;
+			return this._importValue(id, data.value, data.stamp);
+		}.bind(this));
 	}),
 	loadObject: d(function (objId) {
 		objId = ensureString(objId);

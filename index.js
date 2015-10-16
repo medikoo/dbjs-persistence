@@ -46,13 +46,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 
 	// Database data
-	_loadValue: d(function (id) {
-		var objId = id.split('/', 1)[0], keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectStorage(objId)(function (map) {
-			if (!map[keyPath]) return null;
-			return this._importValue(id, map[keyPath].value, map.stamp);
-		}.bind(this));
-	}),
 	_loadObject: d(function (objId) {
 		return this._getObjectStorage(objId)(function (map) {
 			var result = [];
