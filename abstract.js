@@ -210,7 +210,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getIndexedMap(name)(function (map) {
 			listener = function (event) {
-				var sValue, stamp, objId = event.target.object.master.__id__, indexEvent;
+				var sValue, stamp, objId = event.target.object.master.__id__, indexEvent, old;
 				if (event.target.object.constructor === event.target.object.database.Base) return;
 				if (isSet(event.target)) {
 					sValue = [];
@@ -219,12 +219,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					sValue = serializeValue(event.newValue);
 				}
 				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
+				old = map[objId].value;
 				map[objId].value = sValue;
 				map[objId].stamp = stamp;
 				indexEvent = {
 					objId: objId,
 					name: name,
-					data: map[objId]
+					data: map[objId],
+					old: old
 				};
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + objId, indexEvent);
@@ -232,7 +234,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				this._storeIndexedValue(objId, name, map[objId]).finally(this._onOperationEnd).done();
 			}.bind(this);
 			onAdd = function (obj) {
-				var observable, value, stamp, objId, sValue, old, indexEvent;
+				var observable, value, stamp, objId, sValue, data, old, indexEvent;
 				obj = resolveObject(obj, names);
 				if (!obj) return null;
 				objId = obj.__id__;
@@ -252,20 +254,21 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				} else {
 					sValue = serializeValue(value);
 				}
-				old = map[objId];
-				if (old) {
-					if (old.stamp === stamp) {
+				data = map[objId];
+				if (data) {
+					if (data.stamp === stamp) {
 						if (isArray(sValue)) {
-							if (isCopy.call(old.value, sValue)) return;
+							if (isCopy.call(data.value, sValue)) return;
 						} else {
-							if (old.value === sValue) return;
+							if (data.value === sValue) return;
 						}
 						++stamp; // most likely model update
-					} else if (old.stamp > stamp) {
-						stamp = old.stamp + 1;
+					} else if (data.stamp > stamp) {
+						stamp = data.stamp + 1;
 					}
-					old.value = sValue;
-					old.stamp = stamp;
+					old = data.value;
+					data.value = sValue;
+					data.stamp = stamp;
 				} else {
 					map[objId] = {
 						value: sValue,
@@ -275,7 +278,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				indexEvent = {
 					objId: objId,
 					name: name,
-					data: map[objId]
+					data: map[objId],
+					old: old
 				};
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + objId, indexEvent);
