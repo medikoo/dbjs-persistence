@@ -44,6 +44,37 @@ setPrototypeOf(TextFileDriver, PersistenceDriver);
 
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
+	// Any data
+	_getRaw: d(function (id) {
+		var objId, keyPath, index;
+		if (id[0] === '_') return this._getCustom(id.slice(1));
+		if (id[0] === '=') {
+			index = id.lastIndexOf(':');
+			return this._getIndexedValue(id.slice(index + 1), id.slice(1, index));
+		}
+		objId = id.split('/', 1)[0];
+		keyPath = id.slice(objId.length + 1) || '.';
+		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
+	}),
+	_storeRaw: d(function (id, data) {
+		var objId, keyPath, index;
+		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
+		if (id[0] === '=') {
+			index = id.lastIndexOf(':');
+			keyPath = id.slice(1, index);
+			objId = id.slice(index + 1);
+			return this._getIndexedMap(keyPath)(function (map) {
+				map[objId] = data;
+				return this._writeStorage('=' + keyPath, map);
+			}.bind(this));
+		}
+		objId = id.split('/', 1)[0];
+		keyPath = id.slice(objId.length + 1) || '.';
+		return this._getObjectStorage(objId)(function (map) {
+			map[keyPath] = data;
+			return this._writeStorage(objId, map);
+		}.bind(this));
+	}),
 
 	// Database data
 	_loadObject: d(function (objId) {
@@ -124,38 +155,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				data[key] = value;
 			}
 			return writeFile(resolve(this.dirPath, '_custom'), stringify(data));
-		}.bind(this));
-	}),
-
-	// Any data
-	_getRaw: d(function (id) {
-		var objId, keyPath, index;
-		if (id[0] === '_') return this._getCustom(id.slice(1));
-		if (id[0] === '=') {
-			index = id.lastIndexOf(':');
-			return this._getIndexedValue(id.slice(index + 1), id.slice(1, index));
-		}
-		objId = id.split('/', 1)[0];
-		keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
-	}),
-	_storeRaw: d(function (id, data) {
-		var objId, keyPath, index;
-		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
-		if (id[0] === '=') {
-			index = id.lastIndexOf(':');
-			keyPath = id.slice(1, index);
-			objId = id.slice(index + 1);
-			return this._getIndexedMap(keyPath)(function (map) {
-				map[objId] = data;
-				return this._writeStorage('=' + keyPath, map);
-			}.bind(this));
-		}
-		objId = id.split('/', 1)[0];
-		keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectStorage(objId)(function (map) {
-			map[keyPath] = data;
-			return this._writeStorage(objId, map);
 		}.bind(this));
 	}),
 

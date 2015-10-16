@@ -55,6 +55,10 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 var notImplemented = function () { throw new Error("Not implemented"); };
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
+	// Any data
+	_getRaw: d(notImplemented),
+	_storeRaw: d(notImplemented),
+
 	// Database data
 	_importValue: d(function (id, value, stamp) {
 		var proto;
@@ -230,10 +234,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_getCustom: d(notImplemented),
 	_storeCustom: d(notImplemented),
-
-	// Any data
-	_getRaw: d(notImplemented),
-	_storeRaw: d(notImplemented),
 
 	// Storage export/import
 	export: d(function (externalStore) {
