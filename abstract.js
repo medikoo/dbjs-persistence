@@ -139,11 +139,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
-		eventName = 'computed:' + keyPath;
+		eventName = 'index:' + keyPath;
 		++this._runningOperations;
 		return this._getIndexedMap(keyPath)(function (map) {
 			listener = function (event) {
-				var sValue, stamp, objId = event.target.object.master.__id__;
+				var sValue, stamp, objId = event.target.object.master.__id__, indexEvent;
 				if (event.target.object.constructor === event.target.object.database.Base) return;
 				if (isSet(event.target)) {
 					sValue = [];
@@ -154,12 +154,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
 				map[objId].value = sValue;
 				map[objId].stamp = stamp;
-				this.emit(eventName, map[objId]);
+				indexEvent = {
+					objId: objId,
+					keyPath: keyPath,
+					data: map[objId]
+				};
+				this.emit(eventName, indexEvent);
+				this.emit('object:' + objId, indexEvent);
 				++this._runningOperations;
 				this._storeIndexedValue(objId, keyPath, map[objId]).finally(this._onOperationEnd).done();
 			}.bind(this);
 			onAdd = function (obj) {
-				var observable, value, stamp, objId, sValue, old;
+				var observable, value, stamp, objId, sValue, old, indexEvent;
 				obj = resolveObject(obj, names);
 				if (!obj) return null;
 				objId = obj.__id__;
@@ -199,7 +205,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp: stamp
 					};
 				}
-				this.emit(eventName, map[objId]);
+				indexEvent = {
+					objId: objId,
+					keyPath: keyPath,
+					data: map[objId]
+				};
+				this.emit(eventName, indexEvent);
+				this.emit('object:' + objId, indexEvent);
 				return this._storeIndexedValue(objId, keyPath, map[objId]);
 			}.bind(this);
 			onDelete = function (obj) {
