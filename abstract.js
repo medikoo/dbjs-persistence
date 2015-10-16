@@ -27,6 +27,7 @@ var aFrom               = require('es5-ext/array/from')
   , Event               = require('dbjs/_setup/event')
   , unserializeValue    = require('dbjs/_setup/unserialize/value')
   , serializeValue      = require('dbjs/_setup/serialize/value')
+  , serializeKey        = require('dbjs/_setup/serialize/key')
   , resolveKeyPath      = require('dbjs/_setup/utils/resolve-property-path')
   , once                = require('timers-ext/once')
   , ensureDriver        = require('./ensure')
@@ -146,7 +147,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (event.target.object.constructor === event.target.object.database.Base) return;
 				if (isSet(event.target)) {
 					sValue = [];
-					event.target.forEach(function (value) { sValue.push(serializeValue(value)); });
+					event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
 				} else {
 					sValue = serializeValue(event.newValue);
 				}
@@ -174,7 +175,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				}
 				if (isSet(value)) {
 					sValue = [];
-					value.forEach(function (value) { sValue.push(serializeValue(value)); });
+					value.forEach(function (value) { sValue.push(serializeKey(value)); });
 				} else {
 					sValue = serializeValue(value);
 				}

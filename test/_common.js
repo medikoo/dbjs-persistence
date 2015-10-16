@@ -34,8 +34,8 @@ module.exports = function (opts, copyOpts) {
 				a(map.aaa.value, '3foo', "Computed: initial #2");
 			}),
 			driver.indexKeyPath('computedSet')(function (map) {
-				a.deep(map.foo.value, ['3elo', '3fooelo'], "Computed set: initial #1");
-				a.deep(map.aaa.value, ['3foo'], "Computed set: initial #2");
+				a.deep(map.foo.value, ['elo', 'fooelo'], "Computed set: initial #1");
+				a.deep(map.aaa.value, ['foo'], "Computed set: initial #2");
 			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
@@ -66,8 +66,8 @@ module.exports = function (opts, copyOpts) {
 					a(map.aaa.value, '3foo');
 				})(function () {
 					return driver.indexKeyPath('computedSet')(function (map) {
-						a.deep(map.foo.value, ['3elo', '3fooelo']);
-						a.deep(map.aaa.value, ['3foo']);
+						a.deep(map.foo.value, ['elo', 'fooelo']);
+						a.deep(map.aaa.value, ['foo']);
 					});
 				})(function () {
 					return driver._getIndexedValue('foo', 'computed')(function (data) {
