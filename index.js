@@ -84,22 +84,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Database data
-	_loadAll: d(function () {
-		var promise = this.dbDir()(function () {
-			return readdir(this.dirPath, { type: { file: true } })(function (data) {
-				var result = [], progress = 1;
-				return deferred.map(data.filter(isId), function (objId) {
-					return this.loadObject(objId).aside(function (events) {
-						push.apply(result, events);
-						if (result.length > (progress * 1000)) {
-							++progress;
-							promise.emit('progress');
-						}
-					});
-				}, this)(result);
-			}.bind(this));
-		}.bind(this));
-		return promise;
+	_getAllObjectIds: d(function () {
+		return readdir(this.dirPath, { type: { file: true } })(function (data) {
+			return data.filter(isId).sort();
+		});
 	}),
 	_storeEvent: d(function (event) {
 		var objId = event.object.master.__id__

@@ -5,6 +5,7 @@
 var aFrom               = require('es5-ext/array/from')
   , compact             = require('es5-ext/array/#/compact')
   , clear               = require('es5-ext/array/#/clear')
+  , flatten             = require('es5-ext/array/#/flatten')
   , isCopy              = require('es5-ext/array/#/is-copy')
   , ensureArray         = require('es5-ext/array/valid-array')
   , assign              = require('es5-ext/object/assign')
@@ -92,7 +93,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	loadObject: d(function (objId) {
 		return this.getObject(objId)(function (data) {
-			if (!data) return null;
 			return compact.call(data.map(function (data) {
 				return this._importValue(data.id, data.data.value, data.data.stamp);
 			}, this));
@@ -101,7 +101,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	loadAll: d(function () {
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._loadAll().finally(this._onOperationEnd);
+		return this._getAllObjectIds().map(this.loadObject, this).invoke(flatten)
+			.finally(this._onOperationEnd);
 	}),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
@@ -122,7 +123,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		this._eventsToStore.push(event);
 	}),
-	_loadAll: d(notImplemented),
+	_getAllObjectIds: d(notImplemented),
 	_storeEvent: d(notImplemented),
 	_storeEvents: d(notImplemented),
 
