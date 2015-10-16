@@ -13,6 +13,7 @@ var aFrom               = require('es5-ext/array/from')
   , ensureObject        = require('es5-ext/object/valid-object')
   , ensureString        = require('es5-ext/object/validate-stringifiable-value')
   , isSet               = require('es6-set/is-set')
+  , ensureSet           = require('es6-set/valid-set')
   , deferred            = require('deferred')
   , emitError           = require('event-emitter/emit-error')
   , d                   = require('d')
@@ -78,12 +79,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getRaw(id).finally(this._onOperationEnd);
 	}),
-	getObject: d(function (objId) {
+	getObject: d(function (objId/*, options*/) {
+		var keyPaths, options = arguments[1];
 		objId = ensureString(objId);
 		if (!isObjectId(objId)) throw new TypeError(objId + " is not a database object id");
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getRawObject(objId).finally(this._onOperationEnd);
+		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
+		return this._getRawObject(objId, keyPaths).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
 		return this.getValue(id)(function (data) {
