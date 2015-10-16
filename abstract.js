@@ -235,7 +235,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			onAdd = function (obj) {
 				var observable, value, stamp, objId, sKeys, sValue, data, indexEvent;
 				obj = resolveObject(obj, names);
-				if (!obj) return null;
+				if (!obj) return deferred(null);
 				objId = obj.__id__;
 				if (obj.isKeyStatic(key)) {
 					value = obj[key];
@@ -257,9 +257,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (data) {
 					if (data.stamp === stamp) {
 						if (sKeys) {
-							if (isCopy.call(resolveEventKeys(data.value), sKeys)) return;
+							if (isCopy.call(resolveEventKeys(data.value), sKeys)) return deferred(null);
 						} else {
-							if (data.value === sValue) return;
+							if (data.value === sValue) return deferred(null);
 						}
 						++stamp; // most likely model update
 					} else if (data.stamp > stamp) {
