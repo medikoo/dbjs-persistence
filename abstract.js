@@ -197,25 +197,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }), memoizeMethods({
-	indexKeyPath: d(function (name/*, keyPath, set*/) {
-		var names, key, onAdd, onDelete, eventName, listener
-		  , keyPath = arguments[1], set = arguments[2];
+	indexKeyPath: d(function (name, set/*, options*/) {
+		var names, key, onAdd, onDelete, eventName, listener, options = Object(arguments[2])
+		  , keyPath = options.keyPath;
 		name = ensureString(name);
-		if (set == null) {
-			if (keyPath == null) {
-				keyPath = name;
-				set = this.db.Object.instances;
-			} else if (isObservableSet(keyPath)) {
-				set = keyPath;
-				keyPath = name;
-			} else {
-				keyPath = ensureString(keyPath);
-				set = this.db.Object.instances;
-			}
-		} else {
-			keyPath = ensureString(keyPath);
-			set = ensureObservableSet(set);
-		}
+		set = ensureObservableSet(set);
+		if (!keyPath) keyPath = name;
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
@@ -320,5 +307,5 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this));
 			return deferred.map(aFrom(set), onAdd)(map);
 		}.bind(this)).finally(this._onOperationEnd);
-	}, { primitive: true })
+	}, { primitive: true, length: 1 })
 }))));
