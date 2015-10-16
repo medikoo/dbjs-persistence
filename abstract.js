@@ -26,7 +26,7 @@ var aFrom               = require('es5-ext/array/from')
   , ensureDatabase      = require('dbjs/valid-dbjs')
   , Event               = require('dbjs/_setup/event')
   , unserializeValue    = require('dbjs/_setup/unserialize/value')
-  , serialize           = require('dbjs/_setup/serialize/value')
+  , serializeValue      = require('dbjs/_setup/serialize/value')
   , resolveKeyPath      = require('dbjs/_setup/utils/resolve-property-path')
   , once                = require('timers-ext/once')
   , ensureDriver        = require('./ensure')
@@ -146,9 +146,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (event.target.object.constructor === event.target.object.database.Base) return;
 				if (isSet(event.target)) {
 					sValue = [];
-					event.target.forEach(function (value) { sValue.push(serialize(value)); });
+					event.target.forEach(function (value) { sValue.push(serializeValue(value)); });
 				} else {
-					sValue = serialize(event.newValue);
+					sValue = serializeValue(event.newValue);
 				}
 				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
 				map[objId].value = sValue;
@@ -174,9 +174,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				}
 				if (isSet(value)) {
 					sValue = [];
-					value.forEach(function (value) { sValue.push(serialize(value)); });
+					value.forEach(function (value) { sValue.push(serializeValue(value)); });
 				} else {
-					sValue = serialize(value);
+					sValue = serializeValue(value);
 				}
 				old = map[objId];
 				if (old) {
