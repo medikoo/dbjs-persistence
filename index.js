@@ -2,7 +2,8 @@
 
 'use strict';
 
-var group             = require('es5-ext/array/#/group')
+var compact           = require('es5-ext/array/#/compact')
+  , group             = require('es5-ext/array/#/group')
   , assign            = require('es5-ext/object/assign')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , toArray           = require('es5-ext/object/to-array')
@@ -55,11 +56,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		keyPath = id.slice(objId.length + 1) || '.';
 		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
 	}),
-	_getRawObject: d(function (objId) {
+	_getRawObject: d(function (objId, keyPaths) {
 		return this._getObjectStorage(objId)(function (map) {
-			return toArray(map, function (data, keyPath) {
+			return compact.call(toArray(map, function (data, keyPath) {
+				if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
 				return { id: (keyPath === '.') ? objId : objId + '/' + keyPath, data: data };
-			}, null, byStamp);
+			}, null, byStamp));
 		});
 	}),
 	_storeRaw: d(function (id, data) {
