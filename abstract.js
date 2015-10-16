@@ -14,6 +14,7 @@ var aFrom               = require('es5-ext/array/from')
   , ensureString        = require('es5-ext/object/validate-stringifiable-value')
   , isSet               = require('es6-set/is-set')
   , ensureSet           = require('es6-set/valid-set')
+  , memoizeMethods      = require('memoizee/methods')
   , deferred            = require('deferred')
   , emitError           = require('event-emitter/emit-error')
   , d                   = require('d')
@@ -22,6 +23,7 @@ var aFrom               = require('es5-ext/array/from')
   , debug               = require('debug-ext')('db')
   , ee                  = require('event-emitter')
   , getStamp            = require('time-uuid/time')
+  , isObservableSet     = require('observable-set/is-observable-set')
   , ensureObservableSet = require('observable-set/valid-observable-set')
   , ensureDatabase      = require('dbjs/valid-dbjs')
   , Event               = require('dbjs/_setup/event')
@@ -132,115 +134,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_storeEvents: d(notImplemented),
 
 	// Indexed database data
-	indexKeyPath: d(function (keyPath/*, set*/) {
-		var names, key, onAdd, onDelete, eventName, listener, set = arguments[1];
-		if (set != null) ensureObservableSet(set);
-		else set = this.db.Object.instances;
-		names = tokenize(ensureString(keyPath));
-		this._ensureOpen();
-		key = names[names.length - 1];
-		eventName = 'index:' + keyPath;
-		++this._runningOperations;
-		return this._getIndexedMap(keyPath)(function (map) {
-			listener = function (event) {
-				var sValue, stamp, objId = event.target.object.master.__id__, indexEvent;
-				if (event.target.object.constructor === event.target.object.database.Base) return;
-				if (isSet(event.target)) {
-					sValue = [];
-					event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
-				} else {
-					sValue = serializeValue(event.newValue);
-				}
-				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
-				map[objId].value = sValue;
-				map[objId].stamp = stamp;
-				indexEvent = {
-					objId: objId,
-					keyPath: keyPath,
-					data: map[objId]
-				};
-				this.emit(eventName, indexEvent);
-				this.emit('object:' + objId, indexEvent);
-				++this._runningOperations;
-				this._storeIndexedValue(objId, keyPath, map[objId]).finally(this._onOperationEnd).done();
-			}.bind(this);
-			onAdd = function (obj) {
-				var observable, value, stamp, objId, sValue, old, indexEvent;
-				obj = resolveObject(obj, names);
-				if (!obj) return null;
-				objId = obj.__id__;
-				if (obj.isKeyStatic(key)) {
-					value = obj[key];
-					stamp = 0;
-				} else {
-					value = obj._get_(key);
-					observable = obj._getObservable_(key);
-					stamp = observable.lastModified;
-					if (isSet(value)) value.on('change', listener);
-					else observable.on('change', listener);
-				}
-				if (isSet(value)) {
-					sValue = [];
-					value.forEach(function (value) { sValue.push(serializeKey(value)); });
-				} else {
-					sValue = serializeValue(value);
-				}
-				old = map[objId];
-				if (old) {
-					if (old.stamp === stamp) {
-						if (isArray(sValue)) {
-							if (isCopy.call(old.value, sValue)) return;
-						} else {
-							if (old.value === sValue) return;
-						}
-						++stamp; // most likely model update
-					} else if (old.stamp > stamp) {
-						stamp = old.stamp + 1;
-					}
-					old.value = sValue;
-					old.stamp = stamp;
-				} else {
-					map[objId] = {
-						value: sValue,
-						stamp: stamp
-					};
-				}
-				indexEvent = {
-					objId: objId,
-					keyPath: keyPath,
-					data: map[objId]
-				};
-				this.emit(eventName, indexEvent);
-				this.emit('object:' + objId, indexEvent);
-				return this._storeIndexedValue(objId, keyPath, map[objId]);
-			}.bind(this);
-			onDelete = function (obj) {
-				obj = resolveObject(obj, names);
-				if (!obj) return null;
-				if (obj.isKeyStatic(key)) return;
-				obj._getObservable_(key).off('change', listener);
-			}.bind(this);
-			set.on('change', function (event) {
-				if (event.type === 'add') {
-					++this._runningOperations;
-					onAdd(event.value).finally(this._onOperationEnd).done();
-					return;
-				}
-				if (event.type === 'delete') {
-					onDelete(event.value);
-					return;
-				}
-				if (event.type === 'batch') {
-					if (event.added) {
-						++this._runningOperations;
-						deferred.map(event.added, onAdd).finally(this._onOperationEnd).done();
-					}
-					if (event.deleted) event.deleted.forEach(onDelete);
-				}
-			}.bind(this));
-			return deferred.map(aFrom(set), onAdd)(map);
-		}.bind(this)).finally(this._onOperationEnd);
-	}),
 	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
 	_storeIndexedValue: d(notImplemented),
@@ -303,4 +196,129 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			promise.finally(this._onOperationEnd).done();
 		}.bind(this));
 	})
+}), memoizeMethods({
+	indexKeyPath: d(function (name/*, keyPath, set*/) {
+		var names, key, onAdd, onDelete, eventName, listener
+		  , keyPath = arguments[1], set = arguments[2];
+		name = ensureString(name);
+		if (set == null) {
+			if (keyPath == null) {
+				keyPath = name;
+				set = this.db.Object.instances;
+			} else if (isObservableSet(keyPath)) {
+				set = keyPath;
+				keyPath = name;
+			} else {
+				keyPath = ensureString(keyPath);
+				set = this.db.Object.instances;
+			}
+		} else {
+			keyPath = ensureString(keyPath);
+			set = ensureObservableSet(set);
+		}
+		names = tokenize(ensureString(keyPath));
+		this._ensureOpen();
+		key = names[names.length - 1];
+		eventName = 'index:' + name;
+		++this._runningOperations;
+		return this._getIndexedMap(name)(function (map) {
+			listener = function (event) {
+				var sValue, stamp, objId = event.target.object.master.__id__, indexEvent;
+				if (event.target.object.constructor === event.target.object.database.Base) return;
+				if (isSet(event.target)) {
+					sValue = [];
+					event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
+				} else {
+					sValue = serializeValue(event.newValue);
+				}
+				stamp = event.dbjs ? event.dbjs.stamp : getStamp();
+				map[objId].value = sValue;
+				map[objId].stamp = stamp;
+				indexEvent = {
+					objId: objId,
+					name: name,
+					data: map[objId]
+				};
+				this.emit(eventName, indexEvent);
+				this.emit('object:' + objId, indexEvent);
+				++this._runningOperations;
+				this._storeIndexedValue(objId, name, map[objId]).finally(this._onOperationEnd).done();
+			}.bind(this);
+			onAdd = function (obj) {
+				var observable, value, stamp, objId, sValue, old, indexEvent;
+				obj = resolveObject(obj, names);
+				if (!obj) return null;
+				objId = obj.__id__;
+				if (obj.isKeyStatic(key)) {
+					value = obj[key];
+					stamp = 0;
+				} else {
+					value = obj._get_(key);
+					observable = obj._getObservable_(key);
+					stamp = observable.lastModified;
+					if (isSet(value)) value.on('change', listener);
+					else observable.on('change', listener);
+				}
+				if (isSet(value)) {
+					sValue = [];
+					value.forEach(function (value) { sValue.push(serializeKey(value)); });
+				} else {
+					sValue = serializeValue(value);
+				}
+				old = map[objId];
+				if (old) {
+					if (old.stamp === stamp) {
+						if (isArray(sValue)) {
+							if (isCopy.call(old.value, sValue)) return;
+						} else {
+							if (old.value === sValue) return;
+						}
+						++stamp; // most likely model update
+					} else if (old.stamp > stamp) {
+						stamp = old.stamp + 1;
+					}
+					old.value = sValue;
+					old.stamp = stamp;
+				} else {
+					map[objId] = {
+						value: sValue,
+						stamp: stamp
+					};
+				}
+				indexEvent = {
+					objId: objId,
+					name: name,
+					data: map[objId]
+				};
+				this.emit(eventName, indexEvent);
+				this.emit('object:' + objId, indexEvent);
+				return this._storeIndexedValue(objId, name, map[objId]);
+			}.bind(this);
+			onDelete = function (obj) {
+				obj = resolveObject(obj, names);
+				if (!obj) return null;
+				if (obj.isKeyStatic(key)) return;
+				obj._getObservable_(key).off('change', listener);
+			}.bind(this);
+			set.on('change', function (event) {
+				if (event.type === 'add') {
+					++this._runningOperations;
+					onAdd(event.value).finally(this._onOperationEnd).done();
+					return;
+				}
+				if (event.type === 'delete') {
+					onDelete(event.value);
+					return;
+				}
+				if (event.type === 'batch') {
+					if (event.added) {
+						++this._runningOperations;
+						deferred.map(event.added, onAdd).finally(this._onOperationEnd).done();
+					}
+					if (event.deleted) event.deleted.forEach(onDelete);
+				}
+			}.bind(this));
+			return deferred.map(aFrom(set), onAdd)(map);
+		}.bind(this)).finally(this._onOperationEnd);
+	}, { primitive: true })
 }))));
