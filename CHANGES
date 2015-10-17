@@ -1,3 +1,8 @@
+v0.0.7  --  2015.10.17
+* Support any observable set for indexing
+* Improve internal organisation
+* Improve events handling
+
 v0.0.6  --  2015.10.15
 * Improve operations queue handling
 * Improval internal methods names
