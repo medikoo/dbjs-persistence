@@ -5,7 +5,6 @@
 var aFrom                 = require('es5-ext/array/from')
   , compact               = require('es5-ext/array/#/compact')
   , clear                 = require('es5-ext/array/#/clear')
-  , flatten               = require('es5-ext/array/#/flatten')
   , isCopy                = require('es5-ext/array/#/is-copy')
   , ensureArray           = require('es5-ext/array/valid-array')
   , assign                = require('es5-ext/object/assign')
