@@ -50,7 +50,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 	dbjs.objects.on('update', function (event) {
 		if (event.sourceId === 'persistentLayer') return;
 		if (!autoSaveFilter(event)) return;
-		debug("persistent update %s %s", event.object.__valueId__, event.stamp);
+		debug("direct update %s %s", event.object.__valueId__, event.stamp);
 		this._cueEvent(event);
 	}.bind(this));
 }, {
@@ -112,12 +112,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		event = ensureObject(event);
 		this._ensureOpen();
 		++this._runningOperations;
+		debug("direct update %s %s", event.object.__valueId__, event.stamp);
 		return this._storeEvent(event).finally(this._onOperationEnd);
 	}),
 	storeEvents: d(function (events) {
 		events = ensureArray(events);
 		this._ensureOpen();
 		++this._runningOperations;
+		events.forEach(function (event) {
+			debug("direct update %s %s", event.object.__valueId__, event.stamp);
+		});
 		return this._storeEvents(events).finally(this._onOperationEnd);
 	}),
 	_cueEvent: d(function (event) {
@@ -146,6 +150,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		key = ensureString(key);
 		this._ensureOpen();
 		++this._runningOperations;
+		debug("custom update %s", key);
 		return this._storeCustom(ensureString(key), value).finally(this._onOperationEnd);
 	}),
 	_getCustom: d(notImplemented),
@@ -227,6 +232,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + objId, indexEvent);
 				++this._runningOperations;
+				debug("computed update %s %s %s", objId, name, stamp);
 				this._storeIndexedValue(objId, name, map[objId]).finally(this._onOperationEnd).done();
 			}.bind(this);
 			onAdd = function (obj) {
@@ -277,6 +283,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + objId, indexEvent);
+				debug("computed update %s %s %s", objId, name, stamp);
 				return this._storeIndexedValue(objId, name, map[objId]);
 			}.bind(this);
 			onDelete = function (obj) {
