@@ -34,7 +34,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
-  , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-z]*$/)
+  , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
