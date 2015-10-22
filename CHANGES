@@ -1,3 +1,7 @@
+v0.0.8  --  2015.10.22
+* Fix isObjectId resolution
+* Improve debug logging
+
 v0.0.7  --  2015.10.17
 * Support any observable set for indexing
 * Improve internal organisation
