@@ -187,17 +187,21 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Specific to driver
 	_getAllObjectIds: d(function () {
-		return readdir(this.dirPath, { type: { file: true } })(function (data) {
-			return data.filter(isId).sort();
-		});
+		return this.dbDir()(function () {
+			return readdir(this.dirPath, { type: { file: true } })(function (data) {
+				return data.filter(isId).sort();
+			});
+		}.bind(this));
 	}),
 	_writeStorage: d(function (name, map) {
-		return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
-			var value = data.value;
-			if (value === '') value = '-';
-			else if (isArray(value)) value = stringify(value);
-			return id + '\n' + data.stamp + '\n' + value;
-		}, this, byStamp).join('\n\n'));
+		return this.dbDir()(function () {
+			return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
+				var value = data.value;
+				if (value === '') value = '-';
+				else if (isArray(value)) value = stringify(value);
+				return id + '\n' + data.stamp + '\n' + value;
+			}, this, byStamp).join('\n\n'));
+		}.bind(this));
 	})
 }, lazy({
 	_allObjectsIds: d(function () {
