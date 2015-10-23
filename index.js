@@ -180,9 +180,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Connection related
-	_close: d(function () {
-		// Nothing to do
-	}),
+	_close: d(function () { return deferred(undefined); }), // Nothing to close
 
 	// Specific to driver
 	_getAllObjectIds: d(function () {

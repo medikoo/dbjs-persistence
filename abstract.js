@@ -174,7 +174,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this._closeDeferred = deferred();
 			return this._closeDeferred.promise;
 		}
-		return deferred(this._close());
+		return this._close();
 	}),
 	_ensureOpen: d(function () {
 		if (this.isClosed) throw new Error("Database not accessible");
