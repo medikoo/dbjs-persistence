@@ -129,17 +129,13 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Custom data
-	_getCustom: d(function (key) { return this._custom(function (data) { return data[key]; }); }),
-	_storeCustom: d(function (key, value) {
-		return this._custom(function (data) {
-			if (value === undefined) {
-				if (!data.hasOwnProperty(key)) return;
-				delete data[key];
-			} else {
-				if (data[key] === value) return;
-				data[key] = value;
-			}
-			return writeFile(resolve(this.dirPath, '_custom'), stringify(data));
+	_getCustom: d(function (key) {
+		return this._custom(function (map) { return map[key] || null; });
+	}),
+	_storeCustom: d(function (key, data) {
+		return this._custom(function (map) {
+			map[key] = data;
+			return writeFile(resolve(this.dirPath, '_custom'), stringify(map));
 		}.bind(this));
 	}),
 

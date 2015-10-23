@@ -151,7 +151,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		++this._runningOperations;
 		debug("custom update %s", key);
-		return this._storeCustom(ensureString(key), value).finally(this._onOperationEnd);
+		return this._getCustom(key)(function (data) {
+			if (data) {
+				if (data.value === value) return;
+				data.value = value;
+				data.stamp = getStamp();
+			} else {
+				data = { value: value, stamp: getStamp() };
+			}
+			return this._storeCustom(ensureString(key), data);
+		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_getCustom: d(notImplemented),
 	_storeCustom: d(notImplemented),

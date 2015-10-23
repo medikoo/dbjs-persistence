@@ -99,7 +99,7 @@ module.exports = function (opts, copyOpts) {
 							a(db.bar.miszka, 343);
 						});
 					})(function () {
-						return driver.getCustom('elo')(function (value) { a(value, 'marko'); });
+						return driver.getCustom('elo')(function (data) { a(data.value, 'marko'); });
 					})(function () {
 						db.fooBar.bar = 'miszka';
 						return driver._getIndexedValue('fooBar', 'computed')(function (data) {
