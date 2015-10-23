@@ -204,11 +204,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }, lazy({
-	_allObjectsIds: d(function () {
-		return readdir(this.dirPath, { type: { file: true } })(function (data) {
-			return new Set(data.filter(isId));
-		});
-	}),
 	_custom: d(function () {
 		return this.dbDir()(function () {
 			return readFile(resolve(this.dirPath, '_custom'))(function (str) {
