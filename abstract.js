@@ -258,15 +258,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					sValue = serializeValue(value);
 				}
 				if (data) {
-					if (data.stamp === stamp) {
+					if (data.stamp >= stamp) {
 						if (sKeys) {
 							if (isCopy.call(resolveEventKeys(data.value), sKeys)) return deferred(null);
 						} else {
 							if (data.value === sValue) return deferred(null);
 						}
-						++stamp; // most likely model update
-					} else if (data.stamp > stamp) {
-						stamp = data.stamp + 1;
+						stamp = data.stamp + 1; // most likely model update
 					}
 					data.value = sKeys ? resolveMultipleEvents(stamp, sKeys, data.value) : sValue;
 					data.stamp = stamp;
