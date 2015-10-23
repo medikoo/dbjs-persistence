@@ -13,7 +13,6 @@ var compact           = require('es5-ext/array/#/compact')
   , d                 = require('d')
   , lazy              = require('d/lazy')
   , memoizeMethods    = require('memoizee/methods')
-  , Set               = require('es6-set')
   , deferred          = require('deferred')
   , resolve           = require('path').resolve
   , mkdir             = require('fs2/mkdir')
