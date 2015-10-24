@@ -59,6 +59,12 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 
 var notImplemented = function () { throw new Error("Not implemented"); };
 
+var ensureObjectId = function (objId) {
+	objId = ensureString(objId);
+	if (!isObjectId(objId)) throw new TypeError(objId + " is not a database object id");
+	return objId;
+};
+
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(notImplemented),
@@ -83,8 +89,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	getObject: d(function (objId/*, options*/) {
 		var keyPaths, options = arguments[1];
-		objId = ensureString(objId);
-		if (!isObjectId(objId)) throw new TypeError(objId + " is not a database object id");
+		objId = ensureObjectId(objId);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
