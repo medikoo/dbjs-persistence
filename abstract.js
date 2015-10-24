@@ -248,7 +248,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				indexEvent = {
 					ownerId: ownerId,
 					name: name,
-					data: nu
+					data: nu,
+					old: old
 				};
 				this.emit(eventName, indexEvent);
 				this.emit('object:' + ownerId, indexEvent);
