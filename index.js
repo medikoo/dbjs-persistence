@@ -90,31 +90,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return this.loadObject(objId);
 		}, this).invoke(flatten);
 	}),
-	_storeEvent: d(function (event) {
-		var objId = event.object.master.__id__
-		  , keyPath = event.object.__valueId__.slice(objId.length + 1) || '.';
-		return this._getObjectStorage(objId)(function (map) {
-			map[keyPath] = {
-				stamp: event.stamp,
-				value: serialize(event.value)
-			};
-			return this._writeStorage(objId, map);
+	_storeEvent: d(function (ownerId, targetPath, data) {
+		if (!targetPath) targetPath = '.';
+		return this._getObjectStorage(ownerId)(function (map) {
+			map[targetPath] = data;
+			return this._writeStorage(ownerId, map);
 		}.bind(this));
-	}),
-	_storeEvents: d(function (events) {
-		var data = group.call(events, function (event) { return event.object.master.__id__; });
-		return deferred.map(keys(data), function (objId) {
-			var events = data[objId];
-			return this._getObjectStorage(objId)(function (map) {
-				events.forEach(function (event) {
-					map[event.object.__valueId__.slice(objId.length + 1) || '.'] = {
-						stamp: event.stamp,
-						value: serialize(event.value)
-					};
-				});
-				return this._writeStorage(objId, map);
-			}.bind(this));
-		}, this);
 	}),
 
 	// Indexed database data

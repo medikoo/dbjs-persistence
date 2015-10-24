@@ -4,7 +4,6 @@
 
 var aFrom                 = require('es5-ext/array/from')
   , compact               = require('es5-ext/array/#/compact')
-  , clear                 = require('es5-ext/array/#/clear')
   , isCopy                = require('es5-ext/array/#/is-copy')
   , ensureArray           = require('es5-ext/array/valid-array')
   , assign                = require('es5-ext/object/assign')
@@ -29,7 +28,6 @@ var aFrom                 = require('es5-ext/array/from')
   , serializeValue        = require('dbjs/_setup/serialize/value')
   , serializeKey          = require('dbjs/_setup/serialize/key')
   , resolveKeyPath        = require('dbjs/_setup/utils/resolve-property-path')
-  , once                  = require('timers-ext/once')
   , ensureDriver          = require('./ensure')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
@@ -48,11 +46,12 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 	this.db = ensureDatabase(dbjs);
 	autoSaveFilter = (options.autoSaveFilter != null)
 		? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
-	dbjs.objects.on('update', function (event) {
+	dbjs.objects.on('update', this._dbjsListener = function (event) {
 		if (event.sourceId === 'persistentLayer') return;
 		if (!autoSaveFilter(event)) return;
-		debug("direct update %s %s", event.object.__valueId__, event.stamp);
-		this._cueEvent(event);
+		this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
+		++this._runningOperations;
+		this._handleStoreEvent(event).finally(this._onOperationEnd).done();
 	}.bind(this));
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
@@ -114,31 +113,41 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._loadAll().finally(this._onOperationEnd);
 	}),
+	_handleStoreEvent: d(function (event) {
+		var id = event.object.__valueId__, ownerId = event.object.master.__id__
+		  , targetPath = id.slice(ownerId.length + 1) || null
+		  , nu = { value: serializeValue(event.value), stamp: event.stamp };
+		var keyPath = (event.object._kind_ === 'item')
+			? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
+		return this._getRaw(id)(function (old) {
+			var driverEvent;
+			if (old && (old.stamp >= nu.stamp)) return;
+			return this._storeEvent(ownerId, targetPath, nu).aside(function () {
+				driverEvent = {
+					id: id,
+					ownerId: ownerId,
+					keyPath: keyPath,
+					data: nu,
+					old: old
+				};
+				debug("direct update %s %s", id, event.stamp);
+				this.emit('direct:' + keyPath, driverEvent);
+			}.bind(this));
+		}.bind(this));
+	}),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
 		this._ensureOpen();
 		++this._runningOperations;
-		debug("direct update %s %s", event.object.__valueId__, event.stamp);
-		return this._storeEvent(event).finally(this._onOperationEnd);
+		return this._handleStoreEvent(event).finally(this._onOperationEnd);
 	}),
 	storeEvents: d(function (events) {
 		events = ensureArray(events);
 		this._ensureOpen();
 		++this._runningOperations;
-		events.forEach(function (event) {
-			debug("direct update %s %s", event.object.__valueId__, event.stamp);
-		});
-		return this._storeEvents(events).finally(this._onOperationEnd);
-	}),
-	_cueEvent: d(function (event) {
-		if (!this._eventsToStore.length) {
-			++this._runningOperations;
-			this._exportEvents();
-		}
-		this._eventsToStore.push(event);
+		return deferred.map(events, this._handleStoreEvent, this).finally(this._onOperationEnd);
 	}),
 	_storeEvent: d(notImplemented),
-	_storeEvents: d(notImplemented),
 
 	// Indexed database data
 	getIndexedValue: d(function (objId, keyPath) {
@@ -189,6 +198,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;
+		this.db.objects.off('update', this._dbjsListener);
 		if (this._runningOperations) {
 			this._closeDeferred = deferred();
 			return this._closeDeferred.promise;
@@ -198,7 +208,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_ensureOpen: d(function () {
 		if (this.isClosed) throw new Error("Database not accessible");
 	}),
-	_runningOperations: d(0),
 	_close: d(notImplemented)
 }, autoBind({
 	emitError: d(emitError),
@@ -208,15 +217,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._closeDeferred.resolve(this._close());
 	})
 }), lazy({
-	_loadedEventsMap: d(function () { return create(null); }),
-	_eventsToStore: d(function () { return []; }),
-	_exportEvents: d(function () {
-		return once(function () {
-			var promise = this._storeEvents(this._eventsToStore);
-			clear.call(this._eventsToStore);
-			promise.finally(this._onOperationEnd).done();
-		}.bind(this));
-	})
+	_loadedEventsMap: d(function () { return create(null); })
 }), memoizeMethods({
 	indexKeyPath: d(function (name, set/*, options*/) {
 		var names, key, onAdd, onDelete, eventName, listener, update, options = Object(arguments[2])
