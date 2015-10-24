@@ -245,14 +245,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue) : sValue,
 					stamp: stamp
 				};
-				indexEvent = {
-					ownerId: ownerId,
-					name: name,
-					data: nu,
-					old: old
-				};
 				return this._storeIndexedValue(ownerId, name, nu).aside(function () {
 					debug("computed update %s %s %s", ownerId, name, stamp);
+					indexEvent = {
+						ownerId: ownerId,
+						name: name,
+						data: nu,
+						old: old
+					};
 					this.emit(eventName, indexEvent);
 					this.emit('object:' + ownerId, indexEvent);
 				}.bind(this));
