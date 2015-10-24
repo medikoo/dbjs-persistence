@@ -30,13 +30,19 @@ module.exports = function (opts, copyOpts) {
 		zzz.delete('bar');
 		aaa.bar = null;
 		return deferred(
-			driver.indexKeyPath('computed', db.Object.instances)(function (map) {
-				a(map.fooBar.value, '3fooelo', "Computed: initial #1");
-				a(map.aaa.value, '3foo', "Computed: initial #2");
+			driver.indexKeyPath('computed', db.Object.instances)(function () {
+				return deferred(driver.getIndexedValue('fooBar', 'computed')(function (data) {
+					a(data.value, '3fooelo', "Computed: initial #1");
+				}), driver.getIndexedValue('aaa', 'computed')(function (data) {
+					a(data.value, '3foo', "Computed: initial #2");
+				}));
 			}),
-			driver.indexKeyPath('computedSet', db.Object.instances)(function (map) {
-				a.deep(resolveEventKeys(map.fooBar.value), ['elo', 'fooelo'], "Computed set: initial #1");
-				a.deep(resolveEventKeys(map.aaa.value), ['foo'], "Computed set: initial #2");
+			driver.indexKeyPath('computedSet', db.Object.instances)(function () {
+				return deferred(driver.getIndexedValue('fooBar', 'computedSet')(function (data) {
+					a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
+				}), driver.getIndexedValue('aaa', 'computedSet')(function (data) {
+					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
+				}));
 			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
@@ -62,13 +68,19 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				var db = getDatabase()
 				  , driver = t(db, opts);
-				return driver.indexKeyPath('computed', db.Object.instances)(function (map) {
-					a(map.fooBar.value, '3fooelo');
-					a(map.aaa.value, '3foo');
+				return driver.indexKeyPath('computed', db.Object.instances)(function () {
+					return deferred(driver.getIndexedValue('fooBar', 'computed')(function (data) {
+						a(data.value, '3fooelo', "Computed: initial #1");
+					}), driver.getIndexedValue('aaa', 'computed')(function (data) {
+						a(data.value, '3foo', "Computed: initial #2");
+					}));
 				})(function () {
 					return driver.indexKeyPath('computedSet', db.Object.instances)(function (map) {
-						a.deep(resolveEventKeys(map.fooBar.value), ['elo', 'fooelo']);
-						a.deep(resolveEventKeys(map.aaa.value), ['foo']);
+						return deferred(driver.getIndexedValue('fooBar', 'computedSet')(function (data) {
+							a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
+						}), driver.getIndexedValue('aaa', 'computedSet')(function (data) {
+							a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
+						}));
 					});
 				})(function () {
 					return driver._getIndexedValue('fooBar', 'computed')(function (data) {
