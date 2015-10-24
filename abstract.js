@@ -231,7 +231,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
 			return this._getIndexedValue(ownerId, keyPath)(function (old) {
-				var nu, indexEvent;
+				var nu;
 				if (old) {
 					if (old.stamp >= stamp) {
 						if (isArray(sValue)) {
@@ -247,15 +247,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					stamp: stamp
 				};
 				return this._storeIndexedValue(ownerId, name, nu).aside(function () {
+					var driverEvent;
 					debug("computed update %s %s %s", ownerId, name, stamp);
-					indexEvent = {
+					driverEvent = {
 						ownerId: ownerId,
 						name: name,
 						data: nu,
 						old: old
 					};
-					this.emit(eventName, indexEvent);
-					this.emit('object:' + ownerId, indexEvent);
+					this.emit(eventName, driverEvent);
+					this.emit('object:' + ownerId, driverEvent);
 				}.bind(this));
 			}.bind(this));
 		}.bind(this);
