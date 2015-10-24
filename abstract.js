@@ -231,8 +231,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				} else {
 					sValue = serializeValue(event.newValue);
 				}
-				map[objId].value = sValue;
-				map[objId].stamp = stamp;
+				map[objId] = {
+					value: sValue,
+					stamp: stamp
+				};
 				indexEvent = {
 					objId: objId,
 					name: name,
@@ -275,14 +277,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						}
 						stamp = data.stamp + 1; // most likely model update
 					}
-					data.value = sKeys ? resolveMultipleEvents(stamp, sKeys, data.value) : sValue;
-					data.stamp = stamp;
-				} else {
-					map[objId] = {
-						value: sKeys ? resolveMultipleEvents(stamp, sKeys) : sValue,
-						stamp: stamp
-					};
 				}
+				map[objId] = {
+					value: sKeys ? resolveMultipleEvents(stamp, sKeys) : sValue,
+					stamp: stamp
+				};
 				indexEvent = {
 					objId: objId,
 					name: name,
