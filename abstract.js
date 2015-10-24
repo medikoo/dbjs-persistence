@@ -251,10 +251,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					data: nu,
 					old: old
 				};
-				this.emit(eventName, indexEvent);
-				this.emit('object:' + ownerId, indexEvent);
-				debug("computed update %s %s %s", ownerId, name, stamp);
-				return this._storeIndexedValue(ownerId, name, nu);
+				return this._storeIndexedValue(ownerId, name, nu).aside(function () {
+					debug("computed update %s %s %s", ownerId, name, stamp);
+					this.emit(eventName, indexEvent);
+					this.emit('object:' + ownerId, indexEvent);
+				}.bind(this));
 			}.bind(this));
 		}.bind(this);
 		listener = function (event) {
