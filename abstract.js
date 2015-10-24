@@ -140,6 +140,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_storeEvents: d(notImplemented),
 
 	// Indexed database data
+	getIndexedValue: d(function (objId, keyPath) {
+		++this._runningOperations;
+		return this._getIndexedValue(ensureObjectId(objId), ensureString(keyPath))
+			.finally(this._onOperationEnd);
+	}),
 	_getIndexedValue: d(notImplemented),
 	_getIndexedMap: d(notImplemented),
 	_storeIndexedValue: d(notImplemented),
