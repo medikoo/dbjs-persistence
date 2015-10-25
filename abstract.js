@@ -171,6 +171,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (!startsWith.call(targetPath, keyPath)) return;
 			if (targetPath !== keyPath) {
 				if (targetPath[keyPath.length] !== '*') return;
+				if (data.value !== '11') return;
 				sValue = targetPath.slice(keyPath.length + 1);
 				if (!isDigit(sValue[0])) sValue = '3' + sValue;
 			} else {
