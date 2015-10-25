@@ -208,6 +208,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_ensureOpen: d(function () {
 		if (this.isClosed) throw new Error("Database not accessible");
 	}),
+	_runningOperations: d(0),
 	_close: d(notImplemented)
 }, autoBind({
 	emitError: d(emitError),
