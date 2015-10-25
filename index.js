@@ -5,6 +5,7 @@
 var compact           = require('es5-ext/array/#/compact')
   , flatten           = require('es5-ext/array/#/flatten')
   , assign            = require('es5-ext/object/assign')
+  , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , toArray           = require('es5-ext/object/to-array')
   , ensureObject      = require('es5-ext/object/valid-object')
@@ -105,6 +106,18 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			map[objId] = data;
 			return this._writeStorage('=' + keyPath, map);
 		}.bind(this));
+	}),
+
+	// Size tracking
+	_searchDirect: d(function (callback) {
+		return this._getAllObjectIds().map(function (objId) {
+			return this._getObjectStorage(objId)(function (map) {
+				forEach(map, function (data, keyPath) {
+					if (keyPath === '.') return;
+					callback(objId + '/' + keyPath, data);
+				});
+			});
+		}, this);
 	}),
 
 	// Custom data

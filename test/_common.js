@@ -44,6 +44,10 @@ module.exports = function (opts, copyOpts) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 				}));
 			}),
+			driver.trackDirectSize('miszka', 'miszka')(function (size) {
+				a(size, 0);
+				return driver.getCustom('miszka')(function (data) { a(data.value, '20'); });
+			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
 			driver.storeEvent(fooBar._lastOwnEvent_),
@@ -64,6 +68,10 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '7Object#');
 				});
 			})(function () {
+				return driver.onFlush(function () {
+					return driver.getCustom('miszka')(function (data) { a(data.value, '22'); });
+				});
+			})(function () {
 				return driver.close();
 			})(function () {
 				var db = getDatabase()
@@ -81,6 +89,11 @@ module.exports = function (opts, copyOpts) {
 						}), driver.getIndexedValue('aaa', 'computedSet')(function (data) {
 							a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 						}));
+					});
+				})(function () {
+					return driver.trackDirectSize('miszka', 'miszka')(function (size) {
+						a(size, 2);
+						return driver.getCustom('miszka')(function (data) { a(data.value, '22'); });
 					});
 				})(function () {
 					return driver._getIndexedValue('fooBar', 'computed')(function (data) {

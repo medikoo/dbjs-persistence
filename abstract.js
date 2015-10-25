@@ -10,6 +10,7 @@ var aFrom                 = require('es5-ext/array/from')
   , ensureCallable        = require('es5-ext/object/valid-callable')
   , ensureObject          = require('es5-ext/object/valid-object')
   , ensureString          = require('es5-ext/object/validate-stringifiable-value')
+  , startsWith            = require('es5-ext/string/#/starts-with')
   , isSet                 = require('es6-set/is-set')
   , ensureSet             = require('es6-set/valid-set')
   , memoizeMethods        = require('memoizee/methods')
@@ -29,10 +30,12 @@ var aFrom                 = require('es5-ext/array/from')
   , serializeKey          = require('dbjs/_setup/serialize/key')
   , resolveKeyPath        = require('dbjs/_setup/utils/resolve-property-path')
   , ensureDriver          = require('./ensure')
+  , getSearchValueFilter  = require('./lib/get-search-value-filter')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
   , isArray = Array.isArray
+  , isDigit = RegExp.prototype.test.bind(/[0-9]/)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
@@ -158,6 +161,29 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_getIndexedValue: d(notImplemented),
 	_storeIndexedValue: d(notImplemented),
 
+	// Size tracking
+	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
+		var size = 0, filter = getSearchValueFilter(arguments[2]);
+		name = ensureString(name);
+		keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._searchDirect(function (id, data) {
+			var targetPath = id.slice(id.indexOf('/') + 1), sValue;
+			if (!startsWith.call(targetPath, keyPath)) return;
+			if (targetPath !== keyPath) {
+				if (targetPath[keyPath.length] !== '*') return;
+				sValue = targetPath.slice(keyPath.length + 1);
+				if (!isDigit(sValue[0])) sValue = '3' + sValue;
+			} else {
+				sValue = data.value;
+			}
+			if (filter(sValue)) ++size;
+		})(function () {
+			return this._handleStoreCustom(name, serializeValue(size));
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
+	_searchDirect: d(notImplemented),
+
 	// Custom data
 	getCustom: d(function (key) {
 		key = ensureString(key);
@@ -168,6 +194,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	storeCustom: d(function (key, value) {
 		key = ensureString(key);
 		this._ensureOpen();
+		return this._handleStoreCustom(key, value);
+	}),
+	_handleStoreCustom: d(function (key, value) {
 		++this._runningOperations;
 		debug("custom update %s", key);
 		return this._getCustom(key)(function (data) {
@@ -332,5 +361,27 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 		++this._runningOperations;
 		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
+	}, { primitive: true, length: 1 }),
+	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
+		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
+		name = ensureString(name);
+		keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._getCustom(name)(function (data) {
+			// Ensure size for existing records is calculated
+			return data || this.recalculateDirectSize(name, keyPath, searchValue);
+		}.bind(this))(function (data) {
+			var size = unserializeValue(data.value);
+			this.on('direct:' + keyPath, function (event) {
+				var old = Boolean(event.old && filter(event.old.value))
+				  , nu = filter(event.data.value);
+				if (nu === old) return;
+				if (nu) ++size;
+				else --size;
+				++this._runningOperations;
+				this._handleStoreCustom(name, serializeValue(size)).finally(this._onOperationEnd).done();
+			}.bind(this));
+			return size;
+		}.bind(this)).finally(this._onOperationEnd);
 	}, { primitive: true, length: 1 })
 }))));
