@@ -3,7 +3,6 @@
 'use strict';
 
 var compact           = require('es5-ext/array/#/compact')
-  , flatten           = require('es5-ext/array/#/flatten')
   , assign            = require('es5-ext/object/assign')
   , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
@@ -21,7 +20,7 @@ var compact           = require('es5-ext/array/#/compact')
   , writeFile         = require('fs2/write-file')
   , PersistenceDriver = require('./abstract')
 
-  , isArray = Array.isArray, keys = Object.keys
+  , isArray = Array.isArray, push = Array.prototype.push, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
 
@@ -85,9 +84,16 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Database data
 	_loadAll: d(function () {
-		return this._getAllObjectIds().map(function (objId) {
-			return this.loadObject(objId);
-		}, this).invoke(flatten);
+		var progress = 1, result = [];
+		var promise = this._getAllObjectIds().map(function (objId) {
+			return this.loadObject(objId)(function (events) {
+				if (push.apply(result, events) > (progress * 1000)) {
+					++progress;
+					promise.emit('progress');
+				}
+			});
+		}, this)(result);
+		return promise;
 	}),
 	_storeEvent: d(function (ownerId, targetPath, data) {
 		if (!targetPath) targetPath = '.';
