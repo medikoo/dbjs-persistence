@@ -4,7 +4,6 @@
 
 var compact           = require('es5-ext/array/#/compact')
   , flatten           = require('es5-ext/array/#/flatten')
-  , group             = require('es5-ext/array/#/group')
   , assign            = require('es5-ext/object/assign')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , toArray           = require('es5-ext/object/to-array')
@@ -19,7 +18,6 @@ var compact           = require('es5-ext/array/#/compact')
   , readFile          = require('fs2/read-file')
   , readdir           = require('fs2/readdir')
   , writeFile         = require('fs2/write-file')
-  , serialize         = require('dbjs/_setup/serialize/value')
   , PersistenceDriver = require('./abstract')
 
   , isArray = Array.isArray, keys = Object.keys
