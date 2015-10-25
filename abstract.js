@@ -258,16 +258,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); })
 }), memoizeMethods({
-	indexKeyPath: d(function (name, set/*, options*/) {
-		var names, key, onAdd, onDelete, eventName, listener, update, options = Object(arguments[2])
-		  , keyPath = options.keyPath;
-		name = ensureString(name);
+	indexKeyPath: d(function (keyPath, set) {
+		var names, key, onAdd, onDelete, eventName, listener, update;
+		keyPath = ensureString(keyPath);
 		set = ensureObservableSet(set);
-		if (!keyPath) keyPath = name;
 		names = tokenize(ensureString(keyPath));
 		this._ensureOpen();
 		key = names[names.length - 1];
-		eventName = 'index:' + name;
+		eventName = 'index:' + keyPath;
 		update = function (ownerId, sValue, stamp) {
 			return this._getIndexedValue(ownerId, keyPath)(function (old) {
 				var nu;
@@ -285,12 +283,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue) : sValue,
 					stamp: stamp
 				};
-				return this._storeIndexedValue(ownerId, name, nu).aside(function () {
+				return this._storeIndexedValue(ownerId, keyPath, nu).aside(function () {
 					var driverEvent;
-					debug("computed update %s %s %s", ownerId, name, stamp);
+					debug("computed update %s %s %s", ownerId, keyPath, stamp);
 					driverEvent = {
 						ownerId: ownerId,
-						name: name,
+						keyPath: keyPath,
 						data: nu,
 						old: old
 					};
