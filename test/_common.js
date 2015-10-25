@@ -35,6 +35,9 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '3fooelo', "Computed: initial #1");
 				}), driver.getIndexedValue('aaa', 'computed')(function (data) {
 					a(data.value, '3foo', "Computed: initial #2");
+				}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+					a(size, 3);
+					return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
 				}));
 			}),
 			driver.indexKeyPath('computedSet', db.Object.instances)(function () {
@@ -47,10 +50,6 @@ module.exports = function (opts, copyOpts) {
 			driver.trackDirectSize('miszka', 'miszka')(function (size) {
 				a(size, 0);
 				return driver.getCustom('miszka')(function (data) { a(data.value, '20'); });
-			}),
-			driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
-				a(size, 3);
-				return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
 			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
@@ -134,8 +133,10 @@ module.exports = function (opts, copyOpts) {
 						return driver.getCustom('elo')(function (data) { a(data.value, 'marko'); });
 					})(function () {
 						db.fooBar.bar = 'miszka';
-						return driver._getIndexedValue('fooBar', 'computed')(function (data) {
-							a(data.value, '3foomiszka');
+						return driver.onDrain()(function () {
+							driver._getIndexedValue('fooBar', 'computed')(function (data) {
+								a(data.value, '3foomiszka');
+							});
 						});
 					})(function () {
 						return driver.close();
