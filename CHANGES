@@ -1,3 +1,17 @@
+v0.0.9  --  2015.10.25
+* Automatically resolve stamps when handling custom records
+* Ensure updates come with new data objects
+* No longer rely on index map being held in memory
+* Introduce public getIndexedValue method
+* Emit old value with events
+* Reorganize direct events store handling, and emit events on that as well
+* Introduce onDrain promise
+* Automatic size tracker for both direct and index records
+* Remove `name` support from indexKeyPath (one storage should be after one object type after all)
+* Fixes to default driver
+	* Fix return value type in _close
+	* Ensure database folder is created before any operations
+
 v0.0.8  --  2015.10.22
 * Fix isObjectId resolution
 * Improve debug logging
