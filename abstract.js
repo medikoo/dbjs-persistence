@@ -207,22 +207,24 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getCustom(key).finally(this._onOperationEnd);
 	}),
-	storeCustom: d(function (key, value) {
+	storeCustom: d(function (key, value, stamp) {
 		key = ensureString(key);
 		this._ensureOpen();
-		return this._handleStoreCustom(key, value);
+		return this._handleStoreCustom(key, value, stamp);
 	}),
-	_handleStoreCustom: d(function (key, value) {
+	_handleStoreCustom: d(function (key, value, stamp) {
 		++this._runningOperations;
-		debug("custom update %s", key);
 		return this._getCustom(key)(function (data) {
 			if (data) {
-				if (data.value === value) return;
-				data.value = value;
-				data.stamp = getStamp();
-			} else {
-				data = { value: value, stamp: getStamp() };
+				if (data.value === value) {
+					if (!stamp || (stamp <= data.stamp)) return;
+				}
+				if (stamp) {
+					if (data.stamp > stamp) stamp = data.stamp + 1;
+				}
 			}
+			data = { value: value, stamp: stamp };
+			debug("custom update %s", key);
 			return this._storeCustom(ensureString(key), data)(data);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
