@@ -409,7 +409,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (nu) ++size;
 				else --size;
 				++this._runningOperations;
-				this._handleStoreCustom(name, serializeValue(size)).finally(this._onOperationEnd).done();
+				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
+					.finally(this._onOperationEnd).done();
 			}.bind(this));
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
@@ -431,7 +432,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (nu) ++size;
 				else --size;
 				++this._runningOperations;
-				this._handleStoreCustom(name, serializeValue(size)).finally(this._onOperationEnd).done();
+				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
+					.finally(this._onOperationEnd).done();
 			}.bind(this));
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
