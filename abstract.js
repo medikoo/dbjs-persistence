@@ -162,7 +162,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var size = 0, filter = getSearchValueFilter(arguments[2]);
+		var size = 0, searchValue = arguments[2], filter = getSearchValueFilter(searchValue);
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		++this._runningOperations;
@@ -171,10 +171,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (!startsWith.call(targetPath, keyPath)) return;
 			if (targetPath !== keyPath) {
 				if (targetPath[keyPath.length] !== '*') return;
+				// Multiple
+				if (searchValue == null) return; // No support for multiple size check
 				if (data.value !== '11') return;
 				sValue = targetPath.slice(keyPath.length + 1);
 				if (!isDigit(sValue[0])) sValue = '3' + sValue;
 			} else {
+				// Singular
 				sValue = data.value;
 			}
 			if (filter(sValue)) ++size;
@@ -373,8 +376,20 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this))(function (data) {
 			var size = unserializeValue(data.value);
 			this.on('direct:' + keyPath, function (event) {
-				var old = Boolean(event.old && filter(event.old.value))
-				  , nu = filter(event.data.value);
+				var nu, old, targetPath = event.id.slice(event.id.indexOf('/') + 1), sValue;
+				if (targetPath !== keyPath) {
+					// Multiple
+					if (searchValue == null) return; // no support for multiple size validation
+					sValue = targetPath.slice(keyPath.length + 1);
+					if (!isDigit(sValue[0])) sValue = '3' + sValue;
+					if (sValue !== searchValue) return;
+					old = Boolean(event.old && (event.old.value === '11'));
+					nu = (event.data.value === '11');
+				} else {
+					// Singular
+					old = Boolean(event.old && filter(event.old.value));
+					nu = filter(event.data.value);
+				}
 				if (nu === old) return;
 				if (nu) ++size;
 				else --size;
