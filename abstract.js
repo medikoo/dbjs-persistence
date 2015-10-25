@@ -180,6 +180,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (targetPath[keyPath.length] !== '*') return;
 				// Multiple
 				if (searchValue == null) return; // No support for multiple size check
+				if (typeof searchValue === 'function') return; // No support for function filter
 				if (data.value !== '11') return;
 				sValue = targetPath.slice(keyPath.length + 1);
 				if (!isDigit(sValue[0])) sValue = '3' + sValue;
@@ -401,7 +402,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				var nu, old, targetPath = event.id.slice(event.id.indexOf('/') + 1), sValue;
 				if (targetPath !== keyPath) {
 					// Multiple
-					if (searchValue == null) return; // no support for multiple size validation
+					if (searchValue == null) return; // No support for multiple size validation
+					if (typeof searchValue === 'function') return; // No support for function filter
 					sValue = targetPath.slice(keyPath.length + 1);
 					if (!isDigit(sValue[0])) sValue = '3' + sValue;
 					if (sValue !== searchValue) return;
