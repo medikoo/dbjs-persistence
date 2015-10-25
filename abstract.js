@@ -178,7 +178,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			} else {
 				data = { value: value, stamp: getStamp() };
 			}
-			return this._storeCustom(ensureString(key), data);
+			return this._storeCustom(ensureString(key), data)(data);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_getCustom: d(notImplemented),
