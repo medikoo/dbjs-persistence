@@ -123,10 +123,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var keyPath = (event.object._kind_ === 'item')
 			? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
 		return this._getRaw(id)(function (old) {
-			var driverEvent;
 			if (old && (old.stamp >= nu.stamp)) return;
 			return this._storeEvent(ownerId, targetPath, nu).aside(function () {
-				driverEvent = {
+				var driverEvent = {
 					id: id,
 					ownerId: ownerId,
 					keyPath: keyPath,
