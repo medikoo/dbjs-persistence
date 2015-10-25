@@ -123,7 +123,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		  , nu = { value: serializeValue(event.value), stamp: event.stamp };
 		var keyPath = (event.object._kind_ === 'item')
 			? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
-		return this._getRaw(id)(function (old) {
+		if (this._inStoreEvents[id]) {
+			return this._inStoreEvents[id](function () {
+				return this._handleStoreEvent(event);
+			}.bind(this));
+		}
+		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
 			if (old && (old.stamp >= nu.stamp)) return;
 			return this._storeEvent(ownerId, targetPath, nu).aside(function () {
 				var driverEvent = {
@@ -134,9 +139,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					old: old
 				};
 				debug("direct update %s %s", id, event.stamp);
+				delete this._inStoreEvents[id];
 				this.emit('direct:' + keyPath, driverEvent);
 			}.bind(this));
-		}.bind(this));
+		}.bind(this)));
 	}),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
@@ -274,7 +280,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._closeDeferred.resolve(this._close());
 	})
 }), lazy({
-	_loadedEventsMap: d(function () { return create(null); })
+	_loadedEventsMap: d(function () { return create(null); }),
+	_inStoreEvents: d(function () { return create(null); })
 }), memoizeMethods({
 	indexKeyPath: d(function (keyPath, set) {
 		var names, key, onAdd, onDelete, eventName, listener, update;
