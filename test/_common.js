@@ -48,6 +48,10 @@ module.exports = function (opts, copyOpts) {
 				a(size, 0);
 				return driver.getCustom('miszka')(function (data) { a(data.value, '20'); });
 			}),
+			driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+				a(size, 3);
+				return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
+			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
 			driver.storeEvent(fooBar._lastOwnEvent_),
@@ -91,10 +95,13 @@ module.exports = function (opts, copyOpts) {
 						}));
 					});
 				})(function () {
-					return driver.trackDirectSize('miszka', 'miszka')(function (size) {
+					return deferred(driver.trackDirectSize('miszka', 'miszka')(function (size) {
 						a(size, 2);
 						return driver.getCustom('miszka')(function (data) { a(data.value, '22'); });
-					});
+					}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+						a(size, 3);
+						return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
+					}));
 				})(function () {
 					return driver._getIndexedValue('fooBar', 'computed')(function (data) {
 						a(data.value, '3fooelo');

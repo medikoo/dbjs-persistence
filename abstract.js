@@ -31,6 +31,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolveKeyPath        = require('dbjs/_setup/utils/resolve-property-path')
   , ensureDriver          = require('./ensure')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
+  , resolveIndexFilter    = require('./lib/resolve-index-filter')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
@@ -185,7 +186,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this._handleStoreCustom(name, serializeValue(size));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	recalculateIndexSize: d(function (name, keyPath/*, searchValue*/) {
+		var size = 0, searchValue = arguments[2];
+		name = ensureString(name);
+		keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._searchIndex(keyPath, function (objId, data) {
+			if (resolveIndexFilter(searchValue, data.value)) ++size;
+		})(function () {
+			return this._handleStoreCustom(name, serializeValue(size));
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
 	_searchDirect: d(notImplemented),
+	_searchIndex: d(notImplemented),
 
 	// Custom data
 	getCustom: d(function (key) {
@@ -390,6 +403,28 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					old = Boolean(event.old && filter(event.old.value));
 					nu = filter(event.data.value);
 				}
+				if (nu === old) return;
+				if (nu) ++size;
+				else --size;
+				++this._runningOperations;
+				this._handleStoreCustom(name, serializeValue(size)).finally(this._onOperationEnd).done();
+			}.bind(this));
+			return size;
+		}.bind(this)).finally(this._onOperationEnd);
+	}, { primitive: true, length: 1 }),
+	trackIndexSize: d(function (name, keyPath/*, searchValue*/) {
+		var searchValue = arguments[2];
+		name = ensureString(name);
+		keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._getCustom(name)(function (data) {
+			// Ensure size for existing records is calculated
+			return data || this.recalculateIndexSize(name, keyPath, searchValue);
+		}.bind(this))(function (data) {
+			var size = unserializeValue(data.value);
+			this.on('index:' + keyPath, function (event) {
+				var nu = resolveIndexFilter(searchValue, event.data.value)
+				  , old = Boolean(event.old && resolveIndexFilter(searchValue, event.old.value));
 				if (nu === old) return;
 				if (nu) ++size;
 				else --size;
