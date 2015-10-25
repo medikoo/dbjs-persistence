@@ -272,7 +272,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (old) {
 					if (old.stamp >= stamp) {
 						if (isArray(sValue)) {
-							if (isCopy.call(resolveEventKeys(old.value), sValue)) return deferred(null);
+							if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), sValue)) {
+								return deferred(null);
+							}
 						} else {
 							if (old.value === sValue) return deferred(null);
 						}
@@ -280,7 +282,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					}
 				}
 				nu = {
-					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue) : sValue,
+					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
 				};
 				return this._storeIndexedValue(ownerId, keyPath, nu).aside(function () {
