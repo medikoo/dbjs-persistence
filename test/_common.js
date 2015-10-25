@@ -72,7 +72,7 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '7Object#');
 				});
 			})(function () {
-				return driver.onFlush(function () {
+				return driver.onDrain(function () {
 					return driver.getCustom('miszka')(function (data) { a(data.value, '22'); });
 				});
 			})(function () {

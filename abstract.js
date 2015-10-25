@@ -256,19 +256,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (this.isClosed) throw new Error("Database not accessible");
 	}),
 	_runningOperations: d(0),
-	onFlush: d.gs(function () {
+	onDrain: d.gs(function () {
 		if (!this._runningOperations) return deferred(undefined);
-		if (!this._onFlush) this._onFlush = deferred();
-		return this._onFlush.promise;
+		if (!this._onDrain) this._onDrain = deferred();
+		return this._onDrain.promise;
 	}),
 	_close: d(notImplemented)
 }, autoBind({
 	emitError: d(emitError),
 	_onOperationEnd: d(function () {
 		if (--this._runningOperations) return;
-		if (this._onFlush) {
-			this._onFlush.resolve();
-			delete this._onFlush;
+		if (this._onDrain) {
+			this._onDrain.resolve();
+			delete this._onDrain;
 		}
 		if (!this._closeDeferred) return;
 		this._closeDeferred.resolve(this._close());
