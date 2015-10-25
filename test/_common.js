@@ -57,7 +57,7 @@ module.exports = function (opts, copyOpts) {
 				new Event(fooBar.getOwnDescriptor('raz'), 'marko'),
 				new Event(bar.getOwnDescriptor('miszka'), 343),
 				new Event(fooBar.getOwnDescriptor('bal'), false),
-				new Event(fooBar.getOwnDescriptor('ole'), 767),
+				new Event(fooBar.getOwnDescriptor('miszka'), 767),
 				new Event(bar.getOwnDescriptor('ssss'), 343)
 			])(function () {
 				return driver._getRaw('fooBar')(function (data) {
@@ -94,7 +94,7 @@ module.exports = function (opts, copyOpts) {
 						a(db.zzz, undefined);
 						a(db.fooBar.raz, 'marko');
 						a(db.fooBar.bal, false);
-						a(db.fooBar.ole, 767);
+						a(db.fooBar.miszka, 767);
 						a(db.fooBar.computed, 'fooelo');
 						return driver.loadValue('bar')(function (event) {
 							a(event.object, db.bar);
@@ -128,7 +128,7 @@ module.exports = function (opts, copyOpts) {
 					a(db.fooBar.constructor, db.Object);
 					a(db.fooBar.raz, 'marko');
 					a(db.fooBar.bal, false);
-					a(db.fooBar.ole, 767);
+					a(db.fooBar.miszka, 767);
 					a(db.aaa.constructor, db.Object);
 					a(db.zzz.constructor, db.Object);
 					a(db.bar.miszka, 343);
@@ -144,7 +144,7 @@ module.exports = function (opts, copyOpts) {
 						a(db.fooBar.constructor, db.Object);
 						a(db.fooBar.raz, 'marko');
 						a(db.fooBar.bal, false);
-						a(db.fooBar.ole, 767);
+						a(db.fooBar.miszka, 767);
 						a(db.aaa.constructor, db.Object);
 						a(db.zzz.constructor, db.Object);
 						a(db.bar.miszka, 343);
