@@ -399,7 +399,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this))(function (data) {
 			var size = unserializeValue(data.value);
 			this.on('direct:' + keyPath, function (event) {
-				var nu, old, targetPath = event.id.slice(event.id.indexOf('/') + 1), sValue;
+				var nu, old, targetPath = event.id.slice(event.id.indexOf('/') + 1), sValue, oldSize;
 				if (targetPath !== keyPath) {
 					// Multiple
 					if (searchValue == null) return; // No support for multiple size validation
@@ -415,11 +415,22 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					nu = filter(event.data.value);
 				}
 				if (nu === old) return;
+				oldSize = size;
 				if (nu) ++size;
 				else --size;
 				++this._runningOperations;
 				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
-					.finally(this._onOperationEnd).done();
+					.aside(function () {
+						var driverEvent;
+						debug("direct size update %s %s", name, size);
+						driverEvent = {
+							name: name,
+							size: size,
+							old: oldSize,
+							directEvent: event
+						};
+						this.emit('size:' + name, driverEvent);
+					}.bind(this)).finally(this._onOperationEnd).done();
 			}.bind(this));
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
@@ -436,13 +447,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			var size = unserializeValue(data.value);
 			this.on('index:' + keyPath, function (event) {
 				var nu = resolveIndexFilter(searchValue, event.data.value)
-				  , old = Boolean(event.old && resolveIndexFilter(searchValue, event.old.value));
+				  , old = Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
+				  , oldSize;
 				if (nu === old) return;
+				oldSize = size;
 				if (nu) ++size;
 				else --size;
 				++this._runningOperations;
 				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
-					.finally(this._onOperationEnd).done();
+					.aside(function () {
+						var driverEvent;
+						debug("index size update %s %s", name, size);
+						driverEvent = {
+							name: name,
+							size: size,
+							old: oldSize,
+							directEvent: event
+						};
+						this.emit('size:' + name, driverEvent);
+					}.bind(this)).finally(this._onOperationEnd).done();
 			}.bind(this));
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
