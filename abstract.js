@@ -164,6 +164,119 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getIndexedValue(ensureObjectId(objId), ensureString(keyPath))
 			.finally(this._onOperationEnd);
 	}),
+	_index: d(function (name, set, keyPath) {
+		var names, key, onAdd, onDelete, eventName, listener, update;
+		set = ensureObservableSet(set);
+		if (keyPath != null) {
+			keyPath = ensureString(keyPath);
+			names = tokenize(ensureString(keyPath));
+			key = names[names.length - 1];
+		}
+		this._ensureOpen();
+		eventName = 'index:' + name;
+		update = function (ownerId, sValue, stamp) {
+			return this._getIndexedValue(ownerId, name)(function (old) {
+				var nu;
+				if (old) {
+					if (old.stamp >= stamp) {
+						if (isArray(sValue)) {
+							if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), sValue)) {
+								return deferred(null);
+							}
+						} else {
+							if (old.value === sValue) return deferred(null);
+						}
+						stamp = old.stamp + 1; // most likely model update
+					}
+				}
+				nu = {
+					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
+					stamp: stamp
+				};
+				return this._storeIndexedValue(ownerId, name, nu).aside(function () {
+					var driverEvent;
+					debug("computed update %s %s %s", ownerId, name, stamp);
+					driverEvent = {
+						ownerId: ownerId,
+						name: name,
+						data: nu,
+						old: old
+					};
+					this.emit(eventName, driverEvent);
+					this.emit('object:' + ownerId, driverEvent);
+				}.bind(this));
+			}.bind(this));
+		}.bind(this);
+		listener = function (event) {
+			var sValue, stamp, ownerId = event.target.object.master.__id__;
+			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
+			if (isSet(event.target)) {
+				sValue = [];
+				event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
+			} else {
+				sValue = serializeValue(event.newValue);
+			}
+			++this._runningOperations;
+			update(ownerId, sValue, stamp).finally(this._onOperationEnd).done();
+		}.bind(this);
+		onAdd = function (owner) {
+			var ownerId = owner.__id__, obj = owner, observable, value, stamp, sValue;
+			if (keyPath) {
+				obj = ensureObject(resolveObject(owner, names));
+				if (obj.isKeyStatic(key)) {
+					value = obj[key];
+					stamp = 0;
+				} else {
+					value = obj._get_(key);
+					observable = obj._getObservable_(key);
+					stamp = observable.lastModified;
+					if (isSet(value)) value.on('change', listener);
+					else observable.on('change', listener);
+				}
+				if (isSet(value)) {
+					sValue = [];
+					value.forEach(function (value) { sValue.push(serializeKey(value)); });
+				} else {
+					sValue = serializeValue(value);
+				}
+			} else {
+				sValue = '11';
+			}
+			return update(ownerId, sValue, stamp);
+		}.bind(this);
+		onDelete = function (owner) {
+			var obj;
+			if (keyPath) {
+				obj = resolveObject(owner, names);
+				if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
+			}
+			return update(owner.__id__, '', getStamp());
+		}.bind(this);
+		set.on('change', function (event) {
+			if (event.type === 'add') {
+				++this._runningOperations;
+				onAdd(event.value).finally(this._onOperationEnd).done();
+				return;
+			}
+			if (event.type === 'delete') {
+				++this._runningOperations;
+				onDelete(event.value).finally(this._onOperationEnd).done();
+				return;
+			}
+			if (event.type === 'batch') {
+				if (event.added) {
+					++this._runningOperations;
+					deferred.map(event.added, onAdd).finally(this._onOperationEnd).done();
+				}
+				if (event.deleted) {
+					++this._runningOperations;
+					deferred.map(event.deleted, onDelete).finally(this._onOperationEnd).done();
+				}
+			}
+		}.bind(this));
+		++this._runningOperations;
+		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
+	}),
 	_getIndexedValue: d(notImplemented),
 	_storeIndexedValue: d(notImplemented),
 
@@ -285,108 +398,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_inStoreEvents: d(function () { return create(null); })
 }), memoizeMethods({
 	indexKeyPath: d(function (keyPath, set) {
-		var names, key, onAdd, onDelete, eventName, listener, update;
-		keyPath = ensureString(keyPath);
-		set = ensureObservableSet(set);
-		names = tokenize(ensureString(keyPath));
-		this._ensureOpen();
-		key = names[names.length - 1];
-		eventName = 'index:' + keyPath;
-		update = function (ownerId, sValue, stamp) {
-			return this._getIndexedValue(ownerId, keyPath)(function (old) {
-				var nu;
-				if (old) {
-					if (old.stamp >= stamp) {
-						if (isArray(sValue)) {
-							if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), sValue)) {
-								return deferred(null);
-							}
-						} else {
-							if (old.value === sValue) return deferred(null);
-						}
-						stamp = old.stamp + 1; // most likely model update
-					}
-				}
-				nu = {
-					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
-					stamp: stamp
-				};
-				return this._storeIndexedValue(ownerId, keyPath, nu).aside(function () {
-					var driverEvent;
-					debug("computed update %s %s %s", ownerId, keyPath, stamp);
-					driverEvent = {
-						ownerId: ownerId,
-						keyPath: keyPath,
-						data: nu,
-						old: old
-					};
-					this.emit(eventName, driverEvent);
-					this.emit('object:' + ownerId, driverEvent);
-				}.bind(this));
-			}.bind(this));
-		}.bind(this);
-		listener = function (event) {
-			var sValue, stamp, ownerId = event.target.object.master.__id__;
-			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
-			if (isSet(event.target)) {
-				sValue = [];
-				event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
-			} else {
-				sValue = serializeValue(event.newValue);
-			}
-			++this._runningOperations;
-			update(ownerId, sValue, stamp).finally(this._onOperationEnd).done();
-		}.bind(this);
-		onAdd = function (owner) {
-			var ownerId = owner.__id__, obj = ensureObject(resolveObject(owner, names))
-			  , observable, value, stamp, sValue;
-			if (obj.isKeyStatic(key)) {
-				value = obj[key];
-				stamp = 0;
-			} else {
-				value = obj._get_(key);
-				observable = obj._getObservable_(key);
-				stamp = observable.lastModified;
-				if (isSet(value)) value.on('change', listener);
-				else observable.on('change', listener);
-			}
-			if (isSet(value)) {
-				sValue = [];
-				value.forEach(function (value) { sValue.push(serializeKey(value)); });
-			} else {
-				sValue = serializeValue(value);
-			}
-			return update(ownerId, sValue, stamp);
-		}.bind(this);
-		onDelete = function (owner) {
-			var obj = resolveObject(owner, names);
-			if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
-			return update(owner.__id__, '', getStamp());
-		}.bind(this);
-		set.on('change', function (event) {
-			if (event.type === 'add') {
-				++this._runningOperations;
-				onAdd(event.value).finally(this._onOperationEnd).done();
-				return;
-			}
-			if (event.type === 'delete') {
-				++this._runningOperations;
-				onDelete(event.value).finally(this._onOperationEnd).done();
-				return;
-			}
-			if (event.type === 'batch') {
-				if (event.added) {
-					++this._runningOperations;
-					deferred.map(event.added, onAdd).finally(this._onOperationEnd).done();
-				}
-				if (event.deleted) {
-					++this._runningOperations;
-					deferred.map(event.deleted, onDelete).finally(this._onOperationEnd).done();
-				}
-			}
-		}.bind(this));
-		++this._runningOperations;
-		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
+		return this._index(keyPath, set, keyPath);
 	}, { primitive: true, length: 1 }),
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
