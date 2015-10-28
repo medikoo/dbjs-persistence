@@ -47,6 +47,13 @@ module.exports = function (opts, copyOpts) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 				}));
 			}),
+			driver.indexCollection('barByCol', db.Object.find('bar', 'elo'))(function () {
+				return deferred(driver.getIndexedValue('aaa', 'barByCol')(function (data) {
+					a(data, null);
+				}), driver.getIndexedValue('bar', 'barByCol')(function (data) {
+					a(data.value, '11');
+				}));
+			}),
 			driver.trackDirectSize('miszka', 'miszka')(function (size) {
 				a(size, 0);
 				return driver.getCustom('miszka')(function (data) { a(data.value, '20'); });

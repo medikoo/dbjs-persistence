@@ -166,6 +166,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_index: d(function (name, set, keyPath) {
 		var names, key, onAdd, onDelete, eventName, listener, update;
+		name = ensureString(name);
 		set = ensureObservableSet(set);
 		if (keyPath != null) {
 			keyPath = ensureString(keyPath);
@@ -399,6 +400,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 }), memoizeMethods({
 	indexKeyPath: d(function (keyPath, set) {
 		return this._index(keyPath, set, keyPath);
+	}, { primitive: true, length: 1 }),
+	indexCollection: d(function (name, set) {
+		return this._index(name, set);
 	}, { primitive: true, length: 1 }),
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
