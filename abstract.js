@@ -425,19 +425,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return data || this.recalculateDirectSize(name, keyPath, searchValue);
 		}.bind(this))(function (data) {
 			var size = unserializeValue(data.value);
-			this.on('direct:' + keyPath, function (event) {
-				var nu, old, targetPath = event.id.slice(event.id.indexOf('/') + 1), sValue, oldSize;
-				if (targetPath !== keyPath) {
-					// Multiple
-					if (searchValue == null) return; // No support for multiple size validation
-					if (typeof searchValue === 'function') return; // No support for function filter
-					sValue = targetPath.slice(keyPath.length + 1);
-					if (!isDigit(sValue[0])) sValue = '3' + sValue;
-					if (sValue !== searchValue) return;
-					old = Boolean(event.old && (event.old.value === '11'));
-					nu = (event.data.value === '11');
+			this.on('direct:' + (keyPath || '&'), function (event) {
+				var nu, old, targetPath, sValue, oldSize;
+				if (keyPath) {
+					targetPath = event.id.slice(event.id.indexOf('/') + 1);
+					if (targetPath !== keyPath) {
+						// Multiple
+						if (searchValue == null) return; // No support for multiple size validation
+						if (typeof searchValue === 'function') return; // No support for function filter
+						sValue = targetPath.slice(keyPath.length + 1);
+						if (!isDigit(sValue[0])) sValue = '3' + sValue;
+						if (sValue !== searchValue) return;
+						old = Boolean(event.old && (event.old.value === '11'));
+						nu = (event.data.value === '11');
+					} else {
+						// Singular
+						old = Boolean(event.old && filter(event.old.value));
+						nu = filter(event.data.value);
+					}
 				} else {
-					// Singular
 					old = Boolean(event.old && filter(event.old.value));
 					nu = filter(event.data.value);
 				}
