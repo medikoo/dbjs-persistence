@@ -119,8 +119,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return this._getAllObjectIds().map(function (objId) {
 			return this._getObjectStorage(objId)(function (map) {
 				forEach(map, function (data, keyPath) {
-					if (keyPath === '.') return;
-					callback(objId + '/' + keyPath, data);
+					var postfix = keyPath === '.' ? '' : '/' + keyPath;
+					callback(objId + postfix, data);
 				});
 			});
 		}, this);

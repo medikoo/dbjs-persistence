@@ -118,15 +118,20 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._loadAll().finally(this._onOperationEnd);
 	}),
 	_handleStoreEvent: d(function (event) {
-		var id = event.object.__valueId__, ownerId = event.object.master.__id__
-		  , targetPath = id.slice(ownerId.length + 1) || null
-		  , nu = { value: serializeValue(event.value), stamp: event.stamp };
-		var keyPath = (event.object._kind_ === 'item')
-			? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
+		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath;
 		if (this._inStoreEvents[id]) {
 			return this._inStoreEvents[id](function () {
 				return this._handleStoreEvent(event);
 			}.bind(this));
+		}
+		ownerId = event.object.master.__id__;
+		targetPath = id.slice(ownerId.length + 1) || null;
+		nu = { value: serializeValue(event.value), stamp: event.stamp };
+		if (targetPath) {
+			keyPath = (event.object._kind_ === 'item')
+				? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
+		} else {
+			keyPath = null;
 		}
 		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
 			if (old && (old.stamp >= nu.stamp)) return;
@@ -140,7 +145,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 				debug("direct update %s %s", id, event.stamp);
 				delete this._inStoreEvents[id];
-				this.emit('direct:' + keyPath, driverEvent);
+				this.emit('direct:' + (keyPath || '&'), driverEvent);
 			}.bind(this));
 		}.bind(this)));
 	}),
@@ -285,22 +290,28 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
 		var size = 0, searchValue = arguments[2], filter = getSearchValueFilter(searchValue);
 		name = ensureString(name);
-		keyPath = ensureString(keyPath);
+		if (keyPath != null) keyPath = ensureString(keyPath);
 		++this._runningOperations;
 		return this._searchDirect(function (id, data) {
-			var targetPath = id.slice(id.indexOf('/') + 1), sValue;
-			if (!startsWith.call(targetPath, keyPath)) return;
-			if (targetPath !== keyPath) {
-				if (targetPath[keyPath.length] !== '*') return;
-				// Multiple
-				if (searchValue == null) return; // No support for multiple size check
-				if (typeof searchValue === 'function') return; // No support for function filter
-				if (data.value !== '11') return;
-				sValue = targetPath.slice(keyPath.length + 1);
-				if (!isDigit(sValue[0])) sValue = '3' + sValue;
-			} else {
-				// Singular
+			var index = id.indexOf('/'), targetPath, sValue;
+			if (!keyPath) {
+				if (index !== -1) return;
 				sValue = data.value;
+			} else {
+				targetPath = id.slice(id.indexOf('/') + 1);
+				if (!startsWith.call(targetPath, keyPath)) return;
+				if (targetPath !== keyPath) {
+					if (targetPath[keyPath.length] !== '*') return;
+					// Multiple
+					if (searchValue == null) return; // No support for multiple size check
+					if (typeof searchValue === 'function') return; // No support for function filter
+					if (data.value !== '11') return;
+					sValue = targetPath.slice(keyPath.length + 1);
+					if (!isDigit(sValue[0])) sValue = '3' + sValue;
+				} else {
+					// Singular
+					sValue = data.value;
+				}
 			}
 			if (filter(sValue)) ++size;
 		})(function () {
@@ -407,7 +418,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
 		name = ensureString(name);
-		keyPath = ensureString(keyPath);
+		if (keyPath != null) keyPath = ensureString(keyPath);
 		++this._runningOperations;
 		return this._getCustom(name)(function (data) {
 			// Ensure size for existing records is calculated
