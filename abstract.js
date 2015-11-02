@@ -370,7 +370,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._exportAll(externalStore).finally(this._onOperationEnd);
 	}),
+	clear: d(function () {
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._clear().finally(this._onOperationEnd);
+	}),
 	_exportAll: d(notImplemented),
+	_clear: d(notImplemented),
 
 	// Clonnection related
 	isClosed: d(false),

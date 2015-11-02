@@ -181,6 +181,8 @@ module.exports = function (opts, copyOpts) {
 						});
 					});
 				})(function () {
+					return driver.clear();
+				})(function () {
 					return deferred(driver.close(), driverCopy.close());
 				});
 			});

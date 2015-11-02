@@ -17,10 +17,12 @@ var compact           = require('es5-ext/array/#/compact')
   , mkdir             = require('fs2/mkdir')
   , readFile          = require('fs2/read-file')
   , readdir           = require('fs2/readdir')
+  , rmdir             = require('fs2/rmdir')
   , writeFile         = require('fs2/write-file')
   , PersistenceDriver = require('./abstract')
 
-  , isArray = Array.isArray, push = Array.prototype.push, keys = Object.keys
+  , isArray = Array.isArray, push = Array.prototype.push
+  , defineProperty = Object.defineProperty, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
 
@@ -176,6 +178,14 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		}.bind(this));
 		return promise;
+	}),
+	_clear: d(function () {
+		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
+			this._getObjectStorage.clear();
+			this._getIndexStorage.clear();
+			defineProperty(this, '_custom', d(deferred({})));
+			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
+		}.bind(this));
 	}),
 
 	// Connection related
