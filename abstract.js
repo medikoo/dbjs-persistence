@@ -508,5 +508,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this));
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
+	}, { primitive: true, length: 1 }),
+	trackCollectionSize: d(function (name, set) {
+		var indexName = 'sizeIndex/' + ensureString(name);
+		return this.indexCollection(indexName, set)(function () {
+			return this.trackIndexSize(name, indexName, '11');
+		}.bind(this));
 	}, { primitive: true, length: 1 })
 }))));
