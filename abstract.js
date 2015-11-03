@@ -20,6 +20,7 @@ var aFrom                 = require('es5-ext/array/from')
   , autoBind              = require('d/auto-bind')
   , lazy                  = require('d/lazy')
   , debug                 = require('debug-ext')('db')
+  , Set                   = require('es6-set')
   , ee                    = require('event-emitter')
   , getStamp              = require('time-uuid/time')
   , ensureObservableSet   = require('observable-set/valid-observable-set')
@@ -331,16 +332,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var size = 0, searchValue = arguments[2], filter = getSearchValueFilter(searchValue);
-		name = ensureString(name);
-		if (keyPath != null) keyPath = ensureString(keyPath);
-		++this._runningOperations;
+	_recalculateDirectSet: d(function (keyPath, searchValue) {
+		var filter = getSearchValueFilter(searchValue), result = new Set();
 		return this._searchDirect(function (id, data) {
-			var index = id.indexOf('/'), targetPath, sValue;
+			var index = id.indexOf('/'), targetPath, sValue, objId;
 			if (!keyPath) {
 				if (index !== -1) return;
 				sValue = data.value;
+				objId = id;
 			} else {
 				targetPath = id.slice(id.indexOf('/') + 1);
 				if (!startsWith.call(targetPath, keyPath)) return;
@@ -356,21 +355,33 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					// Singular
 					sValue = data.value;
 				}
+				objId = id.slice(0, index);
 			}
-			if (filter(sValue)) ++size;
-		})(function () {
-			return this._handleStoreCustom(name, serializeValue(size));
+			if (filter(sValue)) result.add(objId);
+		})(result);
+	}),
+	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
+		var searchValue = arguments[2];
+		name = ensureString(name);
+		if (keyPath != null) keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._recalculateDirectSet(keyPath, searchValue)(function (result) {
+			return this._handleStoreCustom(name, serializeValue(result.size));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	_recalculateIndexSet: d(function (keyPath, searchValue) {
+		var result = new Set();
+		return this._searchIndex(keyPath, function (objId, data) {
+			if (resolveIndexFilter(searchValue, data.value)) result.add(objId);
+		})(result);
+	}),
 	recalculateIndexSize: d(function (name, keyPath/*, searchValue*/) {
-		var size = 0, searchValue = arguments[2];
+		var searchValue = arguments[2];
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		++this._runningOperations;
-		return this._searchIndex(keyPath, function (objId, data) {
-			if (resolveIndexFilter(searchValue, data.value)) ++size;
-		})(function () {
-			return this._handleStoreCustom(name, serializeValue(size));
+		return this._recalculateIndexSet(keyPath, searchValue)(function (result) {
+			return this._handleStoreCustom(name, serializeValue(result.size));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_searchDirect: d(notImplemented),
