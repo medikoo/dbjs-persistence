@@ -522,7 +522,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			name: name,
 			type: 'size',
 			direct: true,
-			keyPath: keyPath
+			keyPath: keyPath,
+			searchValue: searchValue
 		};
 		return promise;
 	}, { primitive: true, length: 1 }),
@@ -543,7 +544,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._indexes[name] = {
 			name: name,
 			type: 'size',
-			keyPath: keyPath
+			keyPath: keyPath,
+			searchValue: searchValue
 		};
 		return promise;
 	}, { primitive: true, length: 1 }),
