@@ -324,7 +324,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 							name: name,
 							size: size,
 							old: oldSize,
-							directEvent: event
+							directEvent: event.directEvent || event
 						};
 						this.emit('size:' + name, driverEvent);
 					}.bind(this)).finally(this._onOperationEnd).done();
