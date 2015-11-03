@@ -287,6 +287,39 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_storeIndexedValue: d(notImplemented),
 
 	// Size tracking
+	_trackSize: d(function (name, conf) {
+		++this._runningOperations;
+		return this._getCustom(name)(function (data) {
+			// Ensure size for existing records is calculated
+			return data || conf.recalculate();
+		}.bind(this))(function (data) {
+			var size = unserializeValue(data.value);
+			this.on(conf.eventName + ':' + (conf.keyPath || '&'), function (event) {
+				var data = conf.resolveEvent(event), nu, old, oldSize;
+				if (!data) return;
+				nu = data.nu;
+				old = data.old;
+				if (nu === old) return;
+				oldSize = size;
+				if (nu) ++size;
+				else --size;
+				++this._runningOperations;
+				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
+					.aside(function () {
+						var driverEvent;
+						debug("size update %s %s", name, size);
+						driverEvent = {
+							name: name,
+							size: size,
+							old: oldSize,
+							directEvent: event
+						};
+						this.emit('size:' + name, driverEvent);
+					}.bind(this)).finally(this._onOperationEnd).done();
+			}.bind(this));
+			return size;
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
 	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
 		var size = 0, searchValue = arguments[2], filter = getSearchValueFilter(searchValue);
 		name = ensureString(name);
@@ -425,89 +458,55 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
-		++this._runningOperations;
-		return this._getCustom(name)(function (data) {
-			// Ensure size for existing records is calculated
-			return data || this.recalculateDirectSize(name, keyPath, searchValue);
-		}.bind(this))(function (data) {
-			var size = unserializeValue(data.value);
-			this.on('direct:' + (keyPath || '&'), function (event) {
-				var nu, old, targetPath, sValue, oldSize;
-				if (keyPath) {
-					targetPath = event.id.slice(event.id.indexOf('/') + 1);
-					if (targetPath !== keyPath) {
-						// Multiple
-						if (searchValue == null) return; // No support for multiple size validation
-						if (typeof searchValue === 'function') return; // No support for function filter
-						sValue = targetPath.slice(keyPath.length + 1);
-						if (!isDigit(sValue[0])) sValue = '3' + sValue;
-						if (sValue !== searchValue) return;
-						old = Boolean(event.old && (event.old.value === '11'));
-						nu = (event.data.value === '11');
-					} else {
-						// Singular
-						old = Boolean(event.old && filter(event.old.value));
-						nu = filter(event.data.value);
-					}
-				} else {
-					old = Boolean(event.old && filter(event.old.value));
-					nu = filter(event.data.value);
+		return this._trackSize(name, {
+			keyPath: keyPath,
+			eventName: 'direct',
+			recalculate: this.recalculateDirectSize.bind(this, name, keyPath, searchValue),
+			resolveEvent: function (event) {
+				var targetPath, sValue;
+				if (!keyPath) {
+					return {
+						old: Boolean(event.old && filter(event.old.value)),
+						nu: filter(event.data.value)
+					};
 				}
-				if (nu === old) return;
-				oldSize = size;
-				if (nu) ++size;
-				else --size;
-				++this._runningOperations;
-				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
-					.aside(function () {
-						var driverEvent;
-						debug("direct size update %s %s", name, size);
-						driverEvent = {
-							name: name,
-							size: size,
-							old: oldSize,
-							directEvent: event
-						};
-						this.emit('size:' + name, driverEvent);
-					}.bind(this)).finally(this._onOperationEnd).done();
-			}.bind(this));
-			return size;
-		}.bind(this)).finally(this._onOperationEnd);
+
+				targetPath = event.id.slice(event.id.indexOf('/') + 1);
+				if (targetPath !== keyPath) {
+					// Multiple
+					if (searchValue == null) return; // No support for multiple size validation
+					if (typeof searchValue === 'function') return; // No support for function filter
+					sValue = targetPath.slice(keyPath.length + 1);
+					if (!isDigit(sValue[0])) sValue = '3' + sValue;
+					if (sValue !== searchValue) return;
+					return {
+						old: Boolean(event.old && (event.old.value === '11')),
+						nu: (event.data.value === '11')
+					};
+				}
+				// Singular
+				return {
+					old: Boolean(event.old && filter(event.old.value)),
+					nu: filter(event.data.value)
+				};
+			}
+		});
 	}, { primitive: true, length: 1 }),
 	trackIndexSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2];
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
-		++this._runningOperations;
-		return this._getCustom(name)(function (data) {
-			// Ensure size for existing records is calculated
-			return data || this.recalculateIndexSize(name, keyPath, searchValue);
-		}.bind(this))(function (data) {
-			var size = unserializeValue(data.value);
-			this.on('index:' + keyPath, function (event) {
-				var nu = resolveIndexFilter(searchValue, event.data.value)
-				  , old = Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
-				  , oldSize;
-				if (nu === old) return;
-				oldSize = size;
-				if (nu) ++size;
-				else --size;
-				++this._runningOperations;
-				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
-					.aside(function () {
-						var driverEvent;
-						debug("index size update %s %s", name, size);
-						driverEvent = {
-							name: name,
-							size: size,
-							old: oldSize,
-							directEvent: event
-						};
-						this.emit('size:' + name, driverEvent);
-					}.bind(this)).finally(this._onOperationEnd).done();
-			}.bind(this));
-			return size;
-		}.bind(this)).finally(this._onOperationEnd);
+		return this._trackSize(name, {
+			keyPath: keyPath,
+			eventName: 'index',
+			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
+			resolveEvent: function (event) {
+				return {
+					nu: resolveIndexFilter(searchValue, event.data.value),
+					old: Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
+				};
+			}
+		});
 	}, { primitive: true, length: 1 }),
 	trackCollectionSize: d(function (name, set) {
 		var indexName = 'sizeIndex/' + ensureString(name);
