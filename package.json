@@ -14,14 +14,14 @@
     "url": "git://github.com/medikoo/dbjs-persistence.git"
   },
   "dependencies": {
-    "es5-ext": "^0.10.8",
-    "es6-set": "^0.1.2",
-    "event-emitter": "^0.3.4",
-    "fs2": "^0.2.3",
     "d": "^0.1.1",
     "debug-ext": "1",
     "deferred": "0.7.3",
     "dbjs": "git://github.com/medikoo/dbjs.git#517a1004b102adc0156e038d8a0b1399649dab94",
+    "es5-ext": "^0.10.8",
+    "es6-set": "^0.1.2",
+    "event-emitter": "^0.3.4",
+    "fs2": "^0.2.3",
     "memoizee": "0.3.9",
     "observable-set": "0.0.4",
     "time-uuid": "1",
