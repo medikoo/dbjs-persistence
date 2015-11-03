@@ -294,7 +294,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return data || conf.recalculate();
 		}.bind(this))(function (data) {
 			var size = unserializeValue(data.value);
-			this.on(conf.eventName + ':' + (conf.keyPath || '&'), function (event) {
+			this.on(conf.eventName, function (event) {
 				var data = conf.resolveEvent(event), nu, old, oldSize;
 				if (!data) return;
 				nu = data.nu;
@@ -459,8 +459,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		return this._trackSize(name, {
-			keyPath: keyPath,
-			eventName: 'direct',
+			eventName: 'direct:' + (keyPath || '&'),
 			recalculate: this.recalculateDirectSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
 				var targetPath, sValue;
@@ -497,8 +496,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		return this._trackSize(name, {
-			keyPath: keyPath,
-			eventName: 'index',
+			eventName: 'index:' + keyPath,
 			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
 				return {
