@@ -306,7 +306,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return data || conf.recalculate();
 		}.bind(this))(function (data) {
 			var size = unserializeValue(data.value);
-			this.on(conf.eventName, function (event) {
+			var listener = function (event) {
 				var data = conf.resolveEvent(event), nu, old, oldSize;
 				if (!data) return;
 				nu = data.nu;
@@ -328,7 +328,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						};
 						this.emit('size:' + name, driverEvent);
 					}.bind(this)).finally(this._onOperationEnd).done();
-			}.bind(this));
+			}.bind(this);
+			if (conf.eventsName) {
+				conf.eventsName.forEach(function (eventName) { this.on(eventName, listener); }, this);
+			} else {
+				this.on(conf.eventName, listener);
+			}
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
