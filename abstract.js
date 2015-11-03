@@ -35,7 +35,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
-  , isArray = Array.isArray
+  , isArray = Array.isArray, stringify = JSON.stringify
   , isDigit = RegExp.prototype.test.bind(/[0-9]/)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
@@ -172,6 +172,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_index: d(function (name, set, keyPath) {
 		var names, key, onAdd, onDelete, eventName, listener, update;
 		name = ensureString(name);
+		if (this._indexes[name]) {
+			throw new Error("Index of " + stringify(name) + " was already registered");
+		}
 		set = ensureObservableSet(set);
 		if (keyPath != null) {
 			keyPath = ensureString(keyPath);
@@ -179,6 +182,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			key = names[names.length - 1];
 		}
 		this._ensureOpen();
+		this._indexes[name] = {
+			name: name,
+			type: 'index',
+			keyPath: keyPath
+		};
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
 			return this._getIndexedValue(ownerId, name)(function (old) {
@@ -288,6 +296,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
+		if (this._indexes[name]) {
+			throw new Error("Index of " + stringify(name) + " was already registered");
+		}
 		++this._runningOperations;
 		return this._getCustom(name)(function (data) {
 			// Ensure size for existing records is calculated
@@ -446,7 +457,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	})
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
-	_inStoreEvents: d(function () { return create(null); })
+	_inStoreEvents: d(function () { return create(null); }),
+	_indexes: d(function () { return create(null); })
 }), memoizeMethods({
 	indexKeyPath: d(function (keyPath, set) {
 		return this._index(keyPath, set, keyPath);
@@ -455,10 +467,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._index(name, set);
 	}, { primitive: true, length: 1 }),
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
+		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]), promise;
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
-		return this._trackSize(name, {
+		promise = this._trackSize(name, {
 			eventName: 'direct:' + (keyPath || '&'),
 			recalculate: this.recalculateDirectSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
@@ -490,12 +502,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 			}
 		});
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			direct: true,
+			keyPath: keyPath
+		};
+		return promise;
 	}, { primitive: true, length: 1 }),
 	trackIndexSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2];
+		var searchValue = arguments[2], promise;
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
-		return this._trackSize(name, {
+		promise = this._trackSize(name, {
 			eventName: 'index:' + keyPath,
 			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
@@ -505,6 +524,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 			}
 		});
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			keyPath: keyPath
+		};
+		return promise;
 	}, { primitive: true, length: 1 }),
 	trackCollectionSize: d(function (name, set) {
 		var indexName = 'sizeIndex/' + ensureString(name);
