@@ -525,7 +525,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			type: 'size',
 			direct: true,
 			keyPath: keyPath,
-			searchValue: searchValue
+			searchValue: searchValue,
+			filter: filter
 		};
 		return promise;
 	}, { primitive: true, length: 1 }),
