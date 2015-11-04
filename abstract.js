@@ -308,23 +308,24 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			var size = unserializeValue(data.value);
 			var listener = function (event) {
 				++this._runningOperations;
-				deferred(conf.resolveEvent(event))(function (data) {
-					var nu, old, oldSize;
-					if (!data) return;
-					nu = data.nu;
-					old = data.old;
+				deferred(conf.resolveEvent(event))(function (result) {
+					var nu, old, oldData, nuData;
+					if (!result) return;
+					nu = result.nu;
+					old = result.old;
 					if (nu === old) return;
-					oldSize = size;
 					if (nu) ++size;
 					else --size;
-					return this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
+					oldData = data;
+					nuData = data = { value: serializeValue(size), stamp: event.data.stamp };
+					return this._handleStoreCustom(name, nuData.value, nuData.stamp)
 						.aside(function () {
 							var driverEvent;
 							debug("size update %s %s", name, size);
 							driverEvent = {
 								name: name,
-								size: size,
-								old: oldSize,
+								data: nuData,
+								old: oldData,
 								directEvent: event.directEvent || event
 							};
 							this.emit('size:' + name, driverEvent);
