@@ -307,27 +307,29 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this))(function (data) {
 			var size = unserializeValue(data.value);
 			var listener = function (event) {
-				var data = conf.resolveEvent(event), nu, old, oldSize;
-				if (!data) return;
-				nu = data.nu;
-				old = data.old;
-				if (nu === old) return;
-				oldSize = size;
-				if (nu) ++size;
-				else --size;
 				++this._runningOperations;
-				this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
-					.aside(function () {
-						var driverEvent;
-						debug("size update %s %s", name, size);
-						driverEvent = {
-							name: name,
-							size: size,
-							old: oldSize,
-							directEvent: event.directEvent || event
-						};
-						this.emit('size:' + name, driverEvent);
-					}.bind(this)).finally(this._onOperationEnd).done();
+				deferred(conf.resolveEvent(event))(function (data) {
+					var nu, old, oldSize;
+					if (!data) return;
+					nu = data.nu;
+					old = data.old;
+					if (nu === old) return;
+					oldSize = size;
+					if (nu) ++size;
+					else --size;
+					return this._handleStoreCustom(name, serializeValue(size), event.data.stamp)
+						.aside(function () {
+							var driverEvent;
+							debug("size update %s %s", name, size);
+							driverEvent = {
+								name: name,
+								size: size,
+								old: oldSize,
+								directEvent: event.directEvent || event
+							};
+							this.emit('size:' + name, driverEvent);
+						}.bind(this));
+				}.bind(this)).finally(this._onOperationEnd).done();
 			}.bind(this);
 			if (conf.eventsName) {
 				conf.eventsName.forEach(function (eventName) { this.on(eventName, listener); }, this);
