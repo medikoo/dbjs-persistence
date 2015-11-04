@@ -8,7 +8,7 @@ var deferred           = require('deferred')
 module.exports = function (opts, copyOpts) {
 	var getDatabase = function () {
 		var db = new Database();
-		db.Object.prototype.defineProperties({
+		db.Object.extend('SomeType', {
 			bar: { value: 'elo' },
 			computed: { value: function () {
 				return 'foo' + (this.bar || '');
@@ -22,15 +22,15 @@ module.exports = function (opts, copyOpts) {
 	return function (t, a, d) {
 		var db = getDatabase()
 		  , driver = t(db, opts)
-		  , aaa = db.Object.newNamed('aaa')
-		  , bar = db.Object.newNamed('bar')
-		  , fooBar = db.Object.newNamed('fooBar')
-		  , zzz = db.Object.newNamed('zzz');
+		  , aaa = db.SomeType.newNamed('aaa')
+		  , bar = db.SomeType.newNamed('bar')
+		  , fooBar = db.SomeType.newNamed('fooBar')
+		  , zzz = db.SomeType.newNamed('zzz');
 
 		zzz.delete('bar');
 		aaa.bar = null;
 		return deferred(
-			driver.indexKeyPath('computed', db.Object.instances)(function () {
+			driver.indexKeyPath('computed', db.SomeType.instances)(function () {
 				return deferred(driver.getIndexedValue('fooBar', 'computed')(function (data) {
 					a(data.value, '3fooelo', "Computed: initial #1");
 				}), driver.getIndexedValue('aaa', 'computed')(function (data) {
@@ -40,14 +40,14 @@ module.exports = function (opts, copyOpts) {
 					return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
 				}));
 			}),
-			driver.indexKeyPath('computedSet', db.Object.instances)(function () {
+			driver.indexKeyPath('computedSet', db.SomeType.instances)(function () {
 				return deferred(driver.getIndexedValue('fooBar', 'computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
 				}), driver.getIndexedValue('aaa', 'computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 				}));
 			}),
-			driver.indexCollection('barByCol', db.Object.find('bar', 'elo'))(function () {
+			driver.indexCollection('barByCol', db.SomeType.find('bar', 'elo'))(function () {
 				return deferred(driver.getIndexedValue('aaa', 'barByCol')(function (data) {
 					a(data, null);
 				}), driver.getIndexedValue('bar', 'barByCol')(function (data) {
@@ -75,7 +75,7 @@ module.exports = function (opts, copyOpts) {
 				new Event(bar.getOwnDescriptor('ssss'), 343)
 			])(function () {
 				return driver._getRaw('fooBar')(function (data) {
-					a(data.value, '7Object#');
+					a(data.value, '7SomeType#');
 				});
 			})(function () {
 				return driver.onDrain(function () {
@@ -86,14 +86,14 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				var db = getDatabase()
 				  , driver = t(db, opts);
-				return driver.indexKeyPath('computed', db.Object.instances)(function () {
+				return driver.indexKeyPath('computed', db.SomeType.instances)(function () {
 					return deferred(driver.getIndexedValue('fooBar', 'computed')(function (data) {
 						a(data.value, '3fooelo', "Computed: initial #1");
 					}), driver.getIndexedValue('aaa', 'computed')(function (data) {
 						a(data.value, '3foo', "Computed: initial #2");
 					}));
 				})(function () {
-					return driver.indexKeyPath('computedSet', db.Object.instances)(function (map) {
+					return driver.indexKeyPath('computedSet', db.SomeType.instances)(function (map) {
 						return deferred(driver.getIndexedValue('fooBar', 'computedSet')(function (data) {
 							a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
 						}), driver.getIndexedValue('aaa', 'computedSet')(function (data) {
@@ -114,7 +114,7 @@ module.exports = function (opts, copyOpts) {
 					});
 				})(function () {
 					return driver.loadObject('fooBar')(function () {
-						a(db.fooBar.constructor, db.Object);
+						a(db.fooBar.constructor, db.SomeType);
 						a(db.aaa, undefined);
 						a(db.bar, undefined);
 						a(db.zzz, undefined);
@@ -124,8 +124,8 @@ module.exports = function (opts, copyOpts) {
 						a(db.fooBar.computed, 'fooelo');
 						return driver.loadValue('bar')(function (event) {
 							a(event.object, db.bar);
-							a(event.value, db.Object.prototype);
-							a(db.bar.constructor, db.Object);
+							a(event.value, db.SomeType.prototype);
+							a(db.bar.constructor, db.SomeType);
 							a(db.bar.miszka, undefined);
 						});
 					})(function () {
@@ -153,12 +153,12 @@ module.exports = function (opts, copyOpts) {
 				var db = getDatabase()
 				  , driver = t(db, opts);
 				return driver.loadAll()(function () {
-					a(db.fooBar.constructor, db.Object);
+					a(db.fooBar.constructor, db.SomeType);
 					a(db.fooBar.raz, 'marko');
 					a(db.fooBar.bal, false);
 					a(db.fooBar.miszka, 767);
-					a(db.aaa.constructor, db.Object);
-					a(db.zzz.constructor, db.Object);
+					a(db.aaa.constructor, db.SomeType);
+					a(db.zzz.constructor, db.SomeType);
 					a(db.bar.miszka, 343);
 				})(function () {
 					return driver.close();
@@ -169,12 +169,12 @@ module.exports = function (opts, copyOpts) {
 				  , driverCopy = t(db, copyOpts);
 				return driver.export(driverCopy)(function () {
 					return driverCopy.loadAll()(function () {
-						a(db.fooBar.constructor, db.Object);
+						a(db.fooBar.constructor, db.SomeType);
 						a(db.fooBar.raz, 'marko');
 						a(db.fooBar.bal, false);
 						a(db.fooBar.miszka, 767);
-						a(db.aaa.constructor, db.Object);
-						a(db.zzz.constructor, db.Object);
+						a(db.aaa.constructor, db.SomeType);
+						a(db.zzz.constructor, db.SomeType);
 						a(db.bar.miszka, 343);
 						return driverCopy._getIndexedValue('fooBar', 'computed')(function (data) {
 							a(data.value, '3foomiszka');
