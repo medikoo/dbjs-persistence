@@ -135,19 +135,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			keyPath = null;
 		}
 		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
+			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
-			return this._storeEvent(ownerId, targetPath, nu).aside(function () {
-				var driverEvent = {
-					id: id,
-					ownerId: ownerId,
-					keyPath: keyPath,
-					data: nu,
-					old: old
-				};
-				debug("direct update %s %s", id, event.stamp);
-				delete this._inStoreEvents[id];
-				this.emit('direct:' + (keyPath || '&'), driverEvent);
-			}.bind(this));
+			promise = this._storeEvent(ownerId, targetPath, nu);
+			var driverEvent = {
+				id: id,
+				ownerId: ownerId,
+				keyPath: keyPath,
+				data: nu,
+				old: old
+			};
+			debug("direct update %s %s", id, event.stamp);
+			this.emit('direct:' + (keyPath || '&'), driverEvent);
+			return promise.aside(function () { delete this._inStoreEvents[id]; }.bind(this));
 		}.bind(this)));
 	}),
 	storeEvent: d(function (event) {
@@ -191,7 +191,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
 			return this._getIndexedValue(ownerId, name)(function (old) {
-				var nu;
+				var nu, promise;
 				if (old) {
 					if (old.stamp >= stamp) {
 						if (isArray(sValue)) {
@@ -208,18 +208,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
 				};
-				return this._storeIndexedValue(ownerId, name, nu).aside(function () {
-					var driverEvent;
-					debug("computed update %s %s %s", ownerId, name, stamp);
-					driverEvent = {
-						ownerId: ownerId,
-						name: name,
-						data: nu,
-						old: old
-					};
-					this.emit(eventName, driverEvent);
-					this.emit('object:' + ownerId, driverEvent);
-				}.bind(this));
+				promise = this._storeIndexedValue(ownerId, name, nu);
+				var driverEvent;
+				debug("computed update %s %s %s", ownerId, name, stamp);
+				driverEvent = {
+					ownerId: ownerId,
+					name: name,
+					data: nu,
+					old: old
+				};
+				this.emit(eventName, driverEvent);
+				this.emit('object:' + ownerId, driverEvent);
+				return promise;
 			}.bind(this));
 		}.bind(this);
 		listener = function (event) {
@@ -309,7 +309,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			var listener = function (event) {
 				++this._runningOperations;
 				deferred(conf.resolveEvent(event))(function (result) {
-					var nu, old, oldData, nuData;
+					var nu, old, oldData, nuData, promise;
 					if (!result) return;
 					nu = result.nu;
 					old = result.old;
@@ -318,18 +318,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					else --size;
 					oldData = data;
 					nuData = data = { value: serializeValue(size), stamp: event.data.stamp };
-					return this._handleStoreCustom(name, nuData.value, nuData.stamp)
-						.aside(function () {
-							var driverEvent;
-							debug("size update %s %s", name, size);
-							driverEvent = {
-								name: name,
-								data: nuData,
-								old: oldData,
-								directEvent: event.directEvent || event
-							};
-							this.emit('size:' + name, driverEvent);
-						}.bind(this));
+					promise = this._handleStoreCustom(name, nuData.value, nuData.stamp);
+					var driverEvent;
+					debug("size update %s %s", name, size);
+					driverEvent = {
+						name: name,
+						data: nuData,
+						old: oldData,
+						directEvent: event.directEvent || event
+					};
+					this.emit('size:' + name, driverEvent);
+					return promise;
 				}.bind(this)).finally(this._onOperationEnd).done();
 			}.bind(this);
 			if (conf.eventNames) {
