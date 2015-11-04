@@ -68,6 +68,7 @@ module.exports = function (opts, copyOpts) {
 			return driver.storeEvents([
 				new Event(aaa.getOwnDescriptor('sdfds'), 'sdfs'),
 				new Event(zzz.getOwnDescriptor('sdfffds'), 'sdfs'),
+				new Event(zzz.getOwnDescriptor('miszka'), 'ejo'),
 				new Event(fooBar.getOwnDescriptor('raz'), 'marko'),
 				new Event(bar.getOwnDescriptor('miszka'), 343),
 				new Event(fooBar.getOwnDescriptor('bal'), false),
@@ -79,7 +80,7 @@ module.exports = function (opts, copyOpts) {
 				});
 			})(function () {
 				return driver.onDrain(function () {
-					return driver.getCustom('miszkaAll')(function (data) { a(data.value, '22'); });
+					return driver.getCustom('miszkaAll')(function (data) { a(data.value, '23'); });
 				});
 			})(function () {
 				return driver.close();
@@ -102,8 +103,8 @@ module.exports = function (opts, copyOpts) {
 					});
 				})(function () {
 					return deferred(driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
-						a(size, 2);
-						return driver.getCustom('miszkaAll')(function (data) { a(data.value, '22'); });
+						a(size, 3);
+						return driver.getCustom('miszkaAll')(function (data) { a(data.value, '23'); });
 					}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 						a(size, 3);
 						return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
