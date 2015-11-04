@@ -54,9 +54,9 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '11');
 				}));
 			}),
-			driver.trackDirectSize('miszka', 'miszka')(function (size) {
+			driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
 				a(size, 0);
-				return driver.getCustom('miszka')(function (data) { a(data.value, '20'); });
+				return driver.getCustom('miszkaAll')(function (data) { a(data.value, '20'); });
 			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
@@ -79,7 +79,7 @@ module.exports = function (opts, copyOpts) {
 				});
 			})(function () {
 				return driver.onDrain(function () {
-					return driver.getCustom('miszka')(function (data) { a(data.value, '22'); });
+					return driver.getCustom('miszkaAll')(function (data) { a(data.value, '22'); });
 				});
 			})(function () {
 				return driver.close();
@@ -101,9 +101,9 @@ module.exports = function (opts, copyOpts) {
 						}));
 					});
 				})(function () {
-					return deferred(driver.trackDirectSize('miszka', 'miszka')(function (size) {
+					return deferred(driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
 						a(size, 2);
-						return driver.getCustom('miszka')(function (data) { a(data.value, '22'); });
+						return driver.getCustom('miszkaAll')(function (data) { a(data.value, '22'); });
 					}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 						a(size, 3);
 						return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
