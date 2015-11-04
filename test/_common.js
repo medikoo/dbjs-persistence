@@ -15,7 +15,12 @@ module.exports = function (opts, copyOpts) {
 			} },
 			computedSet: { value: function () {
 				return [this.bar, this.computed];
-			}, multiple: true }
+			}, multiple: true },
+			someBool: { type: db.Boolean },
+			someBoolStatic: { type: db.Boolean },
+			someBoolComputed: { type: db.Boolean, value: function () {
+				return this.someBoolStatic;
+			} }
 		});
 		return db;
 	};
@@ -23,6 +28,10 @@ module.exports = function (opts, copyOpts) {
 		var db = getDatabase()
 		  , driver = t(db, opts)
 		  , aaa = db.SomeType.newNamed('aaa')
+		  , bbb = db.SomeType.newNamed('bbb')
+		  , ccc = db.SomeType.newNamed('ccc')
+		  , ddd = db.SomeType.newNamed('ddd')
+		  , eee = db.SomeType.newNamed('eee')
 		  , bar = db.SomeType.newNamed('bar')
 		  , fooBar = db.SomeType.newNamed('fooBar')
 		  , zzz = db.SomeType.newNamed('zzz');
@@ -36,8 +45,8 @@ module.exports = function (opts, copyOpts) {
 				}), driver.getIndexedValue('aaa', 'computed')(function (data) {
 					a(data.value, '3foo', "Computed: initial #2");
 				}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
-					a(size, 3);
-					return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
+					a(size, 7);
+					return driver.getCustom('computedFooelo')(function (data) { a(data.value, '27'); });
 				}));
 			}),
 			driver.indexKeyPath('computedSet', db.SomeType.instances)(function () {
@@ -47,6 +56,7 @@ module.exports = function (opts, copyOpts) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 				}));
 			}),
+			driver.indexKeyPath('someBoolComputed', db.SomeType.instances),
 			driver.indexCollection('barByCol', db.SomeType.find('bar', 'elo'))(function () {
 				return deferred(driver.getIndexedValue('aaa', 'barByCol')(function (data) {
 					a(data, null);
@@ -57,6 +67,14 @@ module.exports = function (opts, copyOpts) {
 			driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
 				a(size, 0);
 				return driver.getCustom('miszkaAll')(function (data) { a(data.value, '20'); });
+			}),
+			driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
+				a(size, 0);
+				return driver.getCustom('miszkaAll')(function (data) { a(data.value, '20'); });
+			}),
+			driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
+			driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
+				a(size, 0);
 			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
@@ -73,15 +91,25 @@ module.exports = function (opts, copyOpts) {
 				new Event(bar.getOwnDescriptor('miszka'), 343),
 				new Event(fooBar.getOwnDescriptor('bal'), false),
 				new Event(fooBar.getOwnDescriptor('miszka'), 767),
-				new Event(bar.getOwnDescriptor('ssss'), 343)
+				new Event(bar.getOwnDescriptor('ssss'), 343),
+				new Event(aaa.getOwnDescriptor('someBool'), true),
+				new Event(bbb.getOwnDescriptor('someBool'), true),
+				new Event(ccc.getOwnDescriptor('someBool'), true),
+				new Event(bbb.getOwnDescriptor('someBoolStatic'), true),
+				new Event(ccc.getOwnDescriptor('someBoolStatic'), true),
+				new Event(ddd.getOwnDescriptor('someBoolStatic'), true),
+				new Event(eee.getOwnDescriptor('someBoolStatic'), true)
 			])(function () {
 				return driver._getRaw('fooBar')(function (data) {
 					a(data.value, '7SomeType#');
 				});
 			})(function () {
-				return driver.onDrain(function () {
-					return driver.getCustom('miszkaAll')(function (data) { a(data.value, '23'); });
-				});
+				return driver.onDrain;
+			})(function () {
+				return deferred(
+					driver.getCustom('someBoolSize')(function (data) { a(data.value, '23'); }),
+					driver.getCustom('someBoolComputedSize')(function (data) { a(data.value, '24'); })
+				);
 			})(function () {
 				return driver.close();
 			})(function () {
@@ -102,13 +130,21 @@ module.exports = function (opts, copyOpts) {
 						}));
 					});
 				})(function () {
-					return deferred(driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
-						a(size, 3);
-						return driver.getCustom('miszkaAll')(function (data) { a(data.value, '23'); });
-					}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
-						a(size, 3);
-						return driver.getCustom('computedFooelo')(function (data) { a(data.value, '23'); });
-					}));
+					return deferred(
+						driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
+							a(size, 3);
+							return driver.getCustom('miszkaAll')(function (data) { a(data.value, '23'); });
+						}),
+						driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+							a(size, 7);
+							return driver.getCustom('computedFooelo')(function (data) { a(data.value, '27'); });
+						}),
+						driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) {
+							a(size, 3);
+						}),
+						driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed',
+							'11')(function (size) { a(size, 4); })
+					);
 				})(function () {
 					return driver._getIndexedValue('fooBar', 'computed')(function (data) {
 						a(data.value, '3fooelo');
