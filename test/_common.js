@@ -76,6 +76,8 @@ module.exports = function (opts, copyOpts) {
 			driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
 				a(size, 0);
 			}),
+			driver.trackMultipleSize('someBoolAll',
+				['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 0); }),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
 			driver.storeEvent(fooBar._lastOwnEvent_),
@@ -108,7 +110,8 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				return deferred(
 					driver.getCustom('someBoolSize')(function (data) { a(data.value, '23'); }),
-					driver.getCustom('someBoolComputedSize')(function (data) { a(data.value, '23'); })
+					driver.getCustom('someBoolComputedSize')(function (data) { a(data.value, '23'); }),
+					driver.getCustom('someBoolAll')(function (data) { a(data.value, '22'); })
 				);
 			})(function () {
 				return driver.close();
@@ -143,7 +146,9 @@ module.exports = function (opts, copyOpts) {
 							a(size, 3);
 						}),
 						driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed',
-							'11')(function (size) { a(size, 3); })
+							'11')(function (size) { a(size, 3); }),
+						driver.trackMultipleSize('someBoolAll',
+							['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 2); })
 					);
 				})(function () {
 					return driver._getIndexedValue('fooBar', 'computed')(function (data) {

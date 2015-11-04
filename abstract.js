@@ -6,6 +6,7 @@ var aFrom                 = require('es5-ext/array/from')
   , compact               = require('es5-ext/array/#/compact')
   , isCopy                = require('es5-ext/array/#/is-copy')
   , ensureArray           = require('es5-ext/array/valid-array')
+  , ensureIterable        = require('es5-ext/iterable/validate-object')
   , assign                = require('es5-ext/object/assign')
   , ensureCallable        = require('es5-ext/object/valid-callable')
   , ensureObject          = require('es5-ext/object/valid-object')
@@ -376,6 +377,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this._handleStoreCustom(name, serializeValue(result.size));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	_recalculateMultipleSet: d(function (sizeIndexes) {
+		return deferred.map(sizeIndexes, function (name) {
+			var meta = this._indexes[name];
+			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
+			return this._recalculateIndexSet(meta.keyPath, meta.searchValue);
+		}, this)(function (sets) {
+			var result;
+			sets.sort(function (a, b) { return a.size - b.size; }).forEach(function (set) {
+				if (result) {
+					result.forEach(function (item) {
+						if (!set.has(item)) result.delete(item);
+					});
+				} else {
+					result = set;
+				}
+			});
+			return result;
+		});
+	}),
 	_recalculateIndexSet: d(function (keyPath, searchValue) {
 		var result = new Set();
 		return this._searchIndex(keyPath, function (objId, data) {
@@ -549,6 +569,69 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			type: 'size',
 			keyPath: keyPath,
 			searchValue: searchValue
+		};
+		return promise;
+	}, { primitive: true, length: 1 }),
+	trackMultipleSize: d(function (name, sizeIndexes) {
+		var promise;
+		name = ensureString(name);
+		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
+		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
+		sizeIndexes.forEach(function (name) {
+			var meta = this._indexes[ensureString(name)];
+			if (!meta) throw new Error("No index for " + stringify(name) + " was setup");
+			if (meta.type !== 'size') {
+				throw new Error("Index " + stringify(name) + " is not of \"size\" type as expected");
+			}
+			if (meta.multiple) {
+				throw new Error("Index for " + stringify(name) + " is multiple, which is not suported");
+			}
+		}, this);
+		promise = this._trackSize(name, {
+			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
+			recalculate: function () {
+				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
+					return this._handleStoreCustom(name, serializeValue(result.size));
+				}.bind(this));
+			}.bind(this),
+			resolveEvent: function (event) {
+				var ownerId = event.directEvent.ownerId;
+				return deferred.every(sizeIndexes, function (name) {
+					var meta, id;
+					if (event.name === name) return true;
+					meta = this._indexes[name];
+					if (meta.direct) {
+						id = ownerId;
+						if (meta.keyPath) id += '/' + meta.keyPath;
+						return this._getRaw(id)(function (data) {
+							var searchValue;
+							if (data) return meta.filter(data.value);
+							if (meta.searchValue == null) return false;
+							if (typeof meta.searchValue === 'function') return false;
+							searchValue = meta.searchValue;
+							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
+							return this._getRaw(id + '*' + searchValue)(function (data) {
+								if (!data) return false;
+								return data.value === '11';
+							});
+						}.bind(this));
+					}
+					return this._getIndexedValue(ownerId, meta.keyPath)(function (data) {
+						return resolveIndexFilter(meta.searchValue, data.value);
+					});
+				}, this)(function (isEffective) {
+					var old, nu;
+					if (!isEffective) return;
+					old = unserializeValue(event.old.value);
+					nu = unserializeValue(event.data.value);
+					return { old: (old > nu), nu: (old < nu) };
+				});
+			}.bind(this)
+		});
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			multiple: true
 		};
 		return promise;
 	}, { primitive: true, length: 1 }),
