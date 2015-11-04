@@ -97,7 +97,7 @@ module.exports = function (opts, copyOpts) {
 				new Event(ccc.getOwnDescriptor('someBool'), true),
 				new Event(bbb.getOwnDescriptor('someBoolStatic'), true),
 				new Event(ccc.getOwnDescriptor('someBoolStatic'), true),
-				new Event(ddd.getOwnDescriptor('someBoolStatic'), true),
+				new Event(ddd.getOwnDescriptor('someBoolStatic'), false),
 				new Event(eee.getOwnDescriptor('someBoolStatic'), true)
 			])(function () {
 				return driver._getRaw('fooBar')(function (data) {
@@ -108,7 +108,7 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				return deferred(
 					driver.getCustom('someBoolSize')(function (data) { a(data.value, '23'); }),
-					driver.getCustom('someBoolComputedSize')(function (data) { a(data.value, '24'); })
+					driver.getCustom('someBoolComputedSize')(function (data) { a(data.value, '23'); })
 				);
 			})(function () {
 				return driver.close();
@@ -143,7 +143,7 @@ module.exports = function (opts, copyOpts) {
 							a(size, 3);
 						}),
 						driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed',
-							'11')(function (size) { a(size, 4); })
+							'11')(function (size) { a(size, 3); })
 					);
 				})(function () {
 					return driver._getIndexedValue('fooBar', 'computed')(function (data) {
