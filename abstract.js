@@ -332,8 +332,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						}.bind(this));
 				}.bind(this)).finally(this._onOperationEnd).done();
 			}.bind(this);
-			if (conf.eventsName) {
-				conf.eventsName.forEach(function (eventName) { this.on(eventName, listener); }, this);
+			if (conf.eventNames) {
+				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
 			} else {
 				this.on(conf.eventName, listener);
 			}
