@@ -209,7 +209,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
 				};
-				promise = this.__storeIndexedValue(ownerId, name, nu);
+				promise = this.__storeRaw('=' + name + ':' + ownerId, nu);
 				var driverEvent;
 				debug("computed update %s %s %s", ownerId, name, stamp);
 				driverEvent = {
@@ -294,7 +294,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
 	}),
 	__getIndexedValue: d(notImplemented),
-	__storeIndexedValue: d(notImplemented),
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {

@@ -102,12 +102,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__getIndexedValue: d(function (objId, keyPath) {
 		return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
-	__storeIndexedValue: d(function (objId, keyPath, data) {
-		return this._getIndexStorage(keyPath)(function (map) {
-			map[objId] = data;
-			return this._writeStorage('=' + keyPath, map);
-		}.bind(this));
-	}),
 
 	// Size tracking
 	__searchDirect: d(function (callback) {
