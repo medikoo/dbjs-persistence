@@ -97,13 +97,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this)(result);
 		return promise;
 	}),
-	__storeEvent: d(function (ownerId, targetPath, data) {
-		if (!targetPath) targetPath = '.';
-		return this._getObjectStorage(ownerId)(function (map) {
-			map[targetPath] = data;
-			return this._writeStorage(ownerId, map);
-		}.bind(this));
-	}),
 
 	// Indexed database data
 	__getIndexedValue: d(function (objId, keyPath) {

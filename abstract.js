@@ -138,7 +138,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return (this._inStoreEvents[id] = this.__getRaw(id)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
-			promise = this.__storeEvent(ownerId, targetPath, nu);
+			promise = this.__storeRaw(id, nu);
 			var driverEvent = {
 				id: id,
 				ownerId: ownerId,
@@ -164,7 +164,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return deferred.map(events, this._handleStoreEvent, this).finally(this._onOperationEnd);
 	}),
 	__loadAll: d(notImplemented),
-	__storeEvent: d(notImplemented),
 
 	// Indexed database data
 	getIndexedValue: d(function (objId, keyPath) {
