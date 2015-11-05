@@ -45,18 +45,18 @@ setPrototypeOf(TextFileDriver, PersistenceDriver);
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 	// Any data
-	_getRaw: d(function (id) {
+	__getRaw: d(function (id) {
 		var objId, keyPath, index;
-		if (id[0] === '_') return this._getCustom(id.slice(1));
+		if (id[0] === '_') return this.__getCustom(id.slice(1));
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
-			return this._getIndexedValue(id.slice(index + 1), id.slice(1, index));
+			return this.__getIndexedValue(id.slice(index + 1), id.slice(1, index));
 		}
 		objId = id.split('/', 1)[0];
 		keyPath = id.slice(objId.length + 1) || '.';
 		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
 	}),
-	_getRawObject: d(function (objId, keyPaths) {
+	__getRawObject: d(function (objId, keyPaths) {
 		return this._getObjectStorage(objId)(function (map) {
 			return compact.call(toArray(map, function (data, keyPath) {
 				if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
@@ -64,9 +64,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}, null, byStamp));
 		});
 	}),
-	_storeRaw: d(function (id, data) {
+	__storeRaw: d(function (id, data) {
 		var objId, keyPath, index;
-		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
+		if (id[0] === '_') return this.__storeCustom(id.slice(1), data);
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
 			keyPath = id.slice(1, index);
@@ -85,7 +85,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Database data
-	_loadAll: d(function () {
+	__loadAll: d(function () {
 		var progress = 1, result = [];
 		var promise = this._getAllObjectIds().map(function (objId) {
 			return this.loadObject(objId)(function (events) {
@@ -97,7 +97,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this)(result);
 		return promise;
 	}),
-	_storeEvent: d(function (ownerId, targetPath, data) {
+	__storeEvent: d(function (ownerId, targetPath, data) {
 		if (!targetPath) targetPath = '.';
 		return this._getObjectStorage(ownerId)(function (map) {
 			map[targetPath] = data;
@@ -106,10 +106,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Indexed database data
-	_getIndexedValue: d(function (objId, keyPath) {
+	__getIndexedValue: d(function (objId, keyPath) {
 		return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
-	_storeIndexedValue: d(function (objId, keyPath, data) {
+	__storeIndexedValue: d(function (objId, keyPath, data) {
 		return this._getIndexStorage(keyPath)(function (map) {
 			map[objId] = data;
 			return this._writeStorage('=' + keyPath, map);
@@ -117,7 +117,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Size tracking
-	_searchDirect: d(function (callback) {
+	__searchDirect: d(function (callback) {
 		return this._getAllObjectIds().map(function (objId) {
 			return this._getObjectStorage(objId)(function (map) {
 				forEach(map, function (data, keyPath) {
@@ -127,17 +127,17 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}, this);
 	}),
-	_searchIndex: d(function (keyPath, callback) {
+	__searchIndex: d(function (keyPath, callback) {
 		return this._getIndexStorage(keyPath)(function (map) {
 			forEach(map, function (data, objId) { callback(objId, data); });
 		});
 	}),
 
 	// Custom data
-	_getCustom: d(function (key) {
+	__getCustom: d(function (key) {
 		return this._custom(function (map) { return map[key] || null; });
 	}),
-	_storeCustom: d(function (key, data) {
+	__storeCustom: d(function (key, data) {
 		return this._custom(function (map) {
 			map[key] = data;
 			return writeFile(resolve(this.dirPath, '_custom'), stringify(map));
@@ -145,7 +145,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Storage import/export
-	_exportAll: d(function (destDriver) {
+	__exportAll: d(function (destDriver) {
 		var count = 0;
 		var promise = this.dbDir()(function () {
 			return readdir(this.dirPath, { type: { file: true } }).map(function (name) {
@@ -154,7 +154,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						return deferred.map(keys(map), function (keyPath) {
 							var postfix = keyPath === '.' ? '' : '/' + keyPath;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw(name + postfix, this[keyPath]);
+							return destDriver.__storeRaw(name + postfix, this[keyPath]);
 						}, map);
 					});
 				}
@@ -163,7 +163,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					return this._getIndexStorage(name)(function (map) {
 						return deferred.map(keys(map), function (objId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('=' + name  + ':' + objId, this[objId]);
+							return destDriver.__storeRaw('=' + name  + ':' + objId, this[objId]);
 						}, map);
 					});
 				}
@@ -171,7 +171,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					this._custom(function (custom) {
 						return deferred.map(keys(custom), function (key) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('_' + key, custom[key]);
+							return destDriver.__storeRaw('_' + key, custom[key]);
 						});
 					});
 				}
@@ -179,7 +179,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 		return promise;
 	}),
-	_clear: d(function () {
+	__clear: d(function () {
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
 			this._getObjectStorage.clear();
 			this._getIndexStorage.clear();
@@ -189,7 +189,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Connection related
-	_close: d(function () { return deferred(undefined); }), // Nothing to close
+	__close: d(function () { return deferred(undefined); }), // Nothing to close
 
 	// Specific to driver
 	_getAllObjectIds: d(function () {

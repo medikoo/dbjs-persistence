@@ -102,7 +102,7 @@ module.exports = function (opts, copyOpts) {
 				new Event(ddd.getOwnDescriptor('someBoolStatic'), false),
 				new Event(eee.getOwnDescriptor('someBoolStatic'), true)
 			])(function () {
-				return driver._getRaw('fooBar')(function (data) {
+				return driver.__getRaw('fooBar')(function (data) {
 					a(data.value, '7SomeType#');
 				});
 			})(function () {
@@ -151,7 +151,7 @@ module.exports = function (opts, copyOpts) {
 							['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 2); })
 					);
 				})(function () {
-					return driver._getIndexedValue('fooBar', 'computed')(function (data) {
+					return driver.__getIndexedValue('fooBar', 'computed')(function (data) {
 						a(data.value, '3fooelo');
 					});
 				})(function () {
@@ -171,7 +171,7 @@ module.exports = function (opts, copyOpts) {
 							a(db.bar.miszka, undefined);
 						});
 					})(function () {
-						return driver._getIndexedValue('fooBar', 'computed')(function (data) {
+						return driver.__getIndexedValue('fooBar', 'computed')(function (data) {
 							a(data.value, '3fooelo');
 						});
 					})(function () {
@@ -183,7 +183,7 @@ module.exports = function (opts, copyOpts) {
 					})(function () {
 						db.fooBar.bar = 'miszka';
 						return driver.onDrain()(function () {
-							driver._getIndexedValue('fooBar', 'computed')(function (data) {
+							driver.__getIndexedValue('fooBar', 'computed')(function (data) {
 								a(data.value, '3foomiszka');
 							});
 						});
@@ -218,7 +218,7 @@ module.exports = function (opts, copyOpts) {
 						a(db.aaa.constructor, db.SomeType);
 						a(db.zzz.constructor, db.SomeType);
 						a(db.bar.miszka, 343);
-						return driverCopy._getIndexedValue('fooBar', 'computed')(function (data) {
+						return driverCopy.__getIndexedValue('fooBar', 'computed')(function (data) {
 							a(data.value, '3foomiszka');
 						});
 					});
