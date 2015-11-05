@@ -66,7 +66,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	__storeRaw: d(function (id, data) {
 		var objId, keyPath, index;
-		if (id[0] === '_') return this.__storeCustom(id.slice(1), data);
+		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
 			keyPath = id.slice(1, index);
@@ -124,7 +124,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__getCustom: d(function (key) {
 		return this._custom(function (map) { return map[key] || null; });
 	}),
-	__storeCustom: d(function (key, data) {
+	_storeCustom: d(function (key, data) {
 		return this._custom(function (map) {
 			map[key] = data;
 			return writeFile(resolve(this.dirPath, '_custom'), stringify(map));

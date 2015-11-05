@@ -438,11 +438,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			data = { value: value, stamp: stamp };
 			debug("custom update %s", key);
-			return this.__storeCustom(ensureString(key), data)(data);
+			return this.__storeRaw('_' + ensureString(key), data)(data);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	__getCustom: d(notImplemented),
-	__storeCustom: d(notImplemented),
 
 	// Storage export/import
 	export: d(function (externalStore) {
