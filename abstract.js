@@ -43,7 +43,7 @@ var aFrom                 = require('es5-ext/array/from')
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
-  , create = Object.create;
+  , create = Object.create, defineProperties = Object.defineProperties, keys = Object.keys;
 
 var byStamp = function (a, b) {
 	return (a.data.stamp - b.data.stamp) || a.id.toLowerCase().localeCompare(b.id.toLowerCase());
@@ -77,8 +77,17 @@ var ensureOwnerId = function (ownerId) {
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
-	_getRaw: d(function (cat, ns, path) { return this.__getRaw(cat, ns, path); }),
+	_getRaw: d(function (cat, ns, path) {
+		if (this._transient[cat][ns] && this._transient[cat][ns][path]) {
+			return deferred(this._transient[cat][ns][path]);
+		}
+		return this.__getRaw(cat, ns, path);
+	}),
 	_storeRaw: d(function (cat, ns, path, data) {
+		var transient = this._transient[cat];
+		if (!transient[ns]) transient[ns] = create(null);
+		transient = transient[ns];
+		transient[path] = data;
 		if (this._writeLockCounter) {
 			if (!this._writeLockCache) this._writeLockCache = [];
 			this._writeLockCache.push(arguments);
@@ -86,6 +95,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		++this._runningWriteOperations;
 		return this.__storeRaw(cat, ns, path, data).finally(function () {
+			if (transient[path] === data) delete transient[path];
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
 				this._onWriteDrain.resolve();
@@ -512,8 +522,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}).finally(this._onOperationEnd);
 	}),
 	clear: d(function () {
+		var transient;
 		this._ensureOpen();
 		++this._runningOperations;
+		transient = this._transient;
+		keys(transient.direct).forEach(function (key) { delete transient.direct[key]; });
+		keys(transient.computed).forEach(function (key) { delete transient.computed[key]; });
+		keys(transient.custom).forEach(function (key) { delete transient.custom[key]; });
 		return this._safeGet(function () {
 			++this._runningWriteOperations;
 			return this.__clear();
@@ -579,7 +594,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_inStoreEvents: d(function () { return create(null); }),
-	_indexes: d(function () { return create(null); })
+	_indexes: d(function () { return create(null); }),
+	_transient: d(function () {
+		return defineProperties({}, lazy({
+			direct: d(function () { return create(null); }),
+			computed: d(function () { return create(null); }),
+			custom: d(function () { return create(null); })
+		}));
+	})
 }), memoizeMethods({
 	indexKeyPath: d(function (keyPath, set) {
 		return this._index(keyPath, set, keyPath);
