@@ -136,10 +136,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__exportAll: d(function (destDriver) {
 		var count = 0;
 		var promise = this.dbDir()(function () {
-			return readdir(this.dirPath, { type: { file: true } }).map(function (id) {
-				var ownerId;
-				if (isId(id)) {
-					ownerId = id;
+			return readdir(this.dirPath, { type: { file: true } }).map(function (filename) {
+				var ownerId, keyPath;
+				if (isId(filename)) {
+					ownerId = filename;
 					return this._getObjectStorage(ownerId)(function (map) {
 						return deferred.map(keys(map), function (keyPath) {
 							var data = this[keyPath];
@@ -149,16 +149,16 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						}, map);
 					});
 				}
-				if (id[0] === '=') {
-					id = id.slice(1);
-					return this._getIndexStorage(id)(function (map) {
+				if (filename[0] === '=') {
+					keyPath = filename.slice(1);
+					return this._getIndexStorage(keyPath)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('=' + id  + ':' + ownerId, this[ownerId]);
+							return destDriver._storeRaw('=' + keyPath  + ':' + ownerId, this[ownerId]);
 						}, map);
 					});
 				}
-				if (id === '_custom') {
+				if (filename === '_custom') {
 					this._custom(function (custom) {
 						return deferred.map(keys(custom), function (key) {
 							if (!(++count % 1000)) promise.emit('progress');
