@@ -77,7 +77,7 @@ var ensureOwnerId = function (ownerId) {
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
-	_getRaw: d(function (id, data) { return this.__getRaw(id, data); }),
+	_getRaw: d(function (id) { return this.__getRaw(id); }),
 	__getRaw: d(notImplemented),
 	__getRawObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
