@@ -81,7 +81,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_storeRaw: d(function (id, data) {
 		++this._runningWriteOperations;
 		return this.__storeRaw(id, data).finally(function () {
-			--this._runningWriteOperations;
+			if (--this._runningWriteOperations) return;
+			if (this._onWriteDrain) {
+				this._onWriteDrain.resolve();
+				delete this._onWriteDrain;
+			}
 		}.bind(this));
 	}),
 	__getRaw: d(notImplemented),
@@ -501,6 +505,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (!this._runningOperations) return deferred(undefined);
 		if (!this._onDrain) this._onDrain = deferred();
 		return this._onDrain.promise;
+	}),
+	onWriteDrain: d.gs(function () {
+		if (!this._runningWriteOperations) return deferred(undefined);
+		if (!this._onWriteDrain) this._onWriteDrain = deferred();
+		return this._onWriteDrain.promise;
 	}),
 	__close: d(notImplemented)
 }, autoBind({
