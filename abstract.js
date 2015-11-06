@@ -77,6 +77,7 @@ var ensureOwnerId = function (ownerId) {
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
+	_getRaw: d(function (id, data) { return this.__getRaw(id, data); }),
 	__getRaw: d(notImplemented),
 	__getRawObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
@@ -95,7 +96,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (!isDbId(id)) throw new TypeError(id + " is not a database value id");
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__getRaw(id).finally(this._onOperationEnd);
+		return this._getRaw(id).finally(this._onOperationEnd);
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
 		return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
@@ -152,7 +153,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		} else {
 			keyPath = null;
 		}
-		return (this._inStoreEvents[id] = this.__getRaw(id)(function (old) {
+		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
 			promise = this.__storeRaw(id, nu);
@@ -185,7 +186,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Indexed database data
 	getIndexedValue: d(function (ownerId, keyPath) {
 		++this._runningOperations;
-		return this.__getRaw('=' + ensureString(keyPath) + ':' + ensureOwnerId(ownerId))
+		return this._getRaw('=' + ensureString(keyPath) + ':' + ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
@@ -208,7 +209,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
-			return this.__getRaw('=' + name + ':' + ownerId)(function (old) {
+			return this._getRaw('=' + name + ':' + ownerId)(function (old) {
 				var nu, promise;
 				if (old) {
 					if (old.stamp >= stamp) {
@@ -317,7 +318,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			throw new Error("Index of " + stringify(name) + " was already registered");
 		}
 		++this._runningOperations;
-		return this.__getRaw('_' + name)(function (data) {
+		return this._getRaw('_' + name)(function (data) {
 			// Ensure size for existing records is calculated
 			return data || conf.recalculate();
 		}.bind(this))(function (data) {
@@ -434,7 +435,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		key = ensureString(key);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__getRaw('_' + key).finally(this._onOperationEnd);
+		return this._getRaw('_' + key).finally(this._onOperationEnd);
 	}),
 	storeCustom: d(function (key, value, stamp) {
 		key = ensureString(key);
@@ -443,7 +444,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_handleStoreCustom: d(function (key, value, stamp) {
 		++this._runningOperations;
-		return this.__getRaw('_' + key)(function (data) {
+		return this._getRaw('_' + key)(function (data) {
 			if (data) {
 				if (data.value === value) {
 					if (!stamp || (stamp <= data.stamp)) return;
@@ -616,20 +617,20 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					if (meta.direct) {
 						id = ownerId;
 						if (meta.keyPath) id += '/' + meta.keyPath;
-						return this.__getRaw(id)(function (data) {
+						return this._getRaw(id)(function (data) {
 							var searchValue;
 							if (data) return meta.filter(data.value);
 							if (meta.searchValue == null) return false;
 							if (typeof meta.searchValue === 'function') return false;
 							searchValue = meta.searchValue;
 							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
-							return this.__getRaw(id + '*' + searchValue)(function (data) {
+							return this._getRaw(id + '*' + searchValue)(function (data) {
 								if (!data) return false;
 								return data.value === '11';
 							});
 						}.bind(this));
 					}
-					return this.__getRaw('=' + meta.keyPath + ':' + ownerId)(function (data) {
+					return this._getRaw('=' + meta.keyPath + ':' + ownerId)(function (data) {
 						return resolveIndexFilter(meta.searchValue, data.value);
 					});
 				}, this)(function (isEffective) {
