@@ -78,14 +78,14 @@ var ensureOwnerId = function (ownerId) {
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(function (id) { return this.__getRaw(id); }),
-	_storeRaw: d(function (id, data) {
+	_storeRaw: d(function (cat, ownerId, path, data) {
 		if (this._writeLockCounter) {
 			if (!this._writeLockCache) this._writeLockCache = [];
 			this._writeLockCache.push(arguments);
 			return;
 		}
 		++this._runningWriteOperations;
-		return this.__storeRaw(id, data).finally(function () {
+		return this.__storeRaw(cat, ownerId, path, data).finally(function () {
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
 				this._onWriteDrain.resolve();
@@ -177,7 +177,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
-			promise = this._storeRaw(id, nu);
+			promise = this._storeRaw('direct', ownerId, targetPath, nu);
 			var driverEvent = {
 				id: id,
 				ownerId: ownerId,
@@ -249,7 +249,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
 				};
-				promise = this._storeRaw('=' + name + ':' + ownerId, nu);
+				promise = this._storeRaw('computed', ownerId, name, nu);
 				var driverEvent;
 				debug("computed update %s %s %s", ownerId, name, stamp);
 				driverEvent = {
@@ -471,6 +471,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._handleStoreCustom(key, value, stamp);
 	}),
 	_handleStoreCustom: d(function (key, value, stamp) {
+		var index = key.indexOf('/')
+		  , ownerId = (index !== -1) ? key.slice(0, index) : key
+		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
 		++this._runningOperations;
 		return this._getRaw('_' + key)(function (data) {
 			if (data) {
@@ -483,7 +486,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			data = { value: value, stamp: stamp };
 			debug("custom update %s", key);
-			return this._storeRaw('_' + ensureString(key), data)(data);
+			return this._storeRaw('custom', ownerId, keyPath, data)(data);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 

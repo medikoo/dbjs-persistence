@@ -72,22 +72,16 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
-	__storeRaw: d(function (id, data) {
-		var ownerId, keyPath, index;
-		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
-		if (id[0] === '=') {
-			index = id.lastIndexOf(':');
-			keyPath = id.slice(1, index);
-			ownerId = id.slice(index + 1);
-			return this._getIndexStorage(keyPath)(function (map) {
+	__storeRaw: d(function (cat, ownerId, path, data) {
+		if (cat === 'custom') return this._storeCustom(ownerId + (path ? ('/' + path) : ''), data);
+		if (cat === 'computed') {
+			return this._getIndexStorage(path)(function (map) {
 				map[ownerId] = data;
-				return this._writeStorage('=' + keyPath, map);
+				return this._writeStorage('=' + path, map);
 			}.bind(this));
 		}
-		ownerId = id.split('/', 1)[0];
-		keyPath = id.slice(ownerId.length + 1) || '.';
 		return this._getObjectStorage(ownerId)(function (map) {
-			map[keyPath] = data;
+			map[path || '.'] = data;
 			return this._writeStorage(ownerId, map);
 		}.bind(this));
 	}),
@@ -137,32 +131,35 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		var count = 0;
 		var promise = this.dbDir()(function () {
 			return readdir(this.dirPath, { type: { file: true } }).map(function (filename) {
-				var ownerId, keyPath;
+				var ownerId, path;
 				if (isId(filename)) {
 					ownerId = filename;
 					return this._getObjectStorage(ownerId)(function (map) {
-						return deferred.map(keys(map), function (keyPath) {
-							var data = this[keyPath];
-							if (keyPath === '.') keyPath = null;
+						return deferred.map(keys(map), function (path) {
+							var data = this[path];
+							if (path === '.') path = null;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw(ownerId + (keyPath ? ('/' + keyPath) : ''), data);
+							return destDriver._storeRaw('direct', ownerId, path, data);
 						}, map);
 					});
 				}
 				if (filename[0] === '=') {
-					keyPath = filename.slice(1);
-					return this._getIndexStorage(keyPath)(function (map) {
+					path = filename.slice(1);
+					return this._getIndexStorage(path)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('=' + keyPath  + ':' + ownerId, this[ownerId]);
+							return destDriver._storeRaw('computed', ownerId, path, this[ownerId]);
 						}, map);
 					});
 				}
 				if (filename === '_custom') {
 					this._custom(function (custom) {
 						return deferred.map(keys(custom), function (key) {
+							var index = key.indexOf('/')
+							  , ownerId = (index !== -1) ? key.slice(0, index) : key
+							  , path = (index !== -1) ? key.slice(index + 1) : null;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('_' + key, custom[key]);
+							return destDriver._storeRaw('custom', ownerId, path, custom[key]);
 						});
 					});
 				}
