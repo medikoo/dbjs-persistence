@@ -8,6 +8,7 @@ var aFrom                 = require('es5-ext/array/from')
   , ensureArray           = require('es5-ext/array/valid-array')
   , ensureIterable        = require('es5-ext/iterable/validate-object')
   , assign                = require('es5-ext/object/assign')
+  , forEach               = require('es5-ext/object/for-each')
   , toArray               = require('es5-ext/object/to-array')
   , ensureCallable        = require('es5-ext/object/valid-callable')
   , ensureObject          = require('es5-ext/object/valid-object')
@@ -31,7 +32,8 @@ var aFrom                 = require('es5-ext/array/from')
   , unserializeValue      = require('dbjs/_setup/unserialize/value')
   , serializeValue        = require('dbjs/_setup/serialize/value')
   , serializeKey          = require('dbjs/_setup/serialize/key')
-  , resolveKeyPath        = require('dbjs/_setup/utils/resolve-property-path')
+  , resolveKeyPath        = require('dbjs/_setup/utils/resolve-key-path')
+  , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
   , ensureDriver          = require('./ensure')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
   , resolveIndexFilter    = require('./lib/resolve-index-filter')
@@ -43,7 +45,7 @@ var aFrom                 = require('es5-ext/array/from')
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
-  , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
+  , tokenize = resolvePropertyPath.tokenize, resolveObject = resolvePropertyPath.resolveObject
   , create = Object.create, defineProperties = Object.defineProperties, keys = Object.keys;
 
 var byStamp = function (a, b) {
@@ -135,8 +137,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_getRawObject: d(function (ownerId, keyPaths) {
 		return this._safeGet(function () {
 			return this.__getRawObject(ownerId, keyPaths)(function (data) {
+				if (this._transient.direct[ownerId]) {
+					forEach(this._transient.direct[ownerId], function (transientData, id) {
+						if (keyPaths && (id !== ownerId) && !keyPaths.has(resolveKeyPath(id))) return;
+						data[id] = transientData;
+					});
+				}
 				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
-			});
+			}.bind(this));
 		});
 	}),
 	getObject: d(function (ownerId/*, options*/) {
