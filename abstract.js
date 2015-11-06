@@ -142,7 +142,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_getRawAllDirect: d(function () {
-		return this.__getRawAllDirect().invoke('sort', byStamp);
+		return this.onWriteDrain(function () {
+			++this._writeLock;
+			return this.__getRawAllDirect().invoke('sort', byStamp).finally(function () {
+				--this._writeLock;
+			}.bind(this));
+		}.bind(this));
 	}),
 	loadAll: d(function () {
 		var promise, progress = 0;
