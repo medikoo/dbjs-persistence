@@ -81,8 +81,8 @@ var ensureOwnerId = function (ownerId) {
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(function (cat, ns, path) {
-		if (this._transient[cat][ns] && this._transient[cat][ns][path]) {
-			return deferred(this._transient[cat][ns][path]);
+		if (this._transient[cat][ns] && this._transient[cat][ns][path || '']) {
+			return deferred(this._transient[cat][ns][path || '']);
 		}
 		return this.__getRaw(cat, ns, path);
 	}),
@@ -90,7 +90,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var transient = this._transient[cat];
 		if (!transient[ns]) transient[ns] = create(null);
 		transient = transient[ns];
-		transient[path] = data;
+		transient[path || ''] = data;
 		if (this._writeLockCounter) {
 			if (!this._writeLockCache) this._writeLockCache = [];
 			this._writeLockCache.push(arguments);
@@ -98,7 +98,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		++this._runningWriteOperations;
 		return this.__storeRaw(cat, ns, path, data).finally(function () {
-			if (transient[path] === data) delete transient[path];
+			if (transient[path || ''] === data) delete transient[path || ''];
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
 				this._onWriteDrain.resolve();
@@ -139,8 +139,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this.__getRawObject(ownerId, keyPaths)(function (data) {
 				if (this._transient.direct[ownerId]) {
 					forEach(this._transient.direct[ownerId], function (transientData, id) {
-						if (keyPaths && (id !== ownerId) && !keyPaths.has(resolveKeyPath(id))) return;
-						data[id] = transientData;
+						if (keyPaths && id && !keyPaths.has(resolveKeyPath(ownerId + '/' + id))) return;
+						data[ownerId + (id && ('/' + id))] = transientData;
 					});
 				}
 				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
