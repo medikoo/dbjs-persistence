@@ -113,7 +113,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getRaw(id).finally(this._onOperationEnd);
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
-		return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
+		return this.onWriteDrain(function () {
+			++this._writeLock;
+			return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp).finally(function () {
+				--this._writeLock;
+			}.bind(this));
+		}.bind(this));
 	}),
 	getObject: d(function (ownerId/*, options*/) {
 		var keyPaths, options = arguments[1];
