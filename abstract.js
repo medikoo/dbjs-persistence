@@ -490,7 +490,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	clear: d(function () {
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__clear().finally(this._onOperationEnd);
+		++this._writeLock;
+		return this.onWriteDrain(function () {
+			++this._runningWriteOperations;
+			return this.__clear();
+		}.bind(this)).finally(function () {
+			--this._writeLock;
+			if (--this._runningWriteOperations) return;
+			if (this._onWriteDrain) {
+				this._onWriteDrain.resolve();
+				delete this._onWriteDrain;
+			}
+		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	__exportAll: d(notImplemented),
 	__clear: d(notImplemented),
