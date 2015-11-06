@@ -8,6 +8,7 @@ var aFrom                 = require('es5-ext/array/from')
   , ensureArray           = require('es5-ext/array/valid-array')
   , ensureIterable        = require('es5-ext/iterable/validate-object')
   , assign                = require('es5-ext/object/assign')
+  , toArray               = require('es5-ext/object/to-array')
   , ensureCallable        = require('es5-ext/object/valid-callable')
   , ensureObject          = require('es5-ext/object/valid-object')
   , ensureString          = require('es5-ext/object/validate-stringifiable-value')
@@ -46,7 +47,7 @@ var aFrom                 = require('es5-ext/array/from')
   , create = Object.create, defineProperties = Object.defineProperties, keys = Object.keys;
 
 var byStamp = function (a, b) {
-	return (a.data.stamp - b.data.stamp) || a.id.toLowerCase().localeCompare(b.id.toLowerCase());
+	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
 var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
@@ -133,7 +134,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
 		return this._safeGet(function () {
-			return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
+			return this.__getRawObject(ownerId, keyPaths)(function (data) {
+				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
+			});
 		});
 	}),
 	getObject: d(function (ownerId/*, options*/) {
@@ -158,7 +161,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_getRawAllDirect: d(function () {
-		return this._safeGet(function () { return this.__getRawAllDirect().invoke('sort', byStamp); });
+		return this._safeGet(function () {
+			return this.__getRawAllDirect()(function (data) {
+				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
+			});
+		});
 	}),
 	loadAll: d(function () {
 		var promise, progress = 0;

@@ -2,8 +2,7 @@
 
 'use strict';
 
-var compact           = require('es5-ext/array/#/compact')
-  , assign            = require('es5-ext/object/assign')
+var assign            = require('es5-ext/object/assign')
   , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , toArray           = require('es5-ext/object/to-array')
@@ -21,7 +20,7 @@ var compact           = require('es5-ext/array/#/compact')
   , writeFile         = require('fs2/write-file')
   , PersistenceDriver = require('./abstract')
 
-  , isArray = Array.isArray, push = Array.prototype.push
+  , isArray = Array.isArray
   , defineProperty = Object.defineProperty, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
@@ -30,11 +29,13 @@ var byStamp = function (a, b) {
 	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
-var resolveObjectMap = function (ownerId, map, keyPaths) {
-	return compact.call(toArray(map, function (data, keyPath) {
+var resolveObjectMap = function (ownerId, map, keyPaths, result) {
+	if (!result) result = create(null);
+	forEach(map, function (data, keyPath) {
 		if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
-		return { id: (keyPath === '.') ? ownerId : ownerId + '/' + keyPath, data: data };
-	}));
+		result[(keyPath === '.') ? ownerId : ownerId + '/' + keyPath] = data;
+	});
+	return result;
 };
 
 var TextFileDriver = module.exports = function (dbjs, data) {
@@ -89,10 +90,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				return { ownerId: ownerId, map: map };
 			});
 		}, this)(function (maps) {
-			var result = [];
-			maps.forEach(function (data) {
-				push.apply(result, resolveObjectMap(data.ownerId, data.map));
-			});
+			var result = create(null);
+			maps.forEach(function (data) { resolveObjectMap(data.ownerId, data.map, null, result); });
 			return result;
 		});
 	}),
