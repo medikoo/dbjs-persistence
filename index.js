@@ -142,7 +142,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						return deferred.map(keys(map), function (keyPath) {
 							var postfix = keyPath === '.' ? '' : '/' + keyPath;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver.__storeRaw(name + postfix, this[keyPath]);
+							return destDriver._storeRaw(name + postfix, this[keyPath]);
 						}, map);
 					});
 				}
@@ -151,7 +151,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					return this._getIndexStorage(name)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver.__storeRaw('=' + name  + ':' + ownerId, this[ownerId]);
+							return destDriver._storeRaw('=' + name  + ':' + ownerId, this[ownerId]);
 						}, map);
 					});
 				}
@@ -159,7 +159,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					this._custom(function (custom) {
 						return deferred.map(keys(custom), function (key) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver.__storeRaw('_' + key, custom[key]);
+							return destDriver._storeRaw('_' + key, custom[key]);
 						});
 					});
 				}

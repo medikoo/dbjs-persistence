@@ -78,6 +78,7 @@ var ensureOwnerId = function (ownerId) {
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(function (id) { return this.__getRaw(id); }),
+	_storeRaw: d(function (id, data) { return this.__storeRaw(id, data); }),
 	__getRaw: d(notImplemented),
 	__getRawObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
@@ -156,7 +157,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
-			promise = this.__storeRaw(id, nu);
+			promise = this._storeRaw(id, nu);
 			var driverEvent = {
 				id: id,
 				ownerId: ownerId,
@@ -227,7 +228,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
 				};
-				promise = this.__storeRaw('=' + name + ':' + ownerId, nu);
+				promise = this._storeRaw('=' + name + ':' + ownerId, nu);
 				var driverEvent;
 				debug("computed update %s %s %s", ownerId, name, stamp);
 				driverEvent = {
@@ -455,7 +456,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			data = { value: value, stamp: stamp };
 			debug("custom update %s", key);
-			return this.__storeRaw('_' + ensureString(key), data)(data);
+			return this._storeRaw('_' + ensureString(key), data)(data);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 
