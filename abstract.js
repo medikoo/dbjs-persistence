@@ -113,12 +113,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getRaw(id).finally(this._onOperationEnd);
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
+		++this._writeLock;
 		return this.onWriteDrain(function () {
-			++this._writeLock;
-			return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp).finally(function () {
-				--this._writeLock;
-			}.bind(this));
-		}.bind(this));
+			return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
+		}.bind(this)).finally(function () { --this._writeLock; }.bind(this));
 	}),
 	getObject: d(function (ownerId/*, options*/) {
 		var keyPaths, options = arguments[1];
@@ -142,12 +140,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_getRawAllDirect: d(function () {
+		++this._writeLock;
 		return this.onWriteDrain(function () {
-			++this._writeLock;
-			return this.__getRawAllDirect().invoke('sort', byStamp).finally(function () {
-				--this._writeLock;
-			}.bind(this));
-		}.bind(this));
+			return this.__getRawAllDirect().invoke('sort', byStamp);
+		}.bind(this)).finally(function () { --this._writeLock; }.bind(this));
 	}),
 	loadAll: d(function () {
 		var promise, progress = 0;
