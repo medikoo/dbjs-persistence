@@ -69,7 +69,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 
 var notImplemented = function () { throw new Error("Not implemented"); };
 
-var ensureObjectId = function (objId) {
+var ensureOwnerId = function (objId) {
 	objId = ensureString(objId);
 	if (!isObjectId(objId)) throw new TypeError(objId + " is not a database object id");
 	return objId;
@@ -102,7 +102,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	getObject: d(function (objId/*, options*/) {
 		var keyPaths, options = arguments[1];
-		objId = ensureObjectId(objId);
+		objId = ensureOwnerId(objId);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
@@ -175,7 +175,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Indexed database data
 	getIndexedValue: d(function (objId, keyPath) {
 		++this._runningOperations;
-		return this.__getRaw('=' + ensureString(keyPath) + ':' + ensureObjectId(objId))
+		return this.__getRaw('=' + ensureString(keyPath) + ':' + ensureOwnerId(objId))
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
