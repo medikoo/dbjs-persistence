@@ -171,8 +171,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_getRawAllDirect: d(function () {
 		return this._safeGet(function () {
 			return this.__getRawAllDirect()(function (data) {
+				forEach(this._transient.direct, function (ownerData, ownerId) {
+					forEach(ownerData, function (transientData, id) {
+						data[ownerId + (id && ('/' + id))] = transientData;
+					});
+				});
 				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
-			});
+			}.bind(this));
 		});
 	}),
 	loadAll: d(function () {
