@@ -79,6 +79,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(function (id) { return this.__getRaw(id); }),
 	_storeRaw: d(function (id, data) {
+		if (this._writeLockCounter) {
+			if (!this._writeLockCache) this._writeLockCache = [];
+			this._writeLockCache.push(arguments);
+			return;
+		}
 		++this._runningWriteOperations;
 		return this.__storeRaw(id, data).finally(function () {
 			if (--this._runningWriteOperations) return;
@@ -510,6 +515,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (!this._runningWriteOperations) return deferred(undefined);
 		if (!this._onWriteDrain) this._onWriteDrain = deferred();
 		return this._onWriteDrain.promise;
+	}),
+	_writeLock: d.gs(function () {
+		return this._writeLockCounter;
+	}, function (value) {
+		this._writeLockCounter = value;
+		if (!value && this._writeLockCache) {
+			this._writeLockCache.forEach(function (data) { this._storeRaw.apply(this, data); }, this);
+			delete this._writeLockCache;
+		}
 	}),
 	__close: d(notImplemented)
 }, autoBind({
