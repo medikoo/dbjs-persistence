@@ -12,6 +12,7 @@ var assign            = require('es5-ext/object/assign')
   , lazy              = require('d/lazy')
   , memoizeMethods    = require('memoizee/methods')
   , deferred          = require('deferred')
+  , resolveKeyPath    = require('dbjs/_setup/utils/resolve-key-path')
   , resolve           = require('path').resolve
   , mkdir             = require('fs2/mkdir')
   , readFile          = require('fs2/read-file')
@@ -31,9 +32,11 @@ var byStamp = function (a, b) {
 
 var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 	if (!result) result = create(null);
-	forEach(map, function (data, keyPath) {
-		if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
-		result[(keyPath === '.') ? ownerId : ownerId + '/' + keyPath] = data;
+	forEach(map, function (data, path) {
+		if (keyPaths && (path !== '.')) {
+			if (!keyPaths.has(resolveKeyPath(path))) return;
+		}
+		result[(path === '.') ? ownerId : ownerId + '/' + path] = data;
 	});
 	return result;
 };
