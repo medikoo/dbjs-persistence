@@ -136,26 +136,29 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__exportAll: d(function (destDriver) {
 		var count = 0;
 		var promise = this.dbDir()(function () {
-			return readdir(this.dirPath, { type: { file: true } }).map(function (name) {
-				if (isId(name)) {
-					return this._getObjectStorage(name)(function (map) {
+			return readdir(this.dirPath, { type: { file: true } }).map(function (id) {
+				var ownerId;
+				if (isId(id)) {
+					ownerId = id;
+					return this._getObjectStorage(ownerId)(function (map) {
 						return deferred.map(keys(map), function (keyPath) {
-							var postfix = keyPath === '.' ? '' : '/' + keyPath;
+							var data = this[keyPath];
+							if (keyPath === '.') keyPath = null;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw(name + postfix, this[keyPath]);
+							return destDriver._storeRaw(ownerId + (keyPath ? ('/' + keyPath) : ''), data);
 						}, map);
 					});
 				}
-				if (name[0] === '=') {
-					name = name.slice(1);
-					return this._getIndexStorage(name)(function (map) {
+				if (id[0] === '=') {
+					id = id.slice(1);
+					return this._getIndexStorage(id)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('=' + name  + ':' + ownerId, this[ownerId]);
+							return destDriver._storeRaw('=' + id  + ':' + ownerId, this[ownerId]);
 						}, map);
 					});
 				}
-				if (name === '_custom') {
+				if (id === '_custom') {
 					this._custom(function (custom) {
 						return deferred.map(keys(custom), function (key) {
 							if (!(++count % 1000)) promise.emit('progress');
