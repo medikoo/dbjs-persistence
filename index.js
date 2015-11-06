@@ -50,7 +50,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		if (id[0] === '_') return this.__getCustom(id.slice(1));
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
-			return this.__getIndexedValue(id.slice(index + 1), id.slice(1, index));
+			keyPath = id.slice(1, index);
+			objId = id.slice(index + 1);
+			return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
 		}
 		objId = id.split('/', 1)[0];
 		keyPath = id.slice(objId.length + 1) || '.';
@@ -96,11 +98,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}, this)(result);
 		return promise;
-	}),
-
-	// Indexed database data
-	__getIndexedValue: d(function (objId, keyPath) {
-		return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
 	}),
 
 	// Size tracking

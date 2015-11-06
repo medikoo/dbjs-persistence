@@ -168,7 +168,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Indexed database data
 	getIndexedValue: d(function (objId, keyPath) {
 		++this._runningOperations;
-		return this.__getIndexedValue(ensureObjectId(objId), ensureString(keyPath))
+		return this.__getRaw('=' + ensureString(keyPath) + ':' + ensureObjectId(objId))
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
@@ -191,7 +191,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
-			return this.__getIndexedValue(ownerId, name)(function (old) {
+			return this.__getRaw('=' + name + ':' + ownerId)(function (old) {
 				var nu, promise;
 				if (old) {
 					if (old.stamp >= stamp) {
@@ -293,7 +293,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
 	}),
-	__getIndexedValue: d(notImplemented),
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
@@ -614,7 +613,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 							});
 						}.bind(this));
 					}
-					return this.__getIndexedValue(ownerId, meta.keyPath)(function (data) {
+					return this.__getRaw('=' + meta.keyPath + ':' + ownerId)(function (data) {
 						return resolveIndexFilter(meta.searchValue, data.value);
 					});
 				}, this)(function (isEffective) {
