@@ -30,6 +30,13 @@ var byStamp = function (a, b) {
 	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
+var resolveObjectMap = function (ownerId, map, keyPaths) {
+	return compact.call(toArray(map, function (data, keyPath) {
+		if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
+		return { id: (keyPath === '.') ? ownerId : ownerId + '/' + keyPath, data: data };
+	}));
+};
+
 var TextFileDriver = module.exports = function (dbjs, data) {
 	if (!(this instanceof TextFileDriver)) return new TextFileDriver(dbjs, data);
 	ensureObject(data);
@@ -62,10 +69,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	__getRawObject: d(function (ownerId, keyPaths) {
 		return this._getObjectStorage(ownerId)(function (map) {
-			return compact.call(toArray(map, function (data, keyPath) {
-				if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
-				return { id: (keyPath === '.') ? ownerId : ownerId + '/' + keyPath, data: data };
-			}));
+			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
 	__storeRaw: d(function (id, data) {
@@ -89,17 +93,18 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Database data
-	__loadAll: d(function () {
-		var progress = 1, result = [];
-		var promise = this._getAllObjectIds().map(function (ownerId) {
-			return this.loadObject(ownerId)(function (events) {
-				if (push.apply(result, events) > (progress * 1000)) {
-					++progress;
-					promise.emit('progress');
-				}
+	__getRawAllDirect: d(function () {
+		return this._getAllObjectIds().map(function (ownerId) {
+			return this._getObjectStorage(ownerId)(function (map) {
+				return { ownerId: ownerId, map: map };
 			});
-		}, this)(result);
-		return promise;
+		}, this)(function (maps) {
+			var result = [];
+			maps.forEach(function (data) {
+				push.apply(result, resolveObjectMap(data.ownerId, data.map));
+			});
+			return result;
+		});
 	}),
 
 	// Size tracking

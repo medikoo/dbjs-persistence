@@ -121,10 +121,20 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}, this));
 		}.bind(this));
 	}),
+	_getRawAllDirect: d(function () {
+		return this.__getRawAllDirect().invoke('sort', byStamp);
+	}),
 	loadAll: d(function () {
+		var promise, progress = 0;
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__loadAll().finally(this._onOperationEnd);
+		promise = this._getRawAllDirect()(function (data) {
+			return compact.call(data.map(function (data) {
+				if (!(++progress % 1000)) promise.emit('progress');
+				return this._importValue(data.id, data.data.value, data.data.stamp);
+			}, this));
+		}.bind(this)).finally(this._onOperationEnd);
+		return promise;
 	}),
 	_handleStoreEvent: d(function (event) {
 		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath;
@@ -170,7 +180,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(events, this._handleStoreEvent, this).finally(this._onOperationEnd);
 	}),
-	__loadAll: d(notImplemented),
+	__getRawAllDirect: d(notImplemented),
 
 	// Indexed database data
 	getIndexedValue: d(function (ownerId, keyPath) {
