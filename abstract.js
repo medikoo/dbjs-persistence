@@ -93,6 +93,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 		}.bind(this));
 	}),
+	_safeGet: d(function (method) {
+		++this._writeLock;
+		return this.onWriteDrain(method.bind(this))
+			.finally(function () { --this._writeLock; }.bind(this));
+	}),
 	__getRaw: d(notImplemented),
 	__storeRaw: d(notImplemented),
 
@@ -113,10 +118,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getRaw(id).finally(this._onOperationEnd);
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
-		++this._writeLock;
-		return this.onWriteDrain(function () {
+		return this._safeGet(function () {
 			return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
-		}.bind(this)).finally(function () { --this._writeLock; }.bind(this));
+		});
 	}),
 	getObject: d(function (ownerId/*, options*/) {
 		var keyPaths, options = arguments[1];
@@ -140,10 +144,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_getRawAllDirect: d(function () {
-		++this._writeLock;
-		return this.onWriteDrain(function () {
-			return this.__getRawAllDirect().invoke('sort', byStamp);
-		}.bind(this)).finally(function () { --this._writeLock; }.bind(this));
+		return this._safeGet(function () { return this.__getRawAllDirect().invoke('sort', byStamp); });
 	}),
 	loadAll: d(function () {
 		var promise, progress = 0;
@@ -490,12 +491,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	clear: d(function () {
 		this._ensureOpen();
 		++this._runningOperations;
-		++this._writeLock;
-		return this.onWriteDrain(function () {
+		return this._safeGet(function () {
 			++this._runningWriteOperations;
 			return this.__clear();
-		}.bind(this)).finally(function () {
-			--this._writeLock;
+		}).finally(function () {
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
 				this._onWriteDrain.resolve();
