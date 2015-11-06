@@ -300,7 +300,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			throw new Error("Index of " + stringify(name) + " was already registered");
 		}
 		++this._runningOperations;
-		return this.__getCustom(name)(function (data) {
+		return this.__getRaw('_' + name)(function (data) {
 			// Ensure size for existing records is calculated
 			return data || conf.recalculate();
 		}.bind(this))(function (data) {
@@ -417,7 +417,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		key = ensureString(key);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__getCustom(key).finally(this._onOperationEnd);
+		return this.__getRaw('_' + key).finally(this._onOperationEnd);
 	}),
 	storeCustom: d(function (key, value, stamp) {
 		key = ensureString(key);
@@ -426,7 +426,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_handleStoreCustom: d(function (key, value, stamp) {
 		++this._runningOperations;
-		return this.__getCustom(key)(function (data) {
+		return this.__getRaw('_' + key)(function (data) {
 			if (data) {
 				if (data.value === value) {
 					if (!stamp || (stamp <= data.stamp)) return;
@@ -440,7 +440,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this.__storeRaw('_' + ensureString(key), data)(data);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	__getCustom: d(notImplemented),
 
 	// Storage export/import
 	export: d(function (externalStore) {
