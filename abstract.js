@@ -94,7 +94,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	__getRaw: d(notImplemented),
-	__getRawObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
 
 	// Database data
@@ -196,6 +195,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(events, this._handleStoreEvent, this).finally(this._onOperationEnd);
 	}),
+	__getRawObject: d(notImplemented),
 	__getRawAllDirect: d(notImplemented),
 
 	// Indexed database data
