@@ -52,33 +52,33 @@ setPrototypeOf(TextFileDriver, PersistenceDriver);
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 	// Any data
-	__getRaw: d(function (cat, ownerId, path) {
+	__getRaw: d(function (cat, ns, path) {
 		if (cat === 'custom') {
 			return this._custom(function (map) {
-				return map[ownerId + (path ? ('/' + path) : '')] || null;
+				return map[ns + (path ? ('/' + path) : '')] || null;
 			});
 		}
 		if (cat === 'computed') {
-			return this._getIndexStorage(path)(function (map) { return map[ownerId] || null; });
+			return this._getIndexStorage(ns)(function (map) { return map[path] || null; });
 		}
-		return this._getObjectStorage(ownerId)(function (map) { return map[path || '.'] || null; });
+		return this._getObjectStorage(ns)(function (map) { return map[path || '.'] || null; });
 	}),
 	__getRawObject: d(function (ownerId, keyPaths) {
 		return this._getObjectStorage(ownerId)(function (map) {
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
-	__storeRaw: d(function (cat, ownerId, path, data) {
-		if (cat === 'custom') return this._storeCustom(ownerId, path, data);
+	__storeRaw: d(function (cat, ns, path, data) {
+		if (cat === 'custom') return this._storeCustom(ns, path, data);
 		if (cat === 'computed') {
-			return this._getIndexStorage(path)(function (map) {
-				map[ownerId] = data;
-				return this._writeStorage('=' + path, map);
+			return this._getIndexStorage(ns)(function (map) {
+				map[path] = data;
+				return this._writeStorage('=' + ns, map);
 			}.bind(this));
 		}
-		return this._getObjectStorage(ownerId)(function (map) {
+		return this._getObjectStorage(ns)(function (map) {
 			map[path || '.'] = data;
-			return this._writeStorage(ownerId, map);
+			return this._writeStorage(ns, map);
 		}.bind(this));
 	}),
 
@@ -144,7 +144,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					return this._getIndexStorage(path)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('computed', ownerId, path, this[ownerId]);
+							return destDriver._storeRaw('computed', path, ownerId, this[ownerId]);
 						}, map);
 					});
 				}

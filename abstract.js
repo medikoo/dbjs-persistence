@@ -77,15 +77,15 @@ var ensureOwnerId = function (ownerId) {
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
-	_getRaw: d(function (cat, ownerId, path) { return this.__getRaw(cat, ownerId, path); }),
-	_storeRaw: d(function (cat, ownerId, path, data) {
+	_getRaw: d(function (cat, ns, path) { return this.__getRaw(cat, ns, path); }),
+	_storeRaw: d(function (cat, ns, path, data) {
 		if (this._writeLockCounter) {
 			if (!this._writeLockCache) this._writeLockCache = [];
 			this._writeLockCache.push(arguments);
 			return;
 		}
 		++this._runningWriteOperations;
-		return this.__storeRaw(cat, ownerId, path, data).finally(function () {
+		return this.__storeRaw(cat, ns, path, data).finally(function () {
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
 				this._onWriteDrain.resolve();
@@ -212,7 +212,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Indexed database data
 	getIndexedValue: d(function (ownerId, keyPath) {
 		++this._runningOperations;
-		return this._getRaw('computed', ensureOwnerId(ownerId), ensureString(keyPath))
+		return this._getRaw('computed', ensureString(keyPath), ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
@@ -235,7 +235,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
-			return this._getRaw('computed', ownerId, name)(function (old) {
+			return this._getRaw('computed', name, ownerId)(function (old) {
 				var nu, promise;
 				if (old) {
 					if (old.stamp >= stamp) {
@@ -253,7 +253,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
 				};
-				promise = this._storeRaw('computed', ownerId, name, nu);
+				promise = this._storeRaw('computed', name, ownerId, nu);
 				var driverEvent;
 				debug("computed update %s %s %s", ownerId, name, stamp);
 				driverEvent = {
@@ -698,7 +698,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 							});
 						}.bind(this));
 					}
-					return this._getRaw('computed', ownerId, meta.keyPath)(function (data) {
+					return this._getRaw('computed', meta.keyPath, ownerId)(function (data) {
 						return resolveIndexFilter(meta.searchValue, data.value);
 					});
 				}, this)(function (isEffective) {
