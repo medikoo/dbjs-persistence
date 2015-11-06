@@ -77,7 +77,7 @@ var ensureOwnerId = function (ownerId) {
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
-	_getRaw: d(function (id) { return this.__getRaw(id); }),
+	_getRaw: d(function (cat, ownerId, path) { return this.__getRaw(cat, ownerId, path); }),
 	_storeRaw: d(function (cat, ownerId, path, data) {
 		if (this._writeLockCounter) {
 			if (!this._writeLockCache) this._writeLockCache = [];
@@ -111,11 +111,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
 	getValue: d(function (id) {
+		var index, ownerId, path;
 		id = ensureString(id);
 		if (!isDbId(id)) throw new TypeError(id + " is not a database value id");
+		index = id.indexOf('/');
+		ownerId = (index !== -1) ? id.slice(0, index) : id;
+		path = (index !== -1) ? id.slice(index + 1) : null;
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getRaw(id).finally(this._onOperationEnd);
+		return this._getRaw('direct', ownerId, path).finally(this._onOperationEnd);
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
 		return this._safeGet(function () {
@@ -174,7 +178,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		} else {
 			keyPath = null;
 		}
-		return (this._inStoreEvents[id] = this._getRaw(id)(function (old) {
+		return (this._inStoreEvents[id] = this._getRaw('direct', ownerId, targetPath)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
 			promise = this._storeRaw('direct', ownerId, targetPath, nu);
@@ -208,7 +212,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Indexed database data
 	getIndexedValue: d(function (ownerId, keyPath) {
 		++this._runningOperations;
-		return this._getRaw('=' + ensureString(keyPath) + ':' + ensureOwnerId(ownerId))
+		return this._getRaw('computed', ensureOwnerId(ownerId), ensureString(keyPath))
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
@@ -231,7 +235,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
-			return this._getRaw('=' + name + ':' + ownerId)(function (old) {
+			return this._getRaw('computed', ownerId, name)(function (old) {
 				var nu, promise;
 				if (old) {
 					if (old.stamp >= stamp) {
@@ -336,11 +340,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
+		var index, ownerId, path;
 		if (this._indexes[name]) {
 			throw new Error("Index of " + stringify(name) + " was already registered");
 		}
+		index = name.indexOf('/');
+		ownerId = (index !== -1) ? name.slice(0, index) : name;
+		path = (index !== -1) ? name.slice(index + 1) : null;
 		++this._runningOperations;
-		return this._getRaw('_' + name)(function (data) {
+		return this._getRaw('custom', ownerId, path)(function (data) {
 			// Ensure size for existing records is calculated
 			return data || conf.recalculate();
 		}.bind(this))(function (data) {
@@ -460,10 +468,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	// Custom data
 	getCustom: d(function (key) {
+		var index, ownerId, path;
 		key = ensureString(key);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getRaw('_' + key).finally(this._onOperationEnd);
+		index = key.indexOf('/');
+		ownerId = (index !== -1) ? key.slice(0, index) : key;
+		path = (index !== -1) ? key.slice(index + 1) : null;
+		return this._getRaw('custom', ownerId, path).finally(this._onOperationEnd);
 	}),
 	storeCustom: d(function (key, value, stamp) {
 		key = ensureString(key);
@@ -475,7 +487,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		  , ownerId = (index !== -1) ? key.slice(0, index) : key
 		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
 		++this._runningOperations;
-		return this._getRaw('_' + key)(function (data) {
+		return this._getRaw('custom', ownerId, keyPath)(function (data) {
 			if (data) {
 				if (data.value === value) {
 					if (!stamp || (stamp <= data.stamp)) return;
@@ -668,26 +680,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			resolveEvent: function (event) {
 				var ownerId = event.directEvent.ownerId;
 				return deferred.every(sizeIndexes, function (name) {
-					var meta, id;
+					var meta, keyPath;
 					if (event.name === name) return true;
 					meta = this._indexes[name];
 					if (meta.direct) {
-						id = ownerId;
-						if (meta.keyPath) id += '/' + meta.keyPath;
-						return this._getRaw(id)(function (data) {
+						keyPath = meta.keyPath;
+						return this._getRaw('direct', ownerId, keyPath)(function (data) {
 							var searchValue;
 							if (data) return meta.filter(data.value);
 							if (meta.searchValue == null) return false;
 							if (typeof meta.searchValue === 'function') return false;
 							searchValue = meta.searchValue;
 							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
-							return this._getRaw(id + '*' + searchValue)(function (data) {
+							return this._getRaw('direct', ownerId, keyPath + '*' + searchValue)(function (data) {
 								if (!data) return false;
 								return data.value === '11';
 							});
 						}.bind(this));
 					}
-					return this._getRaw('=' + meta.keyPath + ':' + ownerId)(function (data) {
+					return this._getRaw('computed', ownerId, meta.keyPath)(function (data) {
 						return resolveIndexFilter(meta.searchValue, data.value);
 					});
 				}, this)(function (isEffective) {

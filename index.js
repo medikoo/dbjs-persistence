@@ -52,20 +52,16 @@ setPrototypeOf(TextFileDriver, PersistenceDriver);
 TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 	// Any data
-	__getRaw: d(function (id) {
-		var ownerId, keyPath, index;
-		if (id[0] === '_') {
-			return this._custom(function (map) { return map[id.slice(1)] || null; });
+	__getRaw: d(function (cat, ownerId, path) {
+		if (cat === 'custom') {
+			return this._custom(function (map) {
+				return map[ownerId + (path ? ('/' + path) : '')] || null;
+			});
 		}
-		if (id[0] === '=') {
-			index = id.lastIndexOf(':');
-			keyPath = id.slice(1, index);
-			ownerId = id.slice(index + 1);
-			return this._getIndexStorage(keyPath)(function (map) { return map[ownerId] || null; });
+		if (cat === 'computed') {
+			return this._getIndexStorage(path)(function (map) { return map[ownerId] || null; });
 		}
-		ownerId = id.split('/', 1)[0];
-		keyPath = id.slice(ownerId.length + 1) || '.';
-		return this._getObjectStorage(ownerId)(function (map) { return map[keyPath] || null; });
+		return this._getObjectStorage(ownerId)(function (map) { return map[path || '.'] || null; });
 	}),
 	__getRawObject: d(function (ownerId, keyPaths) {
 		return this._getObjectStorage(ownerId)(function (map) {
