@@ -78,7 +78,12 @@ var ensureOwnerId = function (ownerId) {
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	// Any data
 	_getRaw: d(function (id) { return this.__getRaw(id); }),
-	_storeRaw: d(function (id, data) { return this.__storeRaw(id, data); }),
+	_storeRaw: d(function (id, data) {
+		++this._runningWriteOperations;
+		return this.__storeRaw(id, data).finally(function () {
+			--this._runningWriteOperations;
+		}.bind(this));
+	}),
 	__getRaw: d(notImplemented),
 	__getRawObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
@@ -491,6 +496,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (this.isClosed) throw new Error("Database not accessible");
 	}),
 	_runningOperations: d(0),
+	_runningWriteOperations: d(0),
 	onDrain: d.gs(function () {
 		if (!this._runningOperations) return deferred(undefined);
 		if (!this._onDrain) this._onDrain = deferred();
