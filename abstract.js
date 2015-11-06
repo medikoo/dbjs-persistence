@@ -378,9 +378,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	_searchDirect: d(function (callback) {
+		return this._safeGet(function () { return this.__searchDirect(callback); });
+	}),
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
 		var filter = getSearchValueFilter(searchValue), result = new Set();
-		return this.__searchDirect(function (id, data) {
+		return this._searchDirect(function (id, data) {
 			var index = id.indexOf('/'), targetPath, sValue, ownerId;
 			if (!keyPath) {
 				if (index !== -1) return;
@@ -434,9 +437,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return result;
 		});
 	}),
+	_searchIndex: d(function (keyPath, callback) {
+		return this._safeGet(function () { return this.__searchIndex(keyPath, callback); });
+	}),
 	_recalculateIndexSet: d(function (keyPath, searchValue) {
 		var result = new Set();
-		return this.__searchIndex(keyPath, function (ownerId, data) {
+		return this._searchIndex(keyPath, function (ownerId, data) {
 			if (resolveIndexFilter(searchValue, data.value)) result.add(ownerId);
 		})(result);
 	}),
