@@ -45,6 +45,10 @@ var aFrom                 = require('es5-ext/array/from')
   , tokenize = resolveKeyPath.tokenize, resolveObject = resolveKeyPath.resolveObject
   , create = Object.create;
 
+var byStamp = function (a, b) {
+	return (a.data.stamp - b.data.stamp) || a.id.toLowerCase().localeCompare(b.id.toLowerCase());
+};
+
 var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
 	var autoSaveFilter, options;
 	if (!(this instanceof PersistenceDriver)) return new PersistenceDriver(dbjs, arguments[1]);
@@ -93,13 +97,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this.__getRaw(id).finally(this._onOperationEnd);
 	}),
+	_getRawObject: d(function (ownerId, keyPaths) {
+		return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
+	}),
 	getObject: d(function (objId/*, options*/) {
 		var keyPaths, options = arguments[1];
 		objId = ensureObjectId(objId);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this.__getRawObject(objId, keyPaths).finally(this._onOperationEnd);
+		return this._getRawObject(objId, keyPaths).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
 		return this.getValue(id)(function (data) {

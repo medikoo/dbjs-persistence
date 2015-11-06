@@ -65,7 +65,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return compact.call(toArray(map, function (data, keyPath) {
 				if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
 				return { id: (keyPath === '.') ? ownerId : ownerId + '/' + keyPath, data: data };
-			}, null, byStamp));
+			}));
 		});
 	}),
 	__storeRaw: d(function (id, data) {
