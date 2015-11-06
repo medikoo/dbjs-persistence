@@ -492,7 +492,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		ensureDriver(externalStore);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__exportAll(externalStore).finally(this._onOperationEnd);
+		return this._safeGet(function () {
+			return this.__exportAll(externalStore);
+		}).finally(this._onOperationEnd);
 	}),
 	clear: d(function () {
 		this._ensureOpen();
