@@ -69,10 +69,10 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 
 var notImplemented = function () { throw new Error("Not implemented"); };
 
-var ensureOwnerId = function (objId) {
-	objId = ensureString(objId);
-	if (!isObjectId(objId)) throw new TypeError(objId + " is not a database object id");
-	return objId;
+var ensureOwnerId = function (ownerId) {
+	ownerId = ensureString(ownerId);
+	if (!isObjectId(ownerId)) throw new TypeError(ownerId + " is not a database object id");
+	return ownerId;
 };
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
@@ -100,13 +100,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_getRawObject: d(function (ownerId, keyPaths) {
 		return this.__getRawObject(ownerId, keyPaths).invoke('sort', byStamp);
 	}),
-	getObject: d(function (objId/*, options*/) {
+	getObject: d(function (ownerId/*, options*/) {
 		var keyPaths, options = arguments[1];
-		objId = ensureOwnerId(objId);
+		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getRawObject(objId, keyPaths).finally(this._onOperationEnd);
+		return this._getRawObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
 		return this.getValue(id)(function (data) {
@@ -114,8 +114,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this._importValue(id, data.value, data.stamp);
 		}.bind(this));
 	}),
-	loadObject: d(function (objId) {
-		return this.getObject(objId)(function (data) {
+	loadObject: d(function (ownerId) {
+		return this.getObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
 				return this._importValue(data.id, data.data.value, data.data.stamp);
 			}, this));
@@ -173,9 +173,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__loadAll: d(notImplemented),
 
 	// Indexed database data
-	getIndexedValue: d(function (objId, keyPath) {
+	getIndexedValue: d(function (ownerId, keyPath) {
 		++this._runningOperations;
-		return this.__getRaw('=' + ensureString(keyPath) + ':' + ensureOwnerId(objId))
+		return this.__getRaw('=' + ensureString(keyPath) + ':' + ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
@@ -348,11 +348,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
 		var filter = getSearchValueFilter(searchValue), result = new Set();
 		return this.__searchDirect(function (id, data) {
-			var index = id.indexOf('/'), targetPath, sValue, objId;
+			var index = id.indexOf('/'), targetPath, sValue, ownerId;
 			if (!keyPath) {
 				if (index !== -1) return;
 				sValue = data.value;
-				objId = id;
+				ownerId = id;
 			} else {
 				targetPath = id.slice(id.indexOf('/') + 1);
 				if (!startsWith.call(targetPath, keyPath)) return;
@@ -368,9 +368,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					// Singular
 					sValue = data.value;
 				}
-				objId = id.slice(0, index);
+				ownerId = id.slice(0, index);
 			}
-			if (filter(sValue)) result.add(objId);
+			if (filter(sValue)) result.add(ownerId);
 		})(result);
 	}),
 	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
@@ -403,8 +403,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_recalculateIndexSet: d(function (keyPath, searchValue) {
 		var result = new Set();
-		return this.__searchIndex(keyPath, function (objId, data) {
-			if (resolveIndexFilter(searchValue, data.value)) result.add(objId);
+		return this.__searchIndex(keyPath, function (ownerId, data) {
+			if (resolveIndexFilter(searchValue, data.value)) result.add(ownerId);
 		})(result);
 	}),
 	recalculateIndexSize: d(function (name, keyPath/*, searchValue*/) {
