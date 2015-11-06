@@ -46,51 +46,51 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 	// Any data
 	__getRaw: d(function (id) {
-		var objId, keyPath, index;
+		var ownerId, keyPath, index;
 		if (id[0] === '_') return this.__getCustom(id.slice(1));
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
 			keyPath = id.slice(1, index);
-			objId = id.slice(index + 1);
-			return this._getIndexStorage(keyPath)(function (map) { return map[objId] || null; });
+			ownerId = id.slice(index + 1);
+			return this._getIndexStorage(keyPath)(function (map) { return map[ownerId] || null; });
 		}
-		objId = id.split('/', 1)[0];
-		keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectStorage(objId)(function (map) { return map[keyPath] || null; });
+		ownerId = id.split('/', 1)[0];
+		keyPath = id.slice(ownerId.length + 1) || '.';
+		return this._getObjectStorage(ownerId)(function (map) { return map[keyPath] || null; });
 	}),
-	__getRawObject: d(function (objId, keyPaths) {
-		return this._getObjectStorage(objId)(function (map) {
+	__getRawObject: d(function (ownerId, keyPaths) {
+		return this._getObjectStorage(ownerId)(function (map) {
 			return compact.call(toArray(map, function (data, keyPath) {
 				if (keyPaths && (keyPath !== '.') && !keyPaths.has(keyPath)) return;
-				return { id: (keyPath === '.') ? objId : objId + '/' + keyPath, data: data };
+				return { id: (keyPath === '.') ? ownerId : ownerId + '/' + keyPath, data: data };
 			}, null, byStamp));
 		});
 	}),
 	__storeRaw: d(function (id, data) {
-		var objId, keyPath, index;
+		var ownerId, keyPath, index;
 		if (id[0] === '_') return this._storeCustom(id.slice(1), data);
 		if (id[0] === '=') {
 			index = id.lastIndexOf(':');
 			keyPath = id.slice(1, index);
-			objId = id.slice(index + 1);
+			ownerId = id.slice(index + 1);
 			return this._getIndexStorage(keyPath)(function (map) {
-				map[objId] = data;
+				map[ownerId] = data;
 				return this._writeStorage('=' + keyPath, map);
 			}.bind(this));
 		}
-		objId = id.split('/', 1)[0];
-		keyPath = id.slice(objId.length + 1) || '.';
-		return this._getObjectStorage(objId)(function (map) {
+		ownerId = id.split('/', 1)[0];
+		keyPath = id.slice(ownerId.length + 1) || '.';
+		return this._getObjectStorage(ownerId)(function (map) {
 			map[keyPath] = data;
-			return this._writeStorage(objId, map);
+			return this._writeStorage(ownerId, map);
 		}.bind(this));
 	}),
 
 	// Database data
 	__loadAll: d(function () {
 		var progress = 1, result = [];
-		var promise = this._getAllObjectIds().map(function (objId) {
-			return this.loadObject(objId)(function (events) {
+		var promise = this._getAllObjectIds().map(function (ownerId) {
+			return this.loadObject(ownerId)(function (events) {
 				if (push.apply(result, events) > (progress * 1000)) {
 					++progress;
 					promise.emit('progress');
@@ -102,18 +102,18 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	__searchDirect: d(function (callback) {
-		return this._getAllObjectIds().map(function (objId) {
-			return this._getObjectStorage(objId)(function (map) {
+		return this._getAllObjectIds().map(function (ownerId) {
+			return this._getObjectStorage(ownerId)(function (map) {
 				forEach(map, function (data, keyPath) {
 					var postfix = keyPath === '.' ? '' : '/' + keyPath;
-					callback(objId + postfix, data);
+					callback(ownerId + postfix, data);
 				});
 			});
 		}, this);
 	}),
 	__searchIndex: d(function (keyPath, callback) {
 		return this._getIndexStorage(keyPath)(function (map) {
-			forEach(map, function (data, objId) { callback(objId, data); });
+			forEach(map, function (data, ownerId) { callback(ownerId, data); });
 		});
 	}),
 
@@ -145,9 +145,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				if (name[0] === '=') {
 					name = name.slice(1);
 					return this._getIndexStorage(name)(function (map) {
-						return deferred.map(keys(map), function (objId) {
+						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver.__storeRaw('=' + name  + ':' + objId, this[objId]);
+							return destDriver.__storeRaw('=' + name  + ':' + ownerId, this[ownerId]);
 						}, map);
 					});
 				}
@@ -207,10 +207,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }), memoizeMethods({
-	_getObjectStorage: d(function (objId) {
+	_getObjectStorage: d(function (ownerId) {
 		return this.dbDir()(function () {
 			var map = create(null);
-			return readFile(resolve(this.dirPath, objId))(function (data) {
+			return readFile(resolve(this.dirPath, ownerId))(function (data) {
 				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
