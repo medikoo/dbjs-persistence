@@ -365,7 +365,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
-		var index, ownerId, path, listener, size = 0, isInitialised = true, current;
+		var index, ownerId, path, listener, size = 0, isInitialised = false, current, stamp;
 		if (this._indexes[name]) {
 			throw new Error("Index of " + stringify(name) + " was already registered");
 		}
@@ -382,9 +382,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (nu === old) return;
 				if (nu) ++size;
 				else --size;
-				if (isInitialised) return;
+				stamp = event.data.stamp;
+				if (!isInitialised) return;
 				oldData = current;
-				nuData = current = { value: serializeValue(size), stamp: event.data.stamp };
+				if (stamp <= oldData.stamp) stamp = oldData.stamp + 1;
+				nuData = current = { value: serializeValue(size), stamp: stamp };
 				promise = this._handleStoreCustom(name, nuData.value, nuData.stamp);
 				var driverEvent;
 				debug("size update %s %s", name, size);
@@ -403,15 +405,26 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		} else {
 			this.on(conf.eventName, listener);
 		}
-		++this._runningOperations;
-		return this._getRaw('custom', ownerId, path)(function (data) {
-			// Ensure size for existing records is calculated
-			return data || conf.recalculate(function () { return size; });
-		}.bind(this))(function (data) {
+		var initialize = function (data) {
 			size = unserializeValue(data.value);
 			current = data;
-			isInitialised = false;
+			isInitialised = true;
 			return size;
+		};
+		var getSize = function () { return size; };
+		++this._runningOperations;
+		return this._getRaw('custom', ownerId, path)(function (data) {
+			if (data) {
+				if (!size) return initialize(data);
+				data = {
+					value: serializeValue(unserializeValue(data.value + size)),
+					stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
+				};
+				initialize(data);
+				return this._handleStoreCustom(name, data.value, data.stamp)(getSize);
+			}
+			size = 0;
+			return conf.recalculate(getSize)(initialize);
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_searchDirect: d(function (callback) {
