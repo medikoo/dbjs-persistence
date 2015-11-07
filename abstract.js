@@ -365,49 +365,52 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
-		var index, ownerId, path;
+		var index, ownerId, path, listener, size = 0, isInitialised = true, current;
 		if (this._indexes[name]) {
 			throw new Error("Index of " + stringify(name) + " was already registered");
 		}
 		index = name.indexOf('/');
 		ownerId = (index !== -1) ? name.slice(0, index) : name;
 		path = (index !== -1) ? name.slice(index + 1) : null;
+		listener = function (event) {
+			++this._runningOperations;
+			deferred(conf.resolveEvent(event))(function (result) {
+				var nu, old, oldData, nuData, promise;
+				if (!result) return;
+				nu = result.nu;
+				old = result.old;
+				if (nu === old) return;
+				if (nu) ++size;
+				else --size;
+				if (isInitialised) return;
+				oldData = current;
+				nuData = current = { value: serializeValue(size), stamp: event.data.stamp };
+				promise = this._handleStoreCustom(name, nuData.value, nuData.stamp);
+				var driverEvent;
+				debug("size update %s %s", name, size);
+				driverEvent = {
+					name: name,
+					data: nuData,
+					old: oldData,
+					directEvent: event.directEvent || event
+				};
+				this.emit('size:' + name, driverEvent);
+				return promise;
+			}.bind(this)).finally(this._onOperationEnd).done();
+		}.bind(this);
+		if (conf.eventNames) {
+			conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
+		} else {
+			this.on(conf.eventName, listener);
+		}
 		++this._runningOperations;
 		return this._getRaw('custom', ownerId, path)(function (data) {
 			// Ensure size for existing records is calculated
-			return data || conf.recalculate();
+			return data || conf.recalculate(function () { return size; });
 		}.bind(this))(function (data) {
-			var size = unserializeValue(data.value);
-			var listener = function (event) {
-				++this._runningOperations;
-				deferred(conf.resolveEvent(event))(function (result) {
-					var nu, old, oldData, nuData, promise;
-					if (!result) return;
-					nu = result.nu;
-					old = result.old;
-					if (nu === old) return;
-					if (nu) ++size;
-					else --size;
-					oldData = data;
-					nuData = data = { value: serializeValue(size), stamp: event.data.stamp };
-					promise = this._handleStoreCustom(name, nuData.value, nuData.stamp);
-					var driverEvent;
-					debug("size update %s %s", name, size);
-					driverEvent = {
-						name: name,
-						data: nuData,
-						old: oldData,
-						directEvent: event.directEvent || event
-					};
-					this.emit('size:' + name, driverEvent);
-					return promise;
-				}.bind(this)).finally(this._onOperationEnd).done();
-			}.bind(this);
-			if (conf.eventNames) {
-				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
-			} else {
-				this.on(conf.eventName, listener);
-			}
+			size = unserializeValue(data.value);
+			current = data;
+			isInitialised = false;
 			return size;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
@@ -442,13 +445,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (filter(sValue)) result.add(ownerId);
 		})(result);
 	}),
-	recalculateDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2];
+	recalculateDirectSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		++this._runningOperations;
 		return this._recalculateDirectSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreCustom(name, serializeValue(result.size));
+			return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_recalculateMultipleSet: d(function (sizeIndexes) {
@@ -479,13 +481,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (resolveIndexFilter(searchValue, data.value)) result.add(ownerId);
 		})(result);
 	}),
-	recalculateIndexSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2];
+	recalculateIndexSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		++this._runningOperations;
 		return this._recalculateIndexSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreCustom(name, serializeValue(result.size));
+			return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	__searchDirect: d(notImplemented),
@@ -708,9 +709,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}, this);
 		promise = this._trackSize(name, {
 			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
-			recalculate: function () {
+			recalculate: function (getSizeUpdate) {
 				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
-					return this._handleStoreCustom(name, serializeValue(result.size));
+					return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
 				}.bind(this));
 			}.bind(this),
 			resolveEvent: function (event) {
