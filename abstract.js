@@ -6,6 +6,7 @@ var aFrom                 = require('es5-ext/array/from')
   , compact               = require('es5-ext/array/#/compact')
   , isCopy                = require('es5-ext/array/#/is-copy')
   , ensureArray           = require('es5-ext/array/valid-array')
+  , customError           = require('es5-ext/error/custom')
   , ensureIterable        = require('es5-ext/iterable/validate-object')
   , assign                = require('es5-ext/object/assign')
   , forEach               = require('es5-ext/object/for-each')
@@ -70,7 +71,9 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
 
-var notImplemented = function () { throw new Error("Not implemented"); };
+var notImplemented = function () {
+	throw customError("Not implemented", 'NOT_IMPLEMENTED');
+};
 
 var ensureOwnerId = function (ownerId) {
 	ownerId = ensureString(ownerId);
@@ -248,7 +251,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var names, key, onAdd, onDelete, eventName, listener, update;
 		name = ensureString(name);
 		if (this._indexes[name]) {
-			throw new Error("Index of " + stringify(name) + " was already registered");
+			throw customError("Index of " + stringify(name) + " was already registered",
+				'DUPLICATE_INDEX');
 		}
 		set = ensureObservableSet(set);
 		if (keyPath != null) {
@@ -371,7 +375,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_trackSize: d(function (name, conf) {
 		var index, ownerId, path, listener, size = 0, isInitialised = false, current, stamp;
 		if (this._indexes[name]) {
-			throw new Error("Index of " + stringify(name) + " was already registered");
+			throw customError("Index of " + stringify(name) + " was already registered",
+				'DUPLICATE_INDEX');
 		}
 		index = name.indexOf('/');
 		ownerId = (index !== -1) ? name.slice(0, index) : name;
@@ -612,7 +617,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this.__close();
 	}),
 	_ensureOpen: d(function () {
-		if (this.isClosed) throw new Error("Database not accessible");
+		if (this.isClosed) throw customError("Database not accessible", 'DB_DISCONNECTED');
 	}),
 	_runningOperations: d(0),
 	_runningWriteOperations: d(0),
@@ -739,12 +744,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
 		sizeIndexes.forEach(function (name) {
 			var meta = this._indexes[ensureString(name)];
-			if (!meta) throw new Error("No index for " + stringify(name) + " was setup");
+			if (!meta) {
+				throw customError("No index for " + stringify(name) + " was setup",
+					'DUPLICATE_INDEX');
+			}
 			if (meta.type !== 'size') {
-				throw new Error("Index " + stringify(name) + " is not of \"size\" type as expected");
+				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
+					'NOT_SUPPORTED_INDEX');
 			}
 			if (meta.multiple) {
-				throw new Error("Index for " + stringify(name) + " is multiple, which is not suported");
+				throw customError("Index for " + stringify(name) + " is multiple, which is not suported",
+					'NOT_SUPPORTED_INDEX');
 			}
 		}, this);
 		promise = this._trackSize(name, {
