@@ -4,6 +4,7 @@
 
 var aFrom                 = require('es5-ext/array/from')
   , compact               = require('es5-ext/array/#/compact')
+  , flatten               = require('es5-ext/array/#/flatten')
   , isCopy                = require('es5-ext/array/#/is-copy')
   , ensureArray           = require('es5-ext/array/valid-array')
   , customError           = require('es5-ext/error/custom')
@@ -493,11 +494,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_recalculateMultipleSet: d(function (sizeIndexes) {
-		return deferred.map(sizeIndexes, function (name) {
+		return deferred.map(sizeIndexes, function self(name) {
 			var meta = this._indexes[name];
+			if (meta.multiple) return deferred.map(meta.multiple, self);
 			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
 			return this._recalculateIndexSet(meta.keyPath, meta.searchValue);
-		}, this)(function (sets) {
+		}, this).invoke(flatten)(function (sets) {
 			var result;
 			sets.sort(function (a, b) { return a.size - b.size; }).forEach(function (set) {
 				if (result) {
@@ -615,15 +617,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		sizeIndexes.forEach(function (name) {
 			var meta = this._indexes[ensureString(name)];
 			if (!meta) {
-				throw customError("No index for " + stringify(name) + " was setup",
-					'DUPLICATE_INDEX');
+				throw customError("No index for " + stringify(name) + " was setup", 'DUPLICATE_INDEX');
 			}
 			if (meta.type !== 'size') {
 				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
-					'NOT_SUPPORTED_INDEX');
-			}
-			if (meta.multiple) {
-				throw customError("Index for " + stringify(name) + " is multiple, which is not suported",
 					'NOT_SUPPORTED_INDEX');
 			}
 		}, this);
@@ -636,10 +633,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this),
 			resolveEvent: function (event) {
 				var ownerId = event.directEvent.ownerId;
-				return deferred.every(sizeIndexes, function (name) {
+				return deferred.every(sizeIndexes, function self(name) {
 					var meta, keyPath;
 					if (event.name === name) return true;
 					meta = this._indexes[name];
+					if (meta.multiple) return deferred.every(meta.multiple, self);
 					if (meta.direct) {
 						keyPath = meta.keyPath;
 						return this._getRaw('direct', ownerId, keyPath)(function (data) {
@@ -670,7 +668,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._indexes[name] = {
 			name: name,
 			type: 'size',
-			multiple: true
+			multiple: sizeIndexes
 		};
 		return promise;
 	}),
