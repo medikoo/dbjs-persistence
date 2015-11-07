@@ -135,15 +135,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getRaw('direct', ownerId, path).finally(this._onOperationEnd);
 	}),
 	_getRawObject: d(function (ownerId, keyPaths) {
+		var initData = create(null);
+		if (this._transient.direct[ownerId]) {
+			forEach(this._transient.direct[ownerId], function (transientData, id) {
+				if (keyPaths && id && !keyPaths.has(resolveKeyPath(ownerId + '/' + id))) return;
+				initData[ownerId + (id && ('/' + id))] = transientData;
+			});
+		}
 		return this._safeGet(function () {
 			return this.__getRawObject(ownerId, keyPaths)(function (data) {
-				if (this._transient.direct[ownerId]) {
-					forEach(this._transient.direct[ownerId], function (transientData, id) {
-						if (keyPaths && id && !keyPaths.has(resolveKeyPath(ownerId + '/' + id))) return;
-						data[ownerId + (id && ('/' + id))] = transientData;
-					});
-				}
-				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
+				return toArray(assign(data, initData),
+					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
 	}),
@@ -169,14 +171,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_getRawAllDirect: d(function () {
+		var initData = create(null);
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (transientData, id) {
+				initData[ownerId + (id && ('/' + id))] = transientData;
+			});
+		});
 		return this._safeGet(function () {
 			return this.__getRawAllDirect()(function (data) {
-				forEach(this._transient.direct, function (ownerData, ownerId) {
-					forEach(ownerData, function (transientData, id) {
-						data[ownerId + (id && ('/' + id))] = transientData;
-					});
-				});
-				return toArray(data, function (data, id) { return { id: id, data: data }; }, null, byStamp);
+				return toArray(assign(data, initData),
+					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
 	}),
