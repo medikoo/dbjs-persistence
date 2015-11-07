@@ -16,5 +16,8 @@ regexp
 stupid
 vars
 
+./index.js
+predef+ Buffer
+
 ./test
 predef+ __dirname

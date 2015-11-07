@@ -77,7 +77,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		if (cat === 'computed') {
 			return this._getIndexStorage(ns)(function (map) {
 				map[path] = data;
-				return this._writeStorage('=' + ns, map);
+				return this._writeStorage('=' + (new Buffer(ns)).toString('base64'), map);
 			}.bind(this));
 		}
 		return this._getObjectStorage(ns)(function (map) {
@@ -142,7 +142,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					});
 				}
 				if (filename[0] === '=') {
-					path = filename.slice(1);
+					path = String(new Buffer(filename.slice(1), 'base64'));
 					return this._getIndexStorage(path)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
@@ -234,8 +234,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}, { primitive: true }),
 	_getIndexStorage: d(function (keyPath) {
 		return this.dbDir()(function () {
-			var map = create(null);
-			return readFile(resolve(this.dirPath, '=' + keyPath))(function (data) {
+			var map = create(null), filename = '=' + (new Buffer(keyPath)).toString('base64');
+			return readFile(resolve(this.dirPath, filename))(function (data) {
 				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
