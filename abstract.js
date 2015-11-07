@@ -17,7 +17,6 @@ var aFrom                 = require('es5-ext/array/from')
   , startsWith            = require('es5-ext/string/#/starts-with')
   , isSet                 = require('es6-set/is-set')
   , ensureSet             = require('es6-set/valid-set')
-  , memoizeMethods        = require('memoizee/methods')
   , deferred              = require('deferred')
   , emitError             = require('event-emitter/emit-error')
   , d                     = require('d')
@@ -370,6 +369,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
 	}),
+	indexKeyPath: d(function (keyPath, set) {
+		return this._index(keyPath, set, keyPath);
+	}),
+	indexCollection: d(function (name, set) {
+		return this._index(name, set);
+	}),
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
@@ -534,6 +539,148 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
+		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]), promise;
+		name = ensureString(name);
+		if (keyPath != null) keyPath = ensureString(keyPath);
+		promise = this._trackSize(name, {
+			eventName: 'direct:' + (keyPath || '&'),
+			recalculate: this.recalculateDirectSize.bind(this, name, keyPath, searchValue),
+			resolveEvent: function (event) {
+				var targetPath, sValue;
+				if (!keyPath) {
+					return {
+						old: Boolean(event.old && filter(event.old.value)),
+						nu: filter(event.data.value)
+					};
+				}
+
+				targetPath = event.id.slice(event.id.indexOf('/') + 1);
+				if (targetPath !== keyPath) {
+					// Multiple
+					if (searchValue == null) return; // No support for multiple size validation
+					if (typeof searchValue === 'function') return; // No support for function filter
+					sValue = targetPath.slice(keyPath.length + 1);
+					if (!isDigit(sValue[0])) sValue = '3' + sValue;
+					if (sValue !== searchValue) return;
+					return {
+						old: Boolean(event.old && (event.old.value === '11')),
+						nu: (event.data.value === '11')
+					};
+				}
+				// Singular
+				return {
+					old: Boolean(event.old && filter(event.old.value)),
+					nu: filter(event.data.value)
+				};
+			}
+		});
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			direct: true,
+			keyPath: keyPath,
+			searchValue: searchValue,
+			filter: filter
+		};
+		return promise;
+	}),
+	trackIndexSize: d(function (name, keyPath/*, searchValue*/) {
+		var searchValue = arguments[2], promise;
+		name = ensureString(name);
+		keyPath = ensureString(keyPath);
+		promise = this._trackSize(name, {
+			eventName: 'index:' + keyPath,
+			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
+			resolveEvent: function (event) {
+				return {
+					nu: resolveIndexFilter(searchValue, event.data.value),
+					old: Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
+				};
+			}
+		});
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			keyPath: keyPath,
+			searchValue: searchValue
+		};
+		return promise;
+	}),
+	trackMultipleSize: d(function (name, sizeIndexes) {
+		var promise;
+		name = ensureString(name);
+		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
+		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
+		sizeIndexes.forEach(function (name) {
+			var meta = this._indexes[ensureString(name)];
+			if (!meta) {
+				throw customError("No index for " + stringify(name) + " was setup",
+					'DUPLICATE_INDEX');
+			}
+			if (meta.type !== 'size') {
+				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
+					'NOT_SUPPORTED_INDEX');
+			}
+			if (meta.multiple) {
+				throw customError("Index for " + stringify(name) + " is multiple, which is not suported",
+					'NOT_SUPPORTED_INDEX');
+			}
+		}, this);
+		promise = this._trackSize(name, {
+			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
+			recalculate: function (getSizeUpdate) {
+				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
+					return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
+				}.bind(this));
+			}.bind(this),
+			resolveEvent: function (event) {
+				var ownerId = event.directEvent.ownerId;
+				return deferred.every(sizeIndexes, function (name) {
+					var meta, keyPath;
+					if (event.name === name) return true;
+					meta = this._indexes[name];
+					if (meta.direct) {
+						keyPath = meta.keyPath;
+						return this._getRaw('direct', ownerId, keyPath)(function (data) {
+							var searchValue;
+							if (data) return meta.filter(data.value);
+							if (meta.searchValue == null) return false;
+							if (typeof meta.searchValue === 'function') return false;
+							searchValue = meta.searchValue;
+							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
+							return this._getRaw('direct', ownerId, keyPath + '*' + searchValue)(function (data) {
+								if (!data) return false;
+								return data.value === '11';
+							});
+						}.bind(this));
+					}
+					return this._getRaw('computed', meta.keyPath, ownerId)(function (data) {
+						return resolveIndexFilter(meta.searchValue, data.value);
+					});
+				}, this)(function (isEffective) {
+					var old, nu;
+					if (!isEffective) return;
+					old = unserializeValue(event.old.value);
+					nu = unserializeValue(event.data.value);
+					return { old: (old > nu), nu: (old < nu) };
+				});
+			}.bind(this)
+		});
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			multiple: true
+		};
+		return promise;
+	}),
+	trackCollectionSize: d(function (name, set) {
+		var indexName = 'sizeIndex/' + ensureString(name);
+		return deferred(
+			this.indexCollection(indexName, set),
+			this.trackIndexSize(name, indexName, '11')
+		);
+	}),
 	__searchDirect: d(notImplemented),
 	__searchIndex: d(notImplemented),
 
@@ -662,153 +809,4 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			custom: d(function () { return create(null); })
 		}));
 	})
-}), memoizeMethods({
-	indexKeyPath: d(function (keyPath, set) {
-		return this._index(keyPath, set, keyPath);
-	}, { primitive: true, length: 1 }),
-	indexCollection: d(function (name, set) {
-		return this._index(name, set);
-	}, { primitive: true, length: 1 }),
-	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]), promise;
-		name = ensureString(name);
-		if (keyPath != null) keyPath = ensureString(keyPath);
-		promise = this._trackSize(name, {
-			eventName: 'direct:' + (keyPath || '&'),
-			recalculate: this.recalculateDirectSize.bind(this, name, keyPath, searchValue),
-			resolveEvent: function (event) {
-				var targetPath, sValue;
-				if (!keyPath) {
-					return {
-						old: Boolean(event.old && filter(event.old.value)),
-						nu: filter(event.data.value)
-					};
-				}
-
-				targetPath = event.id.slice(event.id.indexOf('/') + 1);
-				if (targetPath !== keyPath) {
-					// Multiple
-					if (searchValue == null) return; // No support for multiple size validation
-					if (typeof searchValue === 'function') return; // No support for function filter
-					sValue = targetPath.slice(keyPath.length + 1);
-					if (!isDigit(sValue[0])) sValue = '3' + sValue;
-					if (sValue !== searchValue) return;
-					return {
-						old: Boolean(event.old && (event.old.value === '11')),
-						nu: (event.data.value === '11')
-					};
-				}
-				// Singular
-				return {
-					old: Boolean(event.old && filter(event.old.value)),
-					nu: filter(event.data.value)
-				};
-			}
-		});
-		this._indexes[name] = {
-			name: name,
-			type: 'size',
-			direct: true,
-			keyPath: keyPath,
-			searchValue: searchValue,
-			filter: filter
-		};
-		return promise;
-	}, { primitive: true, length: 1 }),
-	trackIndexSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2], promise;
-		name = ensureString(name);
-		keyPath = ensureString(keyPath);
-		promise = this._trackSize(name, {
-			eventName: 'index:' + keyPath,
-			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
-			resolveEvent: function (event) {
-				return {
-					nu: resolveIndexFilter(searchValue, event.data.value),
-					old: Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
-				};
-			}
-		});
-		this._indexes[name] = {
-			name: name,
-			type: 'size',
-			keyPath: keyPath,
-			searchValue: searchValue
-		};
-		return promise;
-	}, { primitive: true, length: 1 }),
-	trackMultipleSize: d(function (name, sizeIndexes) {
-		var promise;
-		name = ensureString(name);
-		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
-		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
-		sizeIndexes.forEach(function (name) {
-			var meta = this._indexes[ensureString(name)];
-			if (!meta) {
-				throw customError("No index for " + stringify(name) + " was setup",
-					'DUPLICATE_INDEX');
-			}
-			if (meta.type !== 'size') {
-				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
-					'NOT_SUPPORTED_INDEX');
-			}
-			if (meta.multiple) {
-				throw customError("Index for " + stringify(name) + " is multiple, which is not suported",
-					'NOT_SUPPORTED_INDEX');
-			}
-		}, this);
-		promise = this._trackSize(name, {
-			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
-			recalculate: function (getSizeUpdate) {
-				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
-					return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
-				}.bind(this));
-			}.bind(this),
-			resolveEvent: function (event) {
-				var ownerId = event.directEvent.ownerId;
-				return deferred.every(sizeIndexes, function (name) {
-					var meta, keyPath;
-					if (event.name === name) return true;
-					meta = this._indexes[name];
-					if (meta.direct) {
-						keyPath = meta.keyPath;
-						return this._getRaw('direct', ownerId, keyPath)(function (data) {
-							var searchValue;
-							if (data) return meta.filter(data.value);
-							if (meta.searchValue == null) return false;
-							if (typeof meta.searchValue === 'function') return false;
-							searchValue = meta.searchValue;
-							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
-							return this._getRaw('direct', ownerId, keyPath + '*' + searchValue)(function (data) {
-								if (!data) return false;
-								return data.value === '11';
-							});
-						}.bind(this));
-					}
-					return this._getRaw('computed', meta.keyPath, ownerId)(function (data) {
-						return resolveIndexFilter(meta.searchValue, data.value);
-					});
-				}, this)(function (isEffective) {
-					var old, nu;
-					if (!isEffective) return;
-					old = unserializeValue(event.old.value);
-					nu = unserializeValue(event.data.value);
-					return { old: (old > nu), nu: (old < nu) };
-				});
-			}.bind(this)
-		});
-		this._indexes[name] = {
-			name: name,
-			type: 'size',
-			multiple: true
-		};
-		return promise;
-	}, { primitive: true, length: 1 }),
-	trackCollectionSize: d(function (name, set) {
-		var indexName = 'sizeIndex/' + ensureString(name);
-		return deferred(
-			this.indexCollection(indexName, set),
-			this.trackIndexSize(name, indexName, '11')
-		);
-	}, { primitive: true, length: 1 })
 }))));

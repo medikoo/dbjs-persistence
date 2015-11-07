@@ -68,10 +68,6 @@ module.exports = function (opts, copyOpts) {
 				a(size, 0);
 				return driver.getCustom('miszkaAll')(function (data) { a(data.value, '20'); });
 			}),
-			driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
-				a(size, 0);
-				return driver.getCustom('miszkaAll')(function (data) { a(data.value, '20'); });
-			}),
 			driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
 			driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
 				a(size, 0);
@@ -85,6 +81,9 @@ module.exports = function (opts, copyOpts) {
 			driver.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
 			driver.storeCustom('elo', 'marko')
 		)(function () {
+			a.throws(function () {
+				driver.trackDirectSize('miszkaAll', 'miszka').done();
+			}, 'DUPLICATE_INDEX');
 			return driver.storeEvents([
 				new Event(aaa.getOwnDescriptor('sdfds'), 'sdfs'),
 				new Event(zzz.getOwnDescriptor('sdfffds'), 'sdfs'),
