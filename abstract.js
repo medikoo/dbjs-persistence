@@ -432,7 +432,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_searchDirect: d(function (callback) {
-		return this._safeGet(function () { return this.__searchDirect(callback); });
+		var done = create(null);
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (data, path) {
+				var id = ownerId + (path ? '/' + path : '');
+				done[id] = true;
+				callback(id, data);
+			});
+		});
+		return this._safeGet(function () {
+			return this.__searchDirect(function (id, data) {
+				if (!done[id]) callback(id, data);
+			});
+		});
 	}),
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
 		var filter = getSearchValueFilter(searchValue), result = new Set();
@@ -490,7 +502,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		});
 	}),
 	_searchIndex: d(function (keyPath, callback) {
-		return this._safeGet(function () { return this.__searchIndex(keyPath, callback); });
+		var done = create(null), transient = this._transient.computed[keyPath];
+		if (transient) {
+			forEach(transient, function (data, ownerId) {
+				done[ownerId] = true;
+				callback(ownerId, data);
+			});
+		}
+		return this._safeGet(function () {
+			return this.__searchIndex(keyPath, function (ownerId, data) {
+				if (!done[ownerId]) callback(ownerId, data);
+			});
+		});
 	}),
 	_recalculateIndexSet: d(function (keyPath, searchValue) {
 		var result = new Set();
