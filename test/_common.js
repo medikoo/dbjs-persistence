@@ -62,6 +62,7 @@ module.exports = function (opts, copyOpts) {
 					a(data, null);
 				}), driver.getIndexedValue('bar', 'barByCol')(function (data) {
 					a(data.value, '11');
+					a(typeof data.stamp, 'number');
 				}));
 			}),
 			driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {

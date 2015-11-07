@@ -312,17 +312,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			++this._runningOperations;
 			update(ownerId, sValue, stamp).finally(this._onOperationEnd).done();
 		}.bind(this);
-		onAdd = function (owner) {
-			var ownerId = owner.__id__, obj = owner, observable, value, stamp, sValue;
+		onAdd = function (owner, event) {
+			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
+			if (event) stamp = event.stamp;
 			if (keyPath) {
 				obj = ensureObject(resolveObject(owner, names));
 				if (obj.isKeyStatic(key)) {
 					value = obj[key];
-					stamp = 0;
 				} else {
 					value = obj._get_(key);
 					observable = obj._getObservable_(key);
-					stamp = observable.lastModified;
+					if (!stamp) stamp = observable.lastModified;
 					if (isSet(value)) value.on('change', listener);
 					else observable.on('change', listener);
 				}
@@ -337,38 +337,42 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			return update(ownerId, sValue, stamp);
 		}.bind(this);
-		onDelete = function (owner) {
-			var obj;
+		onDelete = function (owner, event) {
+			var obj, stamp = 0;
+			if (event) stamp = event.stamp;
 			if (keyPath) {
 				obj = resolveObject(owner, names);
 				if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
 			}
-			return update(owner.__id__, '', getStamp());
+			return update(owner.__id__, '', stamp);
 		}.bind(this);
 		set.on('change', function (event) {
 			if (event.type === 'add') {
 				++this._runningOperations;
-				onAdd(event.value).finally(this._onOperationEnd).done();
+				onAdd(event.value, event.dbjs).finally(this._onOperationEnd).done();
 				return;
 			}
 			if (event.type === 'delete') {
 				++this._runningOperations;
-				onDelete(event.value).finally(this._onOperationEnd).done();
+				onDelete(event.value, event.dbjs).finally(this._onOperationEnd).done();
 				return;
 			}
 			if (event.type === 'batch') {
 				if (event.added) {
 					++this._runningOperations;
-					deferred.map(event.added, onAdd).finally(this._onOperationEnd).done();
+					deferred.map(event.added, function (value) { onAdd(value, event.dbjs); })
+						.finally(this._onOperationEnd).done();
 				}
 				if (event.deleted) {
 					++this._runningOperations;
-					deferred.map(event.deleted, onDelete).finally(this._onOperationEnd).done();
+					deferred.map(event.deleted, function (value) { onDelete(value, event.dbjs); })
+						.finally(this._onOperationEnd).done();
 				}
 			}
 		}.bind(this));
 		++this._runningOperations;
-		return deferred.map(aFrom(set), onAdd).finally(this._onOperationEnd);
+		return deferred.map(aFrom(set), function (value) { onAdd(value); })
+			.finally(this._onOperationEnd);
 	}),
 	indexKeyPath: d(function (keyPath, set) {
 		return this._index(keyPath, set, keyPath);
