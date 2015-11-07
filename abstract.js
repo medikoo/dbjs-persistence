@@ -768,9 +768,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return promise;
 	}, { primitive: true, length: 1 }),
 	trackCollectionSize: d(function (name, set) {
-		var indexName = 'sizeIndex/' + ensureString(name);
-		return this.indexCollection(indexName, set)(function () {
-			return this.trackIndexSize(name, indexName, '11');
+		var indexName = 'sizeIndex/' + ensureString(name), searchValue = '11';
+		var promise = this.indexCollection(indexName, set)(function () {
+			return this._trackSize(name, {
+				eventName: 'index:' + indexName,
+				recalculate: this.recalculateIndexSize.bind(this, name, indexName, searchValue),
+				resolveEvent: function (event) {
+					return {
+						nu: resolveIndexFilter(searchValue, event.data.value),
+						old: Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
+					};
+				}
+			});
 		}.bind(this));
+		this._indexes[name] = {
+			name: name,
+			type: 'size',
+			keyPath: indexName,
+			searchValue: searchValue
+		};
+		return promise;
 	}, { primitive: true, length: 1 })
 }))));
