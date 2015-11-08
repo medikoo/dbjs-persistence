@@ -816,6 +816,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (!this._onWriteDrain) this._onWriteDrain = deferred();
 		return this._onWriteDrain.promise;
 	}),
+	_writeLockCounter: d(0),
 	_writeLock: d.gs(function () {
 		return this._writeLockCounter;
 	}, function (value) {
