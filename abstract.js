@@ -282,6 +282,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp = old.stamp + 1; // most likely model update
 					}
 				}
+				if (!stamp) stamp = getStamp();
 				nu = {
 					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
 					stamp: stamp
