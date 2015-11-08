@@ -372,7 +372,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 		}.bind(this));
 		++this._runningOperations;
-		return deferred.map(aFrom(set), function (value) { onAdd(value); })
+		return deferred.map(aFrom(set), function (value) { return onAdd(value); })
 			.finally(this._onOperationEnd);
 	}),
 	indexKeyPath: d(function (keyPath, set) {
