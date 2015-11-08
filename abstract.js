@@ -722,6 +722,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			debug("custom update %s", key);
 			promise = this._storeRaw('custom', ownerId, keyPath, data)(data);
 			driverEvent = {
+				id: key,
 				ownerId: ownerId,
 				keyPath: keyPath,
 				data: data,
