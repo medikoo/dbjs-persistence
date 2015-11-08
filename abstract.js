@@ -713,10 +713,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (oldData) {
 				if (oldData.value === value) {
 					if (!stamp || (stamp <= oldData.stamp)) return;
+				} else if (!stamp || (stamp <= oldData.stamp)) {
+					stamp = oldData.stamp + 1;
 				}
-				if (stamp) {
-					if (oldData.stamp > stamp) stamp = oldData.stamp + 1;
-				}
+			} else if (!stamp) {
+				stamp = getStamp();
 			}
 			data = { value: value, stamp: stamp };
 			debug("custom update %s", key, stamp);
