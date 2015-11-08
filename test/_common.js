@@ -75,6 +75,16 @@ module.exports = function (opts, copyOpts) {
 			}),
 			driver.trackMultipleSize('someBoolAll',
 				['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 0); }),
+			driver.trackCollectionSize('colSize1', db.SomeType.instances)(function () {
+				return driver.getCustom('colSize1')(function (data) {
+					a(data.value, '2' + db.SomeType.instances.size);
+				});
+			}),
+			driver.trackCollectionSize('colSize2', db.SomeType.instances)(function () {
+				return driver.getCustom('colSize2')(function (data) {
+					a(data.value, '2' + db.SomeType.instances.size);
+				});
+			}),
 			driver.storeEvent(zzz._lastOwnEvent_),
 			driver.storeEvent(bar._lastOwnEvent_),
 			driver.storeEvent(fooBar._lastOwnEvent_),
