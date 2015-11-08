@@ -20,6 +20,11 @@ module.exports = function (opts, copyOpts) {
 			someBoolStatic: { type: db.Boolean },
 			someBoolComputed: { type: db.Boolean, value: function () {
 				return this.someBoolStatic;
+			} },
+			someBool2: { type: db.Boolean },
+			someBoolStatic2: { type: db.Boolean },
+			someBoolComputed2: { type: db.Boolean, value: function () {
+				return this.someBoolStatic2;
 			} }
 		});
 		return db;
@@ -110,7 +115,14 @@ module.exports = function (opts, copyOpts) {
 				new Event(bbb.getOwnDescriptor('someBoolStatic'), true),
 				new Event(ccc.getOwnDescriptor('someBoolStatic'), true),
 				new Event(ddd.getOwnDescriptor('someBoolStatic'), false),
-				new Event(eee.getOwnDescriptor('someBoolStatic'), true)
+				new Event(eee.getOwnDescriptor('someBoolStatic'), true),
+				new Event(aaa.getOwnDescriptor('someBool2'), true),
+				new Event(bbb.getOwnDescriptor('someBool2'), true),
+				new Event(ccc.getOwnDescriptor('someBool2'), true),
+				new Event(bbb.getOwnDescriptor('someBoolStatic2'), true),
+				new Event(ccc.getOwnDescriptor('someBoolStatic2'), true),
+				new Event(ddd.getOwnDescriptor('someBoolStatic2'), false),
+				new Event(eee.getOwnDescriptor('someBoolStatic2'), true)
 			])(function () {
 				return driver._getRaw('direct', 'fooBar')(function (data) {
 					a(data.value, '7SomeType#');
@@ -126,6 +138,17 @@ module.exports = function (opts, copyOpts) {
 					driver.getCustom('someBoolSize')(function (data) { a(data.value, '23'); }),
 					driver.getCustom('someBoolComputedSize')(function (data) { a(data.value, '23'); }),
 					driver.getCustom('someBoolAll')(function (data) { a(data.value, '22'); })
+				);
+			})(function () {
+				return deferred(
+					driver.indexKeyPath('someBoolComputed2', db.SomeType.instances),
+					driver.trackDirectSize('someBoolSize2', 'someBool2', '11')(function (size) {
+						a(size, 3);
+					}),
+					driver.trackIndexSize('someBoolComputedSize2', 'someBoolComputed2',
+						'11')(function (size) { a(size, 3); }),
+					driver.trackMultipleSize('someBoolAll2',
+						['someBoolSize2', 'someBoolComputedSize2'])(function (size) { a(size, 2); })
 				);
 			})(function () {
 				return driver.close();
