@@ -709,7 +709,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
 		++this._runningOperations;
 		return this._getRaw('custom', ownerId, keyPath)(function (oldData) {
-			var data;
+			var data, promise, driverEvent;
 			if (oldData) {
 				if (oldData.value === value) {
 					if (!stamp || (stamp <= oldData.stamp)) return;
@@ -720,7 +720,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			data = { value: value, stamp: stamp };
 			debug("custom update %s", key);
-			return this._storeRaw('custom', ownerId, keyPath, data)(data);
+			promise = this._storeRaw('custom', ownerId, keyPath, data)(data);
+			driverEvent = {
+				ownerId: ownerId,
+				keyPath: keyPath,
+				data: data,
+				old: oldData
+			};
+			this.emit('custom:' + ownerId, driverEvent);
+			return promise;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 
