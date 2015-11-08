@@ -195,7 +195,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_storeCustom: d(function (ownerId, path, data) {
 		return this._custom(function (map) {
 			map[ownerId + (path ? ('/' + path) : '')] = data;
-			return writeFile(resolve(this.dirPath, '_custom'), stringify(map));
+			return writeFile(resolve(this.dirPath, '_custom'), stringify(map, null, '\t'));
 		}.bind(this));
 	}),
 	_writeStorage: d(function (name, map) {
