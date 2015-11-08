@@ -708,13 +708,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		  , ownerId = (index !== -1) ? key.slice(0, index) : key
 		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
 		++this._runningOperations;
-		return this._getRaw('custom', ownerId, keyPath)(function (data) {
-			if (data) {
-				if (data.value === value) {
-					if (!stamp || (stamp <= data.stamp)) return;
+		return this._getRaw('custom', ownerId, keyPath)(function (oldData) {
+			var data;
+			if (oldData) {
+				if (oldData.value === value) {
+					if (!stamp || (stamp <= oldData.stamp)) return;
 				}
 				if (stamp) {
-					if (data.stamp > stamp) stamp = data.stamp + 1;
+					if (oldData.stamp > stamp) stamp = oldData.stamp + 1;
 				}
 			}
 			data = { value: value, stamp: stamp };
