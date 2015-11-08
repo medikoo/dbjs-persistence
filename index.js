@@ -116,14 +116,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 
-	// Custom data
-	_storeCustom: d(function (ownerId, path, data) {
-		return this._custom(function (map) {
-			map[ownerId + (path ? ('/' + path) : '')] = data;
-			return writeFile(resolve(this.dirPath, '_custom'), stringify(map));
-		}.bind(this));
-	}),
-
 	// Storage import/export
 	__exportAll: d(function (destDriver) {
 		var count = 0;
@@ -183,6 +175,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return readdir(this.dirPath, { type: { file: true } })(function (data) {
 				return data.filter(isId).sort();
 			});
+		}.bind(this));
+	}),
+	_storeCustom: d(function (ownerId, path, data) {
+		return this._custom(function (map) {
+			map[ownerId + (path ? ('/' + path) : '')] = data;
+			return writeFile(resolve(this.dirPath, '_custom'), stringify(map));
 		}.bind(this));
 	}),
 	_writeStorage: d(function (name, map) {
