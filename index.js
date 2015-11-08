@@ -116,6 +116,21 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 
+	// Custom
+	__getCustomNs: d(function (ns, keyPaths) {
+		return this._custom(function (map) {
+			var result = create(null);
+			forEach(map, function (data, id) {
+				var index = id.indexOf('/'), ownerId = (index !== -1) ? id.slice(0, index) : id, path;
+				if (ownerId !== ns) return;
+				path = (index !== -1) ? id.slice(index + 1) : null;
+				if (path && keyPaths && !keyPaths.has(path)) return;
+				result[id] = data;
+			});
+			return result;
+		});
+	}),
+
 	// Storage import/export
 	__exportAll: d(function (destDriver) {
 		var count = 0;

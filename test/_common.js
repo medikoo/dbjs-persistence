@@ -106,6 +106,10 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '7SomeType#');
 				});
 			})(function () {
+				return driver.getCustomNs('miszkaAll')(function (result) {
+					a.deep(result, [{ id: 'miszkaAll', data: { stamp: result[0].data.stamp, value: '23' } }]);
+				});
+			})(function () {
 				return driver.onDrain;
 			})(function () {
 				return deferred(
