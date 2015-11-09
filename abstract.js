@@ -420,11 +420,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				return promise;
 			}.bind(this)).finally(this._onOperationEnd).done();
 		}.bind(this);
-		if (conf.eventNames) {
-			conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
-		} else {
-			this.on(conf.eventName, listener);
-		}
 		var initialize = function (data) {
 			size = unserializeValue(data.value);
 			current = data;
@@ -433,18 +428,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		var getSize = function () { return size; };
 		++this._runningOperations;
-		return this._getRaw('custom', ownerId, path)(function (data) {
-			if (data) {
-				if (!size) return initialize(data);
-				data = {
-					value: serializeValue(unserializeValue(data.value + size)),
-					stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
-				};
-				initialize(data);
-				return this._handleStoreCustom(name, data.value, data.stamp)(getSize);
+		return deferred(conf.initPromise)(function () {
+			if (conf.eventNames) {
+				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
+			} else {
+				this.on(conf.eventName, listener);
 			}
-			size = 0;
-			return conf.recalculate(getSize)(initialize);
+			return this._getRaw('custom', ownerId, path)(function (data) {
+				if (data) {
+					if (!size) return initialize(data);
+					data = {
+						value: serializeValue(unserializeValue(data.value + size)),
+						stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
+					};
+					initialize(data);
+					return this._handleStoreCustom(name, data.value, data.stamp)(getSize);
+				}
+				size = 0;
+				return conf.recalculate(getSize)(initialize);
+			}.bind(this));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_searchDirect: d(function (callback) {
@@ -588,7 +590,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			direct: true,
 			keyPath: keyPath,
 			searchValue: searchValue,
-			filter: filter
+			filter: filter,
+			promise: promise
 		};
 		return promise;
 	}),
@@ -610,12 +613,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			name: name,
 			type: 'size',
 			keyPath: keyPath,
-			searchValue: searchValue
+			searchValue: searchValue,
+			promise: promise
 		};
 		return promise;
 	}),
 	trackMultipleSize: d(function (name, sizeIndexes) {
-		var promise;
+		var promise, dependencyPromises = [];
 		name = ensureString(name);
 		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
 		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
@@ -628,8 +632,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
 					'NOT_SUPPORTED_INDEX');
 			}
+			dependencyPromises.push(meta.promise);
 		}, this);
 		promise = this._trackSize(name, {
+			initPromise: deferred.map(dependencyPromises),
 			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
 			recalculate: function (getSizeUpdate) {
 				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
@@ -673,7 +679,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._indexes[name] = {
 			name: name,
 			type: 'size',
-			multiple: sizeIndexes
+			multiple: sizeIndexes,
+			promise: promise
 		};
 		return promise;
 	}),
