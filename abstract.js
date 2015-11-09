@@ -501,7 +501,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_recalculateMultipleSet: d(function (sizeIndexes) {
 		return deferred.map(sizeIndexes, function self(name) {
 			var meta = this._indexes[name];
-			if (meta.multiple) return deferred.map(meta.multiple, self);
+			if (meta.multiple) return deferred.map(meta.multiple, self, this);
 			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
 			return this._recalculateIndexSet(meta.keyPath, meta.searchValue);
 		}, this).invoke(flatten)(function (sets) {
