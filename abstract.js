@@ -361,12 +361,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (event.type === 'batch') {
 				if (event.added) {
 					++this._runningOperations;
-					deferred.map(event.added, function (value) { onAdd(value, event.dbjs); })
+					deferred.map(event.added, function (value) { return onAdd(value, event.dbjs); })
 						.finally(this._onOperationEnd).done();
 				}
 				if (event.deleted) {
 					++this._runningOperations;
-					deferred.map(event.deleted, function (value) { onDelete(value, event.dbjs); })
+					deferred.map(event.deleted, function (value) { return onDelete(value, event.dbjs); })
 						.finally(this._onOperationEnd).done();
 				}
 			}
