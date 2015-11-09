@@ -648,7 +648,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					var meta, keyPath;
 					if (event.name === name) return true;
 					meta = this._indexes[name];
-					if (meta.multiple) return deferred.every(meta.multiple, self);
+					if (meta.multiple) return deferred.every(meta.multiple, self, this);
 					if (meta.direct) {
 						keyPath = meta.keyPath;
 						return this._getRaw('direct', ownerId, keyPath)(function (data) {
