@@ -665,7 +665,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						}.bind(this));
 					}
 					return this._getRaw('computed', meta.keyPath, ownerId)(function (data) {
-						return resolveIndexFilter(meta.searchValue, data.value);
+						return resolveIndexFilter(meta.searchValue, data ? data.value : '');
 					});
 				}, this)(function (isEffective) {
 					var old, nu;
