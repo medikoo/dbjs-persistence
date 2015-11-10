@@ -520,6 +520,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return result;
 		});
 	}),
+	searchIndex: d(function (keyPath, callback) {
+		return this._searchIndex(ensureString(keyPath), ensureCallable(callback));
+	}),
 	_searchIndex: d(function (keyPath, callback) {
 		var done = create(null), transient = this._transient.computed[keyPath];
 		if (transient) {
