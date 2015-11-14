@@ -117,7 +117,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Reduced
-	__getCustomNs: d(function (ns, keyPaths) {
+	__getReducedNs: d(function (ns, keyPaths) {
 		return this._custom(function (map) {
 			var result = create(null);
 			forEach(map, function (data, id) {

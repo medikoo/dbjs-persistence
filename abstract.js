@@ -697,8 +697,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__searchDirect: d(notImplemented),
 	__searchIndex: d(notImplemented),
 
-	// Custom data
-	getCustom: d(function (key) {
+	// Reduced data
+	getReduced: d(function (key) {
 		var index, ownerId, path;
 		key = ensureString(key);
 		this._ensureOpen();
@@ -743,7 +743,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return promise;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	_getCustomNs: d(function (ns, keyPaths) {
+	_getReducedNs: d(function (ns, keyPaths) {
 		var initData = create(null);
 		if (this._transient.reduced[ns]) {
 			forEach(this._transient.reduced[ns], function (transientData, id) {
@@ -752,21 +752,21 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			});
 		}
 		return this._safeGet(function () {
-			return this.__getCustomNs(ns, keyPaths)(function (data) {
+			return this.__getReducedNs(ns, keyPaths)(function (data) {
 				return toArray(assign(data, initData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
 	}),
-	getCustomNs: d(function (ns/*, options*/) {
+	getReducedNs: d(function (ns/*, options*/) {
 		var keyPaths, options = arguments[1];
 		ns = ensureOwnerId(ns);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getCustomNs(ns, keyPaths).finally(this._onOperationEnd);
+		return this._getReducedNs(ns, keyPaths).finally(this._onOperationEnd);
 	}),
-	__getCustomNs: d(notImplemented),
+	__getReducedNs: d(notImplemented),
 
 	// Storage export/import
 	export: d(function (externalStore) {
