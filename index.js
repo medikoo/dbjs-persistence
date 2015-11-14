@@ -58,7 +58,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Any data
 	__getRaw: d(function (cat, ns, path) {
 		if (cat === 'reduced') {
-			return this._custom(function (map) {
+			return this._reduced(function (map) {
 				return map[ns + (path ? ('/' + path) : '')] || null;
 			});
 		}
@@ -118,7 +118,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Reduced
 	__getReducedNs: d(function (ns, keyPaths) {
-		return this._custom(function (map) {
+		return this._reduced(function (map) {
 			var result = create(null);
 			forEach(map, function (data, id) {
 				var index = id.indexOf('/'), ownerId = (index !== -1) ? id.slice(0, index) : id, path;
@@ -157,8 +157,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						}, map);
 					});
 				}
-				if (filename === '_custom') {
-					this._custom(function (custom) {
+				if (filename === '_reduced') {
+					this._reduced(function (custom) {
 						return deferred.map(keys(custom), function (key) {
 							var index = key.indexOf('/')
 							  , ownerId = (index !== -1) ? key.slice(0, index) : key
@@ -176,7 +176,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
 			this._getObjectStorage.clear();
 			this._getIndexStorage.clear();
-			defineProperty(this, '_custom', d(deferred({})));
+			defineProperty(this, '_reduced', d(deferred({})));
 			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
 		}.bind(this));
 	}),
@@ -193,9 +193,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	_storeReduced: d(function (ownerId, path, data) {
-		return this._custom(function (map) {
+		return this._reduced(function (map) {
 			map[ownerId + (path ? ('/' + path) : '')] = data;
-			return writeFile(resolve(this.dirPath, '_custom'), stringify(map, null, '\t'));
+			return writeFile(resolve(this.dirPath, '_reduced'), stringify(map, null, '\t'));
 		}.bind(this));
 	}),
 	_writeStorage: d(function (name, map) {
@@ -209,9 +209,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }, lazy({
-	_custom: d(function () {
+	_reduced: d(function () {
 		return this.dbDir()(function () {
-			return readFile(resolve(this.dirPath, '_custom'))(function (str) {
+			return readFile(resolve(this.dirPath, '_reduced'))(function (str) {
 				try {
 					return parse(String(str));
 				} catch (e) { return {}; }
