@@ -434,7 +434,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			} else {
 				this.on(conf.eventName, listener);
 			}
-			return this._getRaw('custom', ownerId, path)(function (data) {
+			return this._getRaw('reduced', ownerId, path)(function (data) {
 				if (data) {
 					if (!size) return initialize(data);
 					data = {
@@ -706,7 +706,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		index = key.indexOf('/');
 		ownerId = (index !== -1) ? key.slice(0, index) : key;
 		path = (index !== -1) ? key.slice(index + 1) : null;
-		return this._getRaw('custom', ownerId, path).finally(this._onOperationEnd);
+		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
 	}),
 	storeCustom: d(function (key, value, stamp) {
 		key = ensureString(key);
@@ -718,7 +718,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		  , ownerId = (index !== -1) ? key.slice(0, index) : key
 		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
 		++this._runningOperations;
-		return this._getRaw('custom', ownerId, keyPath)(function (oldData) {
+		return this._getRaw('reduced', ownerId, keyPath)(function (oldData) {
 			var data, promise, driverEvent;
 			if (oldData) {
 				if (oldData.value === value) {
@@ -730,8 +730,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				stamp = getStamp();
 			}
 			data = { value: value, stamp: stamp };
-			debug("custom update %s", key, stamp);
-			promise = this._storeRaw('custom', ownerId, keyPath, data)(data);
+			debug("reduced update %s", key, stamp);
+			promise = this._storeRaw('reduced', ownerId, keyPath, data)(data);
 			driverEvent = {
 				id: key,
 				ownerId: ownerId,
@@ -739,14 +739,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				data: data,
 				old: oldData
 			};
-			this.emit('custom:' + ownerId, driverEvent);
+			this.emit('reduced:' + ownerId, driverEvent);
 			return promise;
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_getCustomNs: d(function (ns, keyPaths) {
 		var initData = create(null);
-		if (this._transient.custom[ns]) {
-			forEach(this._transient.custom[ns], function (transientData, id) {
+		if (this._transient.reduced[ns]) {
+			forEach(this._transient.reduced[ns], function (transientData, id) {
 				if (keyPaths && id && !keyPaths.has(id)) return;
 				initData[ns + (id && ('/' + id))] = transientData;
 			});
@@ -784,7 +784,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		transient = this._transient;
 		keys(transient.direct).forEach(function (key) { delete transient.direct[key]; });
 		keys(transient.computed).forEach(function (key) { delete transient.computed[key]; });
-		keys(transient.custom).forEach(function (key) { delete transient.custom[key]; });
+		keys(transient.reduced).forEach(function (key) { delete transient.reduced[key]; });
 		return this._safeGet(function () {
 			++this._runningWriteOperations;
 			return this.__clear();
@@ -861,7 +861,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return defineProperties({}, lazy({
 			direct: d(function () { return create(null); }),
 			computed: d(function () { return create(null); }),
-			custom: d(function () { return create(null); })
+			reduced: d(function () { return create(null); })
 		}));
 	})
 }))));

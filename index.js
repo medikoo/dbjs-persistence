@@ -57,7 +57,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(TextFileDriver),
 	// Any data
 	__getRaw: d(function (cat, ns, path) {
-		if (cat === 'custom') {
+		if (cat === 'reduced') {
 			return this._custom(function (map) {
 				return map[ns + (path ? ('/' + path) : '')] || null;
 			});
@@ -73,7 +73,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 	__storeRaw: d(function (cat, ns, path, data) {
-		if (cat === 'custom') return this._storeCustom(ns, path, data);
+		if (cat === 'reduced') return this._storeCustom(ns, path, data);
 		if (cat === 'computed') {
 			return this._getIndexStorage(ns)(function (map) {
 				map[path] = data;
@@ -116,7 +116,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 
-	// Custom
+	// Reduced
 	__getCustomNs: d(function (ns, keyPaths) {
 		return this._custom(function (map) {
 			var result = create(null);
@@ -164,7 +164,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 							  , ownerId = (index !== -1) ? key.slice(0, index) : key
 							  , path = (index !== -1) ? key.slice(index + 1) : null;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('custom', ownerId, path, custom[key]);
+							return destDriver._storeRaw('reduced', ownerId, path, custom[key]);
 						});
 					});
 				}
