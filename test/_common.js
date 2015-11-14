@@ -95,7 +95,7 @@ module.exports = function (opts, copyOpts) {
 			driver.storeEvent(fooBar._lastOwnEvent_),
 			driver.storeEvent(aaa._lastOwnEvent_),
 			driver.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
-			driver.storeCustom('elo', 'marko')
+			driver.storeReduced('elo', 'marko')
 		)(function () {
 			a.throws(function () {
 				driver.trackDirectSize('miszkaAll', 'miszka').done();

@@ -708,7 +708,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		path = (index !== -1) ? key.slice(index + 1) : null;
 		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
 	}),
-	storeCustom: d(function (key, value, stamp) {
+	storeReduced: d(function (key, value, stamp) {
 		key = ensureString(key);
 		this._ensureOpen();
 		return this._handleStoreReduced(key, value, stamp);

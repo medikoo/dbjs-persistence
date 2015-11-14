@@ -73,7 +73,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 	__storeRaw: d(function (cat, ns, path, data) {
-		if (cat === 'reduced') return this._storeCustom(ns, path, data);
+		if (cat === 'reduced') return this._storeReduced(ns, path, data);
 		if (cat === 'computed') {
 			return this._getIndexStorage(ns)(function (map) {
 				map[path] = data;
@@ -192,7 +192,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}),
-	_storeCustom: d(function (ownerId, path, data) {
+	_storeReduced: d(function (ownerId, path, data) {
 		return this._custom(function (map) {
 			map[ownerId + (path ? ('/' + path) : '')] = data;
 			return writeFile(resolve(this.dirPath, '_custom'), stringify(map, null, '\t'));
