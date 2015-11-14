@@ -407,7 +407,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				oldData = current;
 				if (stamp <= oldData.stamp) stamp = oldData.stamp + 1;
 				nuData = current = { value: serializeValue(size), stamp: stamp };
-				promise = this._handleStoreCustom(name, nuData.value, nuData.stamp);
+				promise = this._handleStoreReduced(name, nuData.value, nuData.stamp);
 				var driverEvent;
 				debug("size update %s %s", name, size);
 				driverEvent = {
@@ -442,7 +442,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
 					};
 					initialize(data);
-					return this._handleStoreCustom(name, data.value, data.stamp)(getSize);
+					return this._handleStoreReduced(name, data.value, data.stamp)(getSize);
 				}
 				size = 0;
 				return conf.recalculate(getSize)(initialize);
@@ -497,7 +497,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		++this._runningOperations;
 		return this._recalculateDirectSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
+			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	_recalculateMultipleSet: d(function (sizeIndexes) {
@@ -548,7 +548,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		keyPath = ensureString(keyPath);
 		++this._runningOperations;
 		return this._recalculateIndexSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
+			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
@@ -642,7 +642,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
 			recalculate: function (getSizeUpdate) {
 				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
-					return this._handleStoreCustom(name, serializeValue(result.size + getSizeUpdate()));
+					return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
 				}.bind(this));
 			}.bind(this),
 			resolveEvent: function (event) {
@@ -711,9 +711,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	storeCustom: d(function (key, value, stamp) {
 		key = ensureString(key);
 		this._ensureOpen();
-		return this._handleStoreCustom(key, value, stamp);
+		return this._handleStoreReduced(key, value, stamp);
 	}),
-	_handleStoreCustom: d(function (key, value, stamp) {
+	_handleStoreReduced: d(function (key, value, stamp) {
 		var index = key.indexOf('/')
 		  , ownerId = (index !== -1) ? key.slice(0, index) : key
 		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
