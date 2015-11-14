@@ -158,13 +158,13 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					});
 				}
 				if (filename === '_reduced') {
-					this._reduced(function (custom) {
-						return deferred.map(keys(custom), function (key) {
+					this._reduced(function (reduced) {
+						return deferred.map(keys(reduced), function (key) {
 							var index = key.indexOf('/')
 							  , ownerId = (index !== -1) ? key.slice(0, index) : key
 							  , path = (index !== -1) ? key.slice(index + 1) : null;
 							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('reduced', ownerId, path, custom[key]);
+							return destDriver._storeRaw('reduced', ownerId, path, reduced[key]);
 						});
 					});
 				}
