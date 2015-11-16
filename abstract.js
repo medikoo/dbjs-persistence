@@ -229,7 +229,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return promise;
 		}.bind(this));
 		this._eventsInProgress[id] = promise;
-		promise.aside(function () { delete this._eventsInProgress[id]; }.bind(this));
+		promise.finally(function () { delete this._eventsInProgress[id]; }.bind(this));
 		return promise;
 	}),
 	storeEvent: d(function (event) {
