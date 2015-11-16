@@ -124,6 +124,8 @@ module.exports = function (opts, copyOpts) {
 				new Event(ddd.getOwnDescriptor('someBoolStatic2'), false),
 				new Event(eee.getOwnDescriptor('someBoolStatic2'), true)
 			])(function () {
+				return driver.onDrain;
+			})(function () {
 				return driver._getRaw('direct', 'fooBar')(function (data) {
 					a(data.value, '7SomeType#');
 				});
@@ -132,8 +134,6 @@ module.exports = function (opts, copyOpts) {
 					a.deep(result, [{ id: 'miszkaAll', data: result[0].data }]);
 					a.deep(result[0].data.value, '23');
 				});
-			})(function () {
-				return driver.onDrain;
 			})(function () {
 				return deferred(
 					driver.getReduced('someBoolSize')(function (data) { a(data.value, '23'); }),

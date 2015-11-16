@@ -720,11 +720,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._handleStoreReduced(key, value, stamp);
 	}),
 	_handleStoreReduced: d(function (key, value, stamp) {
-		var index = key.indexOf('/')
-		  , ownerId = (index !== -1) ? key.slice(0, index) : key
-		  , keyPath = (index !== -1) ? key.slice(index + 1) : null;
+		var index, ownerId, keyPath, promise;
+		if (this._reducedInProgress[key]) {
+			return this._reducedInProgress[key](this._handleStoreReduced.bind(this, key, value, stamp));
+		}
+		index = key.indexOf('/');
+		ownerId = (index !== -1) ? key.slice(0, index) : key;
+		keyPath = (index !== -1) ? key.slice(index + 1) : null;
 		++this._runningOperations;
-		return this._getRaw('reduced', ownerId, keyPath)(function (oldData) {
+		promise = this._getRaw('reduced', ownerId, keyPath)(function (oldData) {
 			var data, promise, driverEvent;
 			if (oldData) {
 				if (oldData.value === value) {
@@ -748,6 +752,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('reduced:' + ownerId, driverEvent);
 			return promise;
 		}.bind(this)).finally(this._onOperationEnd);
+		this._reducedInProgress[key] = promise;
+		promise.finally(function () { delete this._reducedInProgress[key]; }.bind(this));
+		return promise;
 	}),
 	_getReducedNs: d(function (ns, keyPaths) {
 		var initData = create(null);
@@ -864,6 +871,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_indexes: d(function () { return create(null); }),
 	_eventsInProgress: d(function () { return create(null); }),
+	_reducedInProgress: d(function () { return create(null); }),
 	_transient: d(function () {
 		return defineProperties({}, lazy({
 			direct: d(function () { return create(null); }),
