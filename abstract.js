@@ -200,7 +200,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return promise;
 	}),
 	_handleStoreEvent: d(function (event) {
-		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath;
+		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
+		if (this._eventsInProgress[id]) {
+			return this._eventsInProgress[id](this._handleStoreEvent.bind(this, event));
+		}
 		ownerId = event.object.master.__id__;
 		targetPath = id.slice(ownerId.length + 1) || null;
 		nu = { value: serializeValue(event.value), stamp: event.stamp };
@@ -210,7 +213,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		} else {
 			keyPath = null;
 		}
-		return this._getRaw('direct', ownerId, targetPath)(function (old) {
+		promise = this._getRaw('direct', ownerId, targetPath)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
 			promise = this._storeRaw('direct', ownerId, targetPath, nu);
@@ -225,6 +228,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('direct:' + (keyPath || '&'), driverEvent);
 			return promise;
 		}.bind(this));
+		this._eventsInProgress[id] = promise;
+		promise.aside(function () { delete this._eventsInProgress[id]; }.bind(this));
+		return promise;
 	}),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
@@ -857,6 +863,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_indexes: d(function () { return create(null); }),
+	_eventsInProgress: d(function () { return create(null); }),
 	_transient: d(function () {
 		return defineProperties({}, lazy({
 			direct: d(function () { return create(null); }),
