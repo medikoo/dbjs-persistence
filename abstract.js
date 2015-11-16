@@ -666,7 +666,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		);
 	}),
 	_handleStoreIndex: d(function (ns, path, value, stamp) {
-		return this._getRaw('computed', ns, path)(function (old) {
+		var id = path + '/' + ns, promise;
+		if (this._indexedInProgress[id]) {
+			return this._indexedInProgress[id](this._handleStoreIndex.bind(this, ns, path, value, stamp));
+		}
+		promise = this._getRaw('computed', ns, path)(function (old) {
 			var nu, promise;
 			if (old) {
 				if (old.stamp >= stamp) {
@@ -698,6 +702,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('object:' + path, driverEvent);
 			return promise;
 		}.bind(this));
+		this._indexedInProgress[id] = promise;
+		promise.finally(function () { delete this._indexedInProgress[id]; }.bind(this));
+		return promise;
 	}),
 	__searchDirect: d(notImplemented),
 	__searchIndex: d(notImplemented),
@@ -871,6 +878,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_indexes: d(function () { return create(null); }),
 	_eventsInProgress: d(function () { return create(null); }),
 	_reducedInProgress: d(function () { return create(null); }),
+	_indexedInProgress: d(function () { return create(null); }),
 	_transient: d(function () {
 		return defineProperties({}, lazy({
 			direct: d(function () { return create(null); }),
