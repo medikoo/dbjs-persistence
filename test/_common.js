@@ -129,7 +129,8 @@ module.exports = function (opts, copyOpts) {
 				});
 			})(function () {
 				return driver.getReducedNs('miszkaAll')(function (result) {
-					a.deep(result, [{ id: 'miszkaAll', data: { stamp: result[0].data.stamp, value: '23' } }]);
+					a.deep(result, [{ id: 'miszkaAll', data: result[0].data }]);
+					a.deep(result[0].data, { stamp: result[0].data.stamp, value: '23' });
 				});
 			})(function () {
 				return driver.onDrain;
