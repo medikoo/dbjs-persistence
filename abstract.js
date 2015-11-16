@@ -254,7 +254,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
-		var names, key, onAdd, onDelete, listener, update;
+		var names, key, onAdd, onDelete, listener;
 		name = ensureString(name);
 		if (this._indexes[name]) {
 			throw customError("Index of " + stringify(name) + " was already registered",
@@ -272,9 +272,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			type: 'index',
 			keyPath: keyPath
 		};
-		update = function (ownerId, sValue, stamp) {
-			return this._handleStoreIndex(name, ownerId, sValue, stamp);
-		}.bind(this);
 		listener = function (event) {
 			var sValue, stamp, ownerId = event.target.object.master.__id__;
 			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
@@ -285,7 +282,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				sValue = serializeValue(event.newValue);
 			}
 			++this._runningOperations;
-			update(ownerId, sValue, stamp).finally(this._onOperationEnd).done();
+			this._handleStoreIndex(name, ownerId, sValue, stamp).finally(this._onOperationEnd).done();
 		}.bind(this);
 		onAdd = function (owner, event) {
 			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
@@ -310,7 +307,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			} else {
 				sValue = '11';
 			}
-			return update(ownerId, sValue, stamp);
+			return this._handleStoreIndex(name, ownerId, sValue, stamp);
 		}.bind(this);
 		onDelete = function (owner, event) {
 			var obj, stamp = 0;
@@ -319,7 +316,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				obj = resolveObject(owner, names);
 				if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
 			}
-			return update(owner.__id__, '', stamp);
+			return this._handleStoreIndex(name, owner.__id__, '', stamp);
 		}.bind(this);
 		set.on('change', function (event) {
 			if (event.type === 'add') {
