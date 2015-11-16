@@ -254,7 +254,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			.finally(this._onOperationEnd);
 	}),
 	_index: d(function (name, set, keyPath) {
-		var names, key, onAdd, onDelete, eventName, listener, update;
+		var names, key, onAdd, onDelete, listener, update;
 		name = ensureString(name);
 		if (this._indexes[name]) {
 			throw customError("Index of " + stringify(name) + " was already registered",
@@ -272,40 +272,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			type: 'index',
 			keyPath: keyPath
 		};
-		eventName = 'index:' + name;
 		update = function (ownerId, sValue, stamp) {
-			return this._getRaw('computed', name, ownerId)(function (old) {
-				var nu, promise;
-				if (old) {
-					if (old.stamp >= stamp) {
-						if (isArray(sValue)) {
-							if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), sValue)) {
-								return deferred(null);
-							}
-						} else {
-							if (old.value === sValue) return deferred(null);
-						}
-						stamp = old.stamp + 1; // most likely model update
-					}
-				}
-				if (!stamp) stamp = getStamp();
-				nu = {
-					value: isArray(sValue) ? resolveMultipleEvents(stamp, sValue, old && old.value) : sValue,
-					stamp: stamp
-				};
-				promise = this._storeRaw('computed', name, ownerId, nu);
-				var driverEvent;
-				debug("computed update %s %s %s", ownerId, name, stamp);
-				driverEvent = {
-					ownerId: ownerId,
-					name: name,
-					data: nu,
-					old: old
-				};
-				this.emit(eventName, driverEvent);
-				this.emit('object:' + ownerId, driverEvent);
-				return promise;
-			}.bind(this));
+			return this._handleStoreIndex(name, ownerId, sValue, stamp);
 		}.bind(this);
 		listener = function (event) {
 			var sValue, stamp, ownerId = event.target.object.master.__id__;
@@ -699,6 +667,40 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.indexCollection(indexName, set),
 			this.trackIndexSize(name, indexName, '11')
 		);
+	}),
+	_handleStoreIndex: d(function (ns, path, value, stamp) {
+		return this._getRaw('computed', ns, path)(function (old) {
+			var nu, promise;
+			if (old) {
+				if (old.stamp >= stamp) {
+					if (isArray(value)) {
+						if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
+							return deferred(null);
+						}
+					} else {
+						if (old.value === value) return deferred(null);
+					}
+					stamp = old.stamp + 1; // most likely model update
+				}
+			}
+			if (!stamp) stamp = getStamp();
+			nu = {
+				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
+				stamp: stamp
+			};
+			promise = this._storeRaw('computed', ns, path, nu);
+			var driverEvent;
+			debug("computed update %s %s %s", path, ns, stamp);
+			driverEvent = {
+				ownerId: path,
+				name: ns,
+				data: nu,
+				old: old
+			};
+			this.emit('index:' + ns, driverEvent);
+			this.emit('object:' + path, driverEvent);
+			return promise;
+		}.bind(this));
 	}),
 	__searchDirect: d(notImplemented),
 	__searchIndex: d(notImplemented),
