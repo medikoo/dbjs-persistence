@@ -95,7 +95,14 @@ module.exports = function (opts, copyOpts) {
 			driver.storeEvent(fooBar._lastOwnEvent_),
 			driver.storeEvent(aaa._lastOwnEvent_),
 			driver.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
-			driver.storeReduced('elo', '3marko')
+			driver.storeReduced('elo', '3marko'),
+			driver.storeReduced('typeTest/boolean', '11'),
+			driver.storeReduced('typeTest/number', '222'),
+			driver.storeReduced('typeTest/string', '3foo'),
+			driver.storeReduced('typeTest/date', '41447794621442'),
+			driver.storeReduced('typeTest/regexp', '5/foo/'),
+			driver.storeReduced('typeTest/function', '6function (foo) { return \'bar\'; }'),
+			driver.storeReduced('typeTest/object', '7Object')
 		)(function () {
 			a.throws(function () {
 				driver.trackDirectSize('miszkaAll', 'miszka').done();
@@ -217,7 +224,20 @@ module.exports = function (opts, copyOpts) {
 							a(db.bar.miszka, 343);
 						});
 					})(function () {
-						return driver.getReduced('elo')(function (data) { a(data.value, '3marko'); });
+						return deferred(
+							driver.getReduced('elo')(function (data) { a(data.value, '3marko'); }),
+							driver.getReduced('typeTest/boolean')(function (data) { a(data.value, '11'); }),
+							driver.getReduced('typeTest/number')(function (data) { a(data.value, '222'); }),
+							driver.getReduced('typeTest/string')(function (data) { a(data.value, '3foo'); }),
+							driver.getReduced('typeTest/date')(function (data) {
+								a(data.value, '41447794621442');
+							}),
+							driver.getReduced('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
+							driver.getReduced('typeTest/function')(function (data) {
+								a(data.value, '6function (foo) { return \'bar\'; }');
+							}),
+							driver.getReduced('typeTest/object')(function (data) { a(data.value, '7Object'); })
+						);
 					})(function () {
 						db.fooBar.bar = 'miszka';
 						return driver.onDrain()(function () {
