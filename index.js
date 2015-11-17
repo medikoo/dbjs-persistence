@@ -61,10 +61,10 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		if (cat === 'computed') {
 			return this._getComputedStorage(ns)(function (map) { return map[path] || null; });
 		}
-		return this._getObjectStorage(ns)(function (map) { return map[path || '.'] || null; });
+		return this._getDirectStorage(ns)(function (map) { return map[path || '.'] || null; });
 	}),
 	__getRawObject: d(function (ownerId, keyPaths) {
-		return this._getObjectStorage(ownerId)(function (map) {
+		return this._getDirectStorage(ownerId)(function (map) {
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
@@ -81,7 +81,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				return this._writeStorage('computed/=' + (new Buffer(ns)).toString('base64'), map);
 			}.bind(this));
 		}
-		return this._getObjectStorage(ns)(function (map) {
+		return this._getDirectStorage(ns)(function (map) {
 			map[path || '.'] = data;
 			return this._writeStorage('direct/' + ns, map);
 		}.bind(this));
@@ -90,7 +90,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Database data
 	__getRawAllDirect: d(function () {
 		return this._getAllObjectIds().map(function (ownerId) {
-			return this._getObjectStorage(ownerId)(function (map) {
+			return this._getDirectStorage(ownerId)(function (map) {
 				return { ownerId: ownerId, map: map };
 			});
 		}, this)(function (maps) {
@@ -103,7 +103,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Size tracking
 	__searchDirect: d(function (callback) {
 		return this._getAllObjectIds().map(function (ownerId) {
-			return this._getObjectStorage(ownerId)(function (map) {
+			return this._getDirectStorage(ownerId)(function (map) {
 				forEach(map, function (data, keyPath) {
 					var postfix = keyPath === '.' ? '' : '/' + keyPath;
 					callback(ownerId + postfix, data);
@@ -140,7 +140,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					throw e;
 				}).map(function (filename) {
 					var ownerId = filename;
-					return this._getObjectStorage(ownerId)(function (map) {
+					return this._getDirectStorage(ownerId)(function (map) {
 						return deferred.map(keys(map), function (path) {
 							var data = this[path];
 							if (path === '.') path = null;
@@ -178,7 +178,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	__clear: d(function () {
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
-			this._getObjectStorage.clear();
+			this._getDirectStorage.clear();
 			this._getComputedStorage.clear();
 			this._getReducedStorage.clear();
 			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
@@ -210,7 +210,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }, memoizeMethods({
-	_getObjectStorage: d(function (ownerId) {
+	_getDirectStorage: d(function (ownerId) {
 		return this.dbDir()(function () {
 			var map = create(null);
 			return readFile(resolve(this.dirPath, 'direct', ownerId))(function (data) {
