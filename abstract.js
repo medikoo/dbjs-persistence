@@ -37,7 +37,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
   , ensureDriver          = require('./ensure')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
-  , resolveIndexFilter    = require('./lib/resolve-index-filter')
+  , resolveFilter         = require('./lib/resolve-filter')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
@@ -511,7 +511,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_recalculateIndexSet: d(function (keyPath, searchValue) {
 		var result = new Set();
 		return this._searchIndex(keyPath, function (ownerId, data) {
-			if (resolveIndexFilter(searchValue, data.value)) result.add(ownerId);
+			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
 		})(result);
 	}),
 	recalculateIndexSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
@@ -578,8 +578,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
 				return {
-					nu: resolveIndexFilter(searchValue, event.data.value),
-					old: Boolean(event.old && resolveIndexFilter(searchValue, event.old.value))
+					nu: resolveFilter(searchValue, event.data.value),
+					old: Boolean(event.old && resolveFilter(searchValue, event.old.value))
 				};
 			}
 		});
@@ -639,7 +639,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						}.bind(this));
 					}
 					return this._getRaw('computed', meta.keyPath, ownerId)(function (data) {
-						return resolveIndexFilter(meta.searchValue, data ? data.value : '');
+						return resolveFilter(meta.searchValue, data ? data.value : '');
 					});
 				}, this)(function (isEffective) {
 					var old, nu;
