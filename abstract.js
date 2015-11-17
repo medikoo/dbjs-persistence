@@ -667,8 +667,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
 		var id = path + '/' + ns, promise;
-		if (this._indexedInProgress[id]) {
-			return this._indexedInProgress[id](this._handleStoreComputed.bind(this,
+		if (this._computedInProgress[id]) {
+			return this._computedInProgress[id](this._handleStoreComputed.bind(this,
 				ns, path, value, stamp));
 		}
 		promise = this._getRaw('computed', ns, path)(function (old) {
@@ -703,8 +703,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('object:' + path, driverEvent);
 			return promise;
 		}.bind(this));
-		this._indexedInProgress[id] = promise;
-		promise.finally(function () { delete this._indexedInProgress[id]; }.bind(this));
+		this._computedInProgress[id] = promise;
+		promise.finally(function () { delete this._computedInProgress[id]; }.bind(this));
 		return promise;
 	}),
 	__searchDirect: d(notImplemented),
@@ -879,7 +879,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_indexes: d(function () { return create(null); }),
 	_eventsInProgress: d(function () { return create(null); }),
 	_reducedInProgress: d(function () { return create(null); }),
-	_indexedInProgress: d(function () { return create(null); }),
+	_computedInProgress: d(function () { return create(null); }),
 	_transient: d(function () {
 		return defineProperties({}, lazy({
 			direct: d(function () { return create(null); }),
