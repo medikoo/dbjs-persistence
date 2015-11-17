@@ -28,6 +28,27 @@ var byStamp = function (a, b) {
 	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
+var toComputedFilename = (function () {
+	var isIdent   = RegExp.prototype.test.bind(/^[a-z][a-zA-Z0-9]*(?:\/[a-z][a-zA-Z0-9]*)*$/)
+	  , slashesRe = /\//g;
+
+	return function (keyPath) {
+		return isIdent(keyPath)
+			? keyPath.replace(slashesRe, '-')
+			: '=' + (new Buffer(keyPath)).toString('base64');
+	};
+}());
+
+var fromComputedFilename = (function () {
+	var dashesRe = /-/g;
+
+	return function (filename) {
+		return (filename[0] === '=')
+			? String(new Buffer(filename.slice(1), 'base64'))
+			: filename.replace(dashesRe, '/');
+	};
+}());
+
 var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 	if (!result) result = create(null);
 	forEach(map, function (data, path) {
@@ -78,7 +99,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		if (cat === 'computed') {
 			return this._getComputedStorage(ns)(function (map) {
 				map[path] = data;
-				return this._writeStorage('computed/=' + (new Buffer(ns)).toString('base64'), map);
+				return this._writeStorage('computed/' + toComputedFilename(ns), map);
 			}.bind(this));
 		}
 		return this._getDirectStorage(ns)(function (map) {
@@ -153,7 +174,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					if (e.code === 'ENOENT') return [];
 					throw e;
 				}).map(function (filename) {
-					var keyPath = String(new Buffer(filename.slice(1), 'base64'));
+					var keyPath = fromComputedFilename(filename);
 					return this._getComputedStorage(keyPath)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
@@ -235,7 +256,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}, { primitive: true }),
 	_getComputedStorage: d(function (keyPath) {
 		return this.dbDir()(function () {
-			var map = create(null), filename = '=' + (new Buffer(keyPath)).toString('base64');
+			var map = create(null), filename = toComputedFilename(keyPath);
 			return readFile(resolve(this.dirPath, 'computed', filename))(function (data) {
 				var value;
 				try {
