@@ -181,7 +181,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			});
 		});
 		return this._safeGet(function () {
-			return this.__getRawAllDirect()(function (data) {
+			return this.__getAllDirect()(function (data) {
 				return toArray(assign(data, initData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
@@ -245,7 +245,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return deferred.map(events, this._handleStoreDirect, this).finally(this._onOperationEnd);
 	}),
 	__getDirectObject: d(notImplemented),
-	__getRawAllDirect: d(notImplemented),
+	__getAllDirect: d(notImplemented),
 
 	// Indexed database data
 	getComputedValue: d(function (ownerId, keyPath) {
