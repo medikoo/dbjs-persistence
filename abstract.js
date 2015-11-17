@@ -201,8 +201,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 	_handleStoreDirect: d(function (event) {
 		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
-		if (this._eventsInProgress[id]) {
-			return this._eventsInProgress[id](this._handleStoreDirect.bind(this, event));
+		if (this._directInProgress[id]) {
+			return this._directInProgress[id](this._handleStoreDirect.bind(this, event));
 		}
 		ownerId = event.object.master.__id__;
 		targetPath = id.slice(ownerId.length + 1) || null;
@@ -228,8 +228,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('direct:' + (keyPath || '&'), driverEvent);
 			return promise;
 		}.bind(this));
-		this._eventsInProgress[id] = promise;
-		promise.finally(function () { delete this._eventsInProgress[id]; }.bind(this));
+		this._directInProgress[id] = promise;
+		promise.finally(function () { delete this._directInProgress[id]; }.bind(this));
 		return promise;
 	}),
 	storeEvent: d(function (event) {
@@ -877,7 +877,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 }), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_indexes: d(function () { return create(null); }),
-	_eventsInProgress: d(function () { return create(null); }),
+	_directInProgress: d(function () { return create(null); }),
 	_reducedInProgress: d(function () { return create(null); }),
 	_computedInProgress: d(function () { return create(null); }),
 	_transient: d(function () {
