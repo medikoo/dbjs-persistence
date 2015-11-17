@@ -152,7 +152,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		});
 	}),
-	getObject: d(function (ownerId/*, options*/) {
+	getDirectObject: d(function (ownerId/*, options*/) {
 		var keyPaths, options = arguments[1];
 		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
@@ -167,7 +167,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	loadObject: d(function (ownerId) {
-		return this.getObject(ownerId)(function (data) {
+		return this.getDirectObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
 				return this._importValue(data.id, data.data.value, data.data.stamp);
 			}, this));
