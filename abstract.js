@@ -282,7 +282,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				sValue = serializeValue(event.newValue);
 			}
 			++this._runningOperations;
-			this._handleStoreIndex(name, ownerId, sValue, stamp).finally(this._onOperationEnd).done();
+			this._handleStoreComputed(name, ownerId, sValue, stamp).finally(this._onOperationEnd).done();
 		}.bind(this);
 		onAdd = function (owner, event) {
 			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
@@ -307,7 +307,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			} else {
 				sValue = '11';
 			}
-			return this._handleStoreIndex(name, ownerId, sValue, stamp);
+			return this._handleStoreComputed(name, ownerId, sValue, stamp);
 		}.bind(this);
 		onDelete = function (owner, event) {
 			var obj, stamp = 0;
@@ -316,7 +316,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				obj = resolveObject(owner, names);
 				if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
 			}
-			return this._handleStoreIndex(name, owner.__id__, '', stamp);
+			return this._handleStoreComputed(name, owner.__id__, '', stamp);
 		}.bind(this);
 		set.on('change', function (event) {
 			if (event.type === 'add') {
@@ -665,10 +665,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.trackIndexSize(name, indexName, '11')
 		);
 	}),
-	_handleStoreIndex: d(function (ns, path, value, stamp) {
+	_handleStoreComputed: d(function (ns, path, value, stamp) {
 		var id = path + '/' + ns, promise;
 		if (this._indexedInProgress[id]) {
-			return this._indexedInProgress[id](this._handleStoreIndex.bind(this, ns, path, value, stamp));
+			return this._indexedInProgress[id](this._handleStoreComputed.bind(this,
+				ns, path, value, stamp));
 		}
 		promise = this._getRaw('computed', ns, path)(function (old) {
 			var nu, promise;
