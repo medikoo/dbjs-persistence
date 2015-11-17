@@ -514,7 +514,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
 		})(result);
 	}),
-	recalculateIndexSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
+	recalculateComputedSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		++this._runningOperations;
@@ -575,7 +575,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		keyPath = ensureString(keyPath);
 		promise = this._trackSize(name, {
 			eventName: 'index:' + keyPath,
-			recalculate: this.recalculateIndexSize.bind(this, name, keyPath, searchValue),
+			recalculate: this.recalculateComputedSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
 				return {
 					nu: resolveFilter(searchValue, event.data.value),
