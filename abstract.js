@@ -137,7 +137,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getRaw('direct', ownerId, path).finally(this._onOperationEnd);
 	}),
-	_getRawObject: d(function (ownerId, keyPaths) {
+	_getDirectObject: d(function (ownerId, keyPaths) {
 		var initData = create(null);
 		if (this._transient.direct[ownerId]) {
 			forEach(this._transient.direct[ownerId], function (transientData, id) {
@@ -146,7 +146,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			});
 		}
 		return this._safeGet(function () {
-			return this.__getRawObject(ownerId, keyPaths)(function (data) {
+			return this.__getDirectObject(ownerId, keyPaths)(function (data) {
 				return toArray(assign(data, initData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
@@ -158,7 +158,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getRawObject(ownerId, keyPaths).finally(this._onOperationEnd);
+		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
 		return this.getValue(id)(function (data) {
@@ -244,7 +244,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(events, this._handleStoreDirect, this).finally(this._onOperationEnd);
 	}),
-	__getRawObject: d(notImplemented),
+	__getDirectObject: d(notImplemented),
 	__getRawAllDirect: d(notImplemented),
 
 	// Indexed database data

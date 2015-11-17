@@ -63,7 +63,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}
 		return this._getDirectStorage(ns)(function (map) { return map[path || '.'] || null; });
 	}),
-	__getRawObject: d(function (ownerId, keyPaths) {
+	__getDirectObject: d(function (ownerId, keyPaths) {
 		return this._getDirectStorage(ownerId)(function (map) {
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
