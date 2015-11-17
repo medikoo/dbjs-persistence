@@ -77,7 +77,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		if (cat === 'computed') {
 			return this._getIndexStorage(ns)(function (map) {
 				map[path] = data;
-				return this._writeStorage('=' + (new Buffer(ns)).toString('base64'), map);
+				return this._writeStorage('computed/=' + (new Buffer(ns)).toString('base64'), map);
 			}.bind(this));
 		}
 		return this._getObjectStorage(ns)(function (map) {
@@ -150,28 +150,26 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						}, map);
 					});
 				}.bind(this)),
-				readdir(this.dirPath, { type: { file: true } }).map(function (filename) {
-					var path;
-					if (filename[0] === '=') {
-						path = String(new Buffer(filename.slice(1), 'base64'));
-						return this._getIndexStorage(path)(function (map) {
-							return deferred.map(keys(map), function (ownerId) {
-								if (!(++count % 1000)) promise.emit('progress');
-								return destDriver._storeRaw('computed', path, ownerId, this[ownerId]);
-							}, map);
-						});
-					}
-					if (filename === '_reduced') {
-						this._reduced(function (reduced) {
-							return deferred.map(keys(reduced), function (key) {
-								var index = key.indexOf('/')
-							    , ownerId = (index !== -1) ? key.slice(0, index) : key
-							    , path = (index !== -1) ? key.slice(index + 1) : null;
-								if (!(++count % 1000)) promise.emit('progress');
-								return destDriver._storeRaw('reduced', ownerId, path, reduced[key]);
-							});
-						});
-					}
+				readdir(resolve(this.dirPath, 'computed'), { type: { file: true } }).catch(function (e) {
+					if (e.code === 'ENOENT') return [];
+					throw e;
+				}).map(function (filename) {
+					var keyPath = String(new Buffer(filename.slice(1), 'base64'));
+					return this._getIndexStorage(keyPath)(function (map) {
+						return deferred.map(keys(map), function (ownerId) {
+							if (!(++count % 1000)) promise.emit('progress');
+							return destDriver._storeRaw('computed', keyPath, ownerId, this[ownerId]);
+						}, map);
+					});
+				}.bind(this)),
+				this._reduced(function (reduced) {
+					return deferred.map(keys(reduced), function (key) {
+						var index = key.indexOf('/')
+						  , ownerId = (index !== -1) ? key.slice(0, index) : key
+						  , path = (index !== -1) ? key.slice(index + 1) : null;
+						if (!(++count % 1000)) promise.emit('progress');
+						return destDriver._storeRaw('reduced', ownerId, path, reduced[key]);
+					});
 				}.bind(this))
 			);
 		}.bind(this));
@@ -256,7 +254,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_getIndexStorage: d(function (keyPath) {
 		return this.dbDir()(function () {
 			var map = create(null), filename = '=' + (new Buffer(keyPath)).toString('base64');
-			return readFile(resolve(this.dirPath, filename))(function (data) {
+			return readFile(resolve(this.dirPath, 'computed', filename))(function (data) {
 				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
