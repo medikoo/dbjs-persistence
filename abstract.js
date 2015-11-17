@@ -253,7 +253,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getRaw('computed', ensureString(keyPath), ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
 	}),
-	_index: d(function (name, set, keyPath) {
+	_trackComputed: d(function (name, set, keyPath) {
 		var names, key, onAdd, onDelete, listener;
 		name = ensureString(name);
 		if (this._indexes[name]) {
@@ -347,10 +347,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			.finally(this._onOperationEnd);
 	}),
 	indexKeyPath: d(function (keyPath, set) {
-		return this._index(keyPath, set, keyPath);
+		return this._trackComputed(keyPath, set, keyPath);
 	}),
 	indexCollection: d(function (name, set) {
-		return this._index(name, set);
+		return this._trackComputed(name, set);
 	}),
 
 	// Size tracking
