@@ -248,7 +248,15 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__getDirectAll: d(notImplemented),
 
 	// Indexed database data
-	getComputed: d(function (ownerId, keyPath) {
+	getComputed: d(function (id) {
+		var ownerId, keyPath, index;
+		id = ensureString(id);
+		index = id.indexOf('/');
+		if (index === -1) {
+			throw customError("Invalid computed id " + stringify(id), 'INVALID_COMPUTED_ID');
+		}
+		ownerId = id.slice(0, index);
+		keyPath = id.slice(index + 1);
 		++this._runningOperations;
 		return this._getRaw('computed', ensureString(keyPath), ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);

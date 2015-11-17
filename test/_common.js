@@ -45,9 +45,9 @@ module.exports = function (opts, copyOpts) {
 		aaa.bar = null;
 		return deferred(
 			driver.indexKeyPath('computed', db.SomeType.instances)(function () {
-				return deferred(driver.getComputed('fooBar', 'computed')(function (data) {
+				return deferred(driver.getComputed('fooBar/computed')(function (data) {
 					a(data.value, '3fooelo', "Computed: initial #1");
-				}), driver.getComputed('aaa', 'computed')(function (data) {
+				}), driver.getComputed('aaa/computed')(function (data) {
 					a(data.value, '3foo', "Computed: initial #2");
 				}), driver.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 					a(size, 7);
@@ -55,17 +55,17 @@ module.exports = function (opts, copyOpts) {
 				}));
 			}),
 			driver.indexKeyPath('computedSet', db.SomeType.instances)(function () {
-				return deferred(driver.getComputed('fooBar', 'computedSet')(function (data) {
+				return deferred(driver.getComputed('fooBar/computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
-				}), driver.getComputed('aaa', 'computedSet')(function (data) {
+				}), driver.getComputed('aaa/computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 				}));
 			}),
 			driver.indexKeyPath('someBoolComputed', db.SomeType.instances),
 			driver.indexCollection('barByCol', db.SomeType.find('bar', 'elo'))(function () {
-				return deferred(driver.getComputed('aaa', 'barByCol')(function (data) {
+				return deferred(driver.getComputed('aaa/barByCol')(function (data) {
 					a(data, null);
-				}), driver.getComputed('bar', 'barByCol')(function (data) {
+				}), driver.getComputed('bar/barByCol')(function (data) {
 					a(data.value, '11');
 					a(typeof data.stamp, 'number');
 				}));
@@ -164,16 +164,16 @@ module.exports = function (opts, copyOpts) {
 				var db = getDatabase()
 				  , driver = t(db, opts);
 				return driver.indexKeyPath('computed', db.SomeType.instances)(function () {
-					return deferred(driver.getComputed('fooBar', 'computed')(function (data) {
+					return deferred(driver.getComputed('fooBar/computed')(function (data) {
 						a(data.value, '3fooelo', "Computed: initial #1");
-					}), driver.getComputed('aaa', 'computed')(function (data) {
+					}), driver.getComputed('aaa/computed')(function (data) {
 						a(data.value, '3foo', "Computed: initial #2");
 					}));
 				})(function () {
 					return driver.indexKeyPath('computedSet', db.SomeType.instances)(function (map) {
-						return deferred(driver.getComputed('fooBar', 'computedSet')(function (data) {
+						return deferred(driver.getComputed('fooBar/computedSet')(function (data) {
 							a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
-						}), driver.getComputed('aaa', 'computedSet')(function (data) {
+						}), driver.getComputed('aaa/computedSet')(function (data) {
 							a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 						}));
 					});
