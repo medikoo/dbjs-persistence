@@ -248,7 +248,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__getDirectAll: d(notImplemented),
 
 	// Indexed database data
-	getComputedValue: d(function (ownerId, keyPath) {
+	getComputed: d(function (ownerId, keyPath) {
 		++this._runningOperations;
 		return this._getRaw('computed', ensureString(keyPath), ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
