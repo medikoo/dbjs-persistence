@@ -59,7 +59,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return this._getReducedStorage(ns)(function (map) { return map[path || '.'] || null; });
 		}
 		if (cat === 'computed') {
-			return this._getIndexStorage(ns)(function (map) { return map[path] || null; });
+			return this._getComputedStorage(ns)(function (map) { return map[path] || null; });
 		}
 		return this._getObjectStorage(ns)(function (map) { return map[path || '.'] || null; });
 	}),
@@ -76,7 +76,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		}
 		if (cat === 'computed') {
-			return this._getIndexStorage(ns)(function (map) {
+			return this._getComputedStorage(ns)(function (map) {
 				map[path] = data;
 				return this._writeStorage('computed/=' + (new Buffer(ns)).toString('base64'), map);
 			}.bind(this));
@@ -112,7 +112,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this);
 	}),
 	__searchComputed: d(function (keyPath, callback) {
-		return this._getIndexStorage(keyPath)(function (map) {
+		return this._getComputedStorage(keyPath)(function (map) {
 			forEach(map, function (data, ownerId) { callback(ownerId, data); });
 		});
 	}),
@@ -154,7 +154,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					throw e;
 				}).map(function (filename) {
 					var keyPath = String(new Buffer(filename.slice(1), 'base64'));
-					return this._getIndexStorage(keyPath)(function (map) {
+					return this._getComputedStorage(keyPath)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
 							return destDriver._storeRaw('computed', keyPath, ownerId, this[ownerId]);
@@ -179,7 +179,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__clear: d(function () {
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
 			this._getObjectStorage.clear();
-			this._getIndexStorage.clear();
+			this._getComputedStorage.clear();
 			this._getReducedStorage.clear();
 			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
 		}.bind(this));
@@ -233,7 +233,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}, { primitive: true }),
-	_getIndexStorage: d(function (keyPath) {
+	_getComputedStorage: d(function (keyPath) {
 		return this.dbDir()(function () {
 			var map = create(null), filename = '=' + (new Buffer(keyPath)).toString('base64');
 			return readFile(resolve(this.dirPath, 'computed', filename))(function (data) {
