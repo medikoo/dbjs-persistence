@@ -95,7 +95,7 @@ module.exports = function (opts, copyOpts) {
 			driver.storeEvent(fooBar._lastOwnEvent_),
 			driver.storeEvent(aaa._lastOwnEvent_),
 			driver.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
-			driver.storeReduced('elo', 'marko')
+			driver.storeReduced('elo', '3marko')
 		)(function () {
 			a.throws(function () {
 				driver.trackDirectSize('miszkaAll', 'miszka').done();
@@ -217,7 +217,7 @@ module.exports = function (opts, copyOpts) {
 							a(db.bar.miszka, 343);
 						});
 					})(function () {
-						return driver.getReduced('elo')(function (data) { a(data.value, 'marko'); });
+						return driver.getReduced('elo')(function (data) { a(data.value, '3marko'); });
 					})(function () {
 						db.fooBar.bar = 'miszka';
 						return driver.onDrain()(function () {
@@ -261,7 +261,7 @@ module.exports = function (opts, copyOpts) {
 								a(data.value, '3foomiszka');
 							}),
 							driverCopy._getRaw('reduced', 'elo')(function (data) {
-								a(data.value, 'marko');
+								a(data.value, '3marko');
 							})
 						);
 					});
