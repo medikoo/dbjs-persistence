@@ -126,7 +126,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
 		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
-	getValue: d(function (id) {
+	getDirect: d(function (id) {
 		var index, ownerId, path;
 		id = ensureString(id);
 		if (!isDbId(id)) throw new TypeError(id + " is not a database value id");
@@ -161,7 +161,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
 	loadValue: d(function (id) {
-		return this.getValue(id)(function (data) {
+		return this.getDirect(id)(function (data) {
 			if (!data) return null;
 			return this._importValue(id, data.value, data.stamp);
 		}.bind(this));
