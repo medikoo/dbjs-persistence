@@ -111,7 +111,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}, this);
 	}),
-	__searchIndex: d(function (keyPath, callback) {
+	__searchComputed: d(function (keyPath, callback) {
 		return this._getIndexStorage(keyPath)(function (map) {
 			forEach(map, function (data, ownerId) { callback(ownerId, data); });
 		});

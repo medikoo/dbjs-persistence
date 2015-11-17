@@ -491,10 +491,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return result;
 		});
 	}),
-	searchIndex: d(function (keyPath, callback) {
-		return this._searchIndex(ensureString(keyPath), ensureCallable(callback));
+	searchComputed: d(function (keyPath, callback) {
+		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
 	}),
-	_searchIndex: d(function (keyPath, callback) {
+	_searchComputed: d(function (keyPath, callback) {
 		var done = create(null), transient = this._transient.computed[keyPath];
 		if (transient) {
 			forEach(transient, function (data, ownerId) {
@@ -503,14 +503,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			});
 		}
 		return this._safeGet(function () {
-			return this.__searchIndex(keyPath, function (ownerId, data) {
+			return this.__searchComputed(keyPath, function (ownerId, data) {
 				if (!done[ownerId]) callback(ownerId, data);
 			});
 		});
 	}),
 	_recalculateComputedSet: d(function (keyPath, searchValue) {
 		var result = new Set();
-		return this._searchIndex(keyPath, function (ownerId, data) {
+		return this._searchComputed(keyPath, function (ownerId, data) {
 			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
 		})(result);
 	}),
@@ -708,7 +708,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return promise;
 	}),
 	__searchDirect: d(notImplemented),
-	__searchIndex: d(notImplemented),
+	__searchComputed: d(notImplemented),
 
 	// Reduced data
 	getReduced: d(function (key) {
