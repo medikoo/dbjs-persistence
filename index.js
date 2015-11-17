@@ -9,7 +9,6 @@ var assign            = require('es5-ext/object/assign')
   , ensureObject      = require('es5-ext/object/valid-object')
   , ensureString      = require('es5-ext/object/validate-stringifiable-value')
   , d                 = require('d')
-  , lazy              = require('d/lazy')
   , memoizeMethods    = require('memoizee/methods')
   , deferred          = require('deferred')
   , resolveKeyPath    = require('dbjs/_setup/utils/resolve-key-path')
@@ -21,10 +20,9 @@ var assign            = require('es5-ext/object/assign')
   , writeFile         = require('fs2/write-file')
   , PersistenceDriver = require('./abstract')
 
-  , isArray = Array.isArray
-  , defineProperty = Object.defineProperty, keys = Object.keys
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
-  , create = Object.create, parse = JSON.parse, stringify = JSON.stringify;
+  , isArray = Array.isArray, keys = Object.keys, create = Object.create
+  , parse = JSON.parse, stringify = JSON.stringify;
 
 var byStamp = function (a, b) {
 	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
@@ -58,9 +56,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Any data
 	__getRaw: d(function (cat, ns, path) {
 		if (cat === 'reduced') {
-			return this._reduced(function (map) {
-				return map[ns + (path ? ('/' + path) : '')] || null;
-			});
+			return this._getReducedStorage(ns)(function (map) { return map[path || '.'] || null; });
 		}
 		if (cat === 'computed') {
 			return this._getIndexStorage(ns)(function (map) { return map[path] || null; });
@@ -73,7 +69,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		});
 	}),
 	__storeRaw: d(function (cat, ns, path, data) {
-		if (cat === 'reduced') return this._storeReduced(ns, path, data);
+		if (cat === 'reduced') {
+			return this._getReducedStorage(ns)(function (map) {
+				map[path || '.'] = data;
+				return this._writeStorage('reduced/' + ns, map);
+			}.bind(this));
+		}
 		if (cat === 'computed') {
 			return this._getIndexStorage(ns)(function (map) {
 				map[path] = data;
@@ -118,14 +119,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Reduced
 	__getReducedNs: d(function (ns, keyPaths) {
-		return this._reduced(function (map) {
+		return this._getReducedStorage(ns)(function (map) {
 			var result = create(null);
-			forEach(map, function (data, id) {
-				var index = id.indexOf('/'), ownerId = (index !== -1) ? id.slice(0, index) : id, path;
-				if (ownerId !== ns) return;
-				path = (index !== -1) ? id.slice(index + 1) : null;
+			forEach(map, function (data, path) {
+				if (path === '.') path = null;
 				if (path && keyPaths && !keyPaths.has(path)) return;
-				result[id] = data;
+				result[ns + (path ? ('/' + path) : '')] = data;
 			});
 			return result;
 		});
@@ -162,13 +161,15 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 						}, map);
 					});
 				}.bind(this)),
-				this._reduced(function (reduced) {
-					return deferred.map(keys(reduced), function (key) {
-						var index = key.indexOf('/')
-						  , ownerId = (index !== -1) ? key.slice(0, index) : key
-						  , path = (index !== -1) ? key.slice(index + 1) : null;
-						if (!(++count % 1000)) promise.emit('progress');
-						return destDriver._storeRaw('reduced', ownerId, path, reduced[key]);
+				readdir(resolve(this.dirPath, 'reduced'), { type: { file: true } }).catch(function (e) {
+					if (e.code === 'ENOENT') return [];
+					throw e;
+				}).map(function (ns) {
+					return this._getReducedStorage(ns)(function (map) {
+						return deferred.map(keys(map), function (path) {
+							if (!(++count % 1000)) promise.emit('progress');
+							return destDriver._storeRaw('reduced', ns, (path === '.') ? null : path, this[path]);
+						}, map);
 					});
 				}.bind(this))
 			);
@@ -179,7 +180,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
 			this._getObjectStorage.clear();
 			this._getIndexStorage.clear();
-			defineProperty(this, '_reduced', d(deferred({})));
+			this._getReducedStorage.clear();
 			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
 		}.bind(this));
 	}),
@@ -198,12 +199,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}),
-	_storeReduced: d(function (ownerId, path, data) {
-		return this._reduced(function (map) {
-			map[ownerId + (path ? ('/' + path) : '')] = data;
-			return writeFile(resolve(this.dirPath, '_reduced'), stringify(map, null, '\t'));
-		}.bind(this));
-	}),
 	_writeStorage: d(function (name, map) {
 		return this.dbDir()(function () {
 			return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
@@ -214,20 +209,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			}, this, byStamp).join('\n\n'), { intermediate: true });
 		}.bind(this));
 	})
-}, lazy({
-	_reduced: d(function () {
-		return this.dbDir()(function () {
-			return readFile(resolve(this.dirPath, '_reduced'))(function (str) {
-				try {
-					return parse(String(str));
-				} catch (e) { return {}; }
-			}, function (err) {
-				if (err.code !== 'ENOENT') throw err;
-				return {};
-			});
-		}.bind(this));
-	})
-}), memoizeMethods({
+}, memoizeMethods({
 	_getObjectStorage: d(function (ownerId) {
 		return this.dbDir()(function () {
 			var map = create(null);
@@ -255,6 +237,30 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return this.dbDir()(function () {
 			var map = create(null), filename = '=' + (new Buffer(keyPath)).toString('base64');
 			return readFile(resolve(this.dirPath, 'computed', filename))(function (data) {
+				var value;
+				try {
+					String(data).split('\n\n').forEach(function (data) {
+						data = data.split('\n');
+						value = data[2];
+						if (value[0] === '[') value = parse(data[2]);
+						else if (value === '-') value = '';
+						map[data[0]] = {
+							stamp: Number(data[1]),
+							value: value
+						};
+					});
+				} catch (ignore) {}
+				return map;
+			}, function (err) {
+				if (err.code !== 'ENOENT') throw err;
+				return map;
+			});
+		}.bind(this));
+	}, { primitive: true }),
+	_getReducedStorage: d(function (ns) {
+		return this.dbDir()(function () {
+			var map = create(null);
+			return readFile(resolve(this.dirPath, 'reduced', ns))(function (data) {
 				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
