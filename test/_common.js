@@ -256,9 +256,14 @@ module.exports = function (opts, copyOpts) {
 						a(db.aaa.constructor, db.SomeType);
 						a(db.zzz.constructor, db.SomeType);
 						a(db.bar.miszka, 343);
-						return driverCopy._getRaw('computed', 'computed', 'fooBar')(function (data) {
-							a(data.value, '3foomiszka');
-						});
+						return deferred(
+							driverCopy._getRaw('computed', 'computed', 'fooBar')(function (data) {
+								a(data.value, '3foomiszka');
+							}),
+							driverCopy._getRaw('reduced', 'elo')(function (data) {
+								a(data.value, 'marko');
+							})
+						);
 					});
 				})(function () {
 					return driver.clear();
