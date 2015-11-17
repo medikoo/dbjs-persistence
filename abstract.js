@@ -118,7 +118,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__storeRaw: d(notImplemented),
 
 	// Database data
-	_importValue: d(function (id, value, stamp) {
+	_load: d(function (id, value, stamp) {
 		var proto;
 		if (this._loadedEventsMap[id + '.' + stamp]) return;
 		this._loadedEventsMap[id + '.' + stamp] = true;
@@ -163,13 +163,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	loadValue: d(function (id) {
 		return this.getDirect(id)(function (data) {
 			if (!data) return null;
-			return this._importValue(id, data.value, data.stamp);
+			return this._load(id, data.value, data.stamp);
 		}.bind(this));
 	}),
 	loadObject: d(function (ownerId) {
 		return this.getDirectObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
-				return this._importValue(data.id, data.data.value, data.data.stamp);
+				return this._load(data.id, data.data.value, data.data.stamp);
 			}, this));
 		}.bind(this));
 	}),
@@ -194,7 +194,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise = this._getRawAllDirect()(function (data) {
 			return compact.call(data.map(function (data) {
 				if (!(++progress % 1000)) promise.emit('progress');
-				return this._importValue(data.id, data.data.value, data.data.stamp);
+				return this._load(data.id, data.data.value, data.data.stamp);
 			}, this));
 		}.bind(this)).finally(this._onOperationEnd);
 		return promise;
