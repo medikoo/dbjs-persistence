@@ -160,7 +160,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
 		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
-	loadValue: d(function (id) {
+	load: d(function (id) {
 		return this.getDirect(id)(function (data) {
 			if (!data) return null;
 			return this._load(id, data.value, data.stamp);

@@ -202,7 +202,7 @@ module.exports = function (opts, copyOpts) {
 						a(db.fooBar.bal, false);
 						a(db.fooBar.miszka, 767);
 						a(db.fooBar.computed, 'fooelo');
-						return driver.loadValue('bar')(function (event) {
+						return driver.load('bar')(function (event) {
 							a(event.object, db.bar);
 							a(event.value, db.SomeType.prototype);
 							a(db.bar.constructor, db.SomeType);
@@ -213,7 +213,7 @@ module.exports = function (opts, copyOpts) {
 							a(data.value, '3fooelo');
 						});
 					})(function () {
-						return driver.loadValue('bar/miszka')(function (event) {
+						return driver.load('bar/miszka')(function (event) {
 							a(db.bar.miszka, 343);
 						});
 					})(function () {
