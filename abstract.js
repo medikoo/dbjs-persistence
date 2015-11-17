@@ -574,7 +574,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		promise = this._trackSize(name, {
-			eventName: 'index:' + keyPath,
+			eventName: 'computed:' + keyPath,
 			recalculate: this.recalculateComputedSize.bind(this, name, keyPath, searchValue),
 			resolveEvent: function (event) {
 				return {
@@ -699,7 +699,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				data: nu,
 				old: old
 			};
-			this.emit('index:' + ns, driverEvent);
+			this.emit('computed:' + ns, driverEvent);
 			this.emit('object:' + path, driverEvent);
 			return promise;
 		}.bind(this));
