@@ -173,7 +173,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}, this));
 		}.bind(this));
 	}),
-	_getRawAllDirect: d(function () {
+	_getDirectAll: d(function () {
 		var initData = create(null);
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (transientData, id) {
@@ -191,7 +191,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var promise, progress = 0;
 		this._ensureOpen();
 		++this._runningOperations;
-		promise = this._getRawAllDirect()(function (data) {
+		promise = this._getDirectAll()(function (data) {
 			return compact.call(data.map(function (data) {
 				if (!(++progress % 1000)) promise.emit('progress');
 				return this._load(data.id, data.data.value, data.data.stamp);
