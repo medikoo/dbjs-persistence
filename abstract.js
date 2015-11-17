@@ -569,7 +569,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		return promise;
 	}),
-	trackIndexSize: d(function (name, keyPath/*, searchValue*/) {
+	trackComputedSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2], promise;
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
@@ -662,7 +662,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var indexName = 'sizeIndex/' + ensureString(name);
 		return deferred(
 			this.indexCollection(indexName, set),
-			this.trackIndexSize(name, indexName, '11')
+			this.trackComputedSize(name, indexName, '11')
 		);
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {

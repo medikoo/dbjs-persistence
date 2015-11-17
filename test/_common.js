@@ -49,7 +49,7 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '3fooelo', "Computed: initial #1");
 				}), driver.getComputedValue('aaa', 'computed')(function (data) {
 					a(data.value, '3foo', "Computed: initial #2");
-				}), driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+				}), driver.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 					a(size, 7);
 					return driver.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
 				}));
@@ -75,7 +75,7 @@ module.exports = function (opts, copyOpts) {
 				return driver.getReduced('miszkaAll')(function (data) { a(data.value, '20'); });
 			}),
 			driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
-			driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
+			driver.trackComputedSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
 				a(size, 0);
 			}),
 			driver.trackMultipleSize('someBoolAll',
@@ -146,7 +146,7 @@ module.exports = function (opts, copyOpts) {
 					driver.trackDirectSize('someBoolSize2', 'someBool2', '11')(function (size) {
 						a(size, 3);
 					}),
-					driver.trackIndexSize('someBoolComputedSize2', 'someBoolComputed2',
+					driver.trackComputedSize('someBoolComputedSize2', 'someBoolComputed2',
 						'11')(function (size) { a(size, 3); }),
 					driver.trackMultipleSize('someBoolAll2',
 						['someBoolSize2', 'someBoolComputedSize2'])(function (size) { a(size, 2); })
@@ -176,14 +176,14 @@ module.exports = function (opts, copyOpts) {
 							a(size, 3);
 							return driver.getReduced('miszkaAll')(function (data) { a(data.value, '23'); });
 						}),
-						driver.trackIndexSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+						driver.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 							a(size, 7);
 							return driver.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
 						}),
 						driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) {
 							a(size, 3);
 						}),
-						driver.trackIndexSize('someBoolComputedSize', 'someBoolComputed',
+						driver.trackComputedSize('someBoolComputedSize', 'someBoolComputed',
 							'11')(function (size) { a(size, 3); }),
 						driver.trackMultipleSize('someBoolAll',
 							['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 2); })
