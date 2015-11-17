@@ -65,7 +65,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 		if (!autoSaveFilter(event)) return;
 		this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
 		++this._runningOperations;
-		this._handleStoreEvent(event).finally(this._onOperationEnd).done();
+		this._handleStoreDirect(event).finally(this._onOperationEnd).done();
 	}.bind(this));
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
@@ -199,10 +199,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this)).finally(this._onOperationEnd);
 		return promise;
 	}),
-	_handleStoreEvent: d(function (event) {
+	_handleStoreDirect: d(function (event) {
 		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
 		if (this._eventsInProgress[id]) {
-			return this._eventsInProgress[id](this._handleStoreEvent.bind(this, event));
+			return this._eventsInProgress[id](this._handleStoreDirect.bind(this, event));
 		}
 		ownerId = event.object.master.__id__;
 		targetPath = id.slice(ownerId.length + 1) || null;
@@ -236,13 +236,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		event = ensureObject(event);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._handleStoreEvent(event).finally(this._onOperationEnd);
+		return this._handleStoreDirect(event).finally(this._onOperationEnd);
 	}),
 	storeEvents: d(function (events) {
 		events = ensureArray(events);
 		this._ensureOpen();
 		++this._runningOperations;
-		return deferred.map(events, this._handleStoreEvent, this).finally(this._onOperationEnd);
+		return deferred.map(events, this._handleStoreDirect, this).finally(this._onOperationEnd);
 	}),
 	__getRawObject: d(notImplemented),
 	__getRawAllDirect: d(notImplemented),
