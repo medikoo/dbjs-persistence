@@ -88,7 +88,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Database data
-	__getAllDirect: d(function () {
+	__getDirectAll: d(function () {
 		return this._getAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
 				return { ownerId: ownerId, map: map };
