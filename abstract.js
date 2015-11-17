@@ -476,7 +476,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			var meta = this._indexes[name];
 			if (meta.multiple) return deferred.map(meta.multiple, self, this);
 			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
-			return this._recalculateIndexSet(meta.keyPath, meta.searchValue);
+			return this._recalculateComputedSet(meta.keyPath, meta.searchValue);
 		}, this).invoke(flatten)(function (sets) {
 			var result;
 			sets.sort(function (a, b) { return a.size - b.size; }).forEach(function (set) {
@@ -508,7 +508,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			});
 		});
 	}),
-	_recalculateIndexSet: d(function (keyPath, searchValue) {
+	_recalculateComputedSet: d(function (keyPath, searchValue) {
 		var result = new Set();
 		return this._searchIndex(keyPath, function (ownerId, data) {
 			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
@@ -518,7 +518,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		++this._runningOperations;
-		return this._recalculateIndexSet(keyPath, searchValue)(function (result) {
+		return this._recalculateComputedSet(keyPath, searchValue)(function (result) {
 			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
