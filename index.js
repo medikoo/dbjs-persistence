@@ -82,7 +82,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}
 		return this._getObjectStorage(ns)(function (map) {
 			map[path || '.'] = data;
-			return this._writeStorage(ns, map);
+			return this._writeStorage('direct/' + ns, map);
 		}.bind(this));
 	}),
 
@@ -135,10 +135,12 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__exportAll: d(function (destDriver) {
 		var count = 0;
 		var promise = this.dbDir()(function () {
-			return readdir(this.dirPath, { type: { file: true } }).map(function (filename) {
-				var ownerId, path;
-				if (isId(filename)) {
-					ownerId = filename;
+			return deferred(
+				readdir(resolve(this.dirPath, 'direct'), { type: { file: true } }).catch(function (e) {
+					if (e.code === 'ENOENT') return [];
+					throw e;
+				}).map(function (filename) {
+					var ownerId = filename;
 					return this._getObjectStorage(ownerId)(function (map) {
 						return deferred.map(keys(map), function (path) {
 							var data = this[path];
@@ -147,28 +149,31 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 							return destDriver._storeRaw('direct', ownerId, path, data);
 						}, map);
 					});
-				}
-				if (filename[0] === '=') {
-					path = String(new Buffer(filename.slice(1), 'base64'));
-					return this._getIndexStorage(path)(function (map) {
-						return deferred.map(keys(map), function (ownerId) {
-							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('computed', path, ownerId, this[ownerId]);
-						}, map);
-					});
-				}
-				if (filename === '_reduced') {
-					this._reduced(function (reduced) {
-						return deferred.map(keys(reduced), function (key) {
-							var index = key.indexOf('/')
-							  , ownerId = (index !== -1) ? key.slice(0, index) : key
-							  , path = (index !== -1) ? key.slice(index + 1) : null;
-							if (!(++count % 1000)) promise.emit('progress');
-							return destDriver._storeRaw('reduced', ownerId, path, reduced[key]);
+				}.bind(this)),
+				readdir(this.dirPath, { type: { file: true } }).map(function (filename) {
+					var path;
+					if (filename[0] === '=') {
+						path = String(new Buffer(filename.slice(1), 'base64'));
+						return this._getIndexStorage(path)(function (map) {
+							return deferred.map(keys(map), function (ownerId) {
+								if (!(++count % 1000)) promise.emit('progress');
+								return destDriver._storeRaw('computed', path, ownerId, this[ownerId]);
+							}, map);
 						});
-					});
-				}
-			}.bind(this));
+					}
+					if (filename === '_reduced') {
+						this._reduced(function (reduced) {
+							return deferred.map(keys(reduced), function (key) {
+								var index = key.indexOf('/')
+							    , ownerId = (index !== -1) ? key.slice(0, index) : key
+							    , path = (index !== -1) ? key.slice(index + 1) : null;
+								if (!(++count % 1000)) promise.emit('progress');
+								return destDriver._storeRaw('reduced', ownerId, path, reduced[key]);
+							});
+						});
+					}
+				}.bind(this))
+			);
 		}.bind(this));
 		return promise;
 	}),
@@ -187,8 +192,11 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Specific to driver
 	_getAllObjectIds: d(function () {
 		return this.dbDir()(function () {
-			return readdir(this.dirPath, { type: { file: true } })(function (data) {
+			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (data) {
 				return data.filter(isId).sort();
+			}, function (e) {
+				if (e.code === 'ENOENT') return [];
+				throw e;
 			});
 		}.bind(this));
 	}),
@@ -205,7 +213,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				if (value === '') value = '-';
 				else if (isArray(value)) value = stringify(value);
 				return id + '\n' + data.stamp + '\n' + value;
-			}, this, byStamp).join('\n\n'));
+			}, this, byStamp).join('\n\n'), { intermediate: true });
 		}.bind(this));
 	})
 }, lazy({
@@ -225,7 +233,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	_getObjectStorage: d(function (ownerId) {
 		return this.dbDir()(function () {
 			var map = create(null);
-			return readFile(resolve(this.dirPath, ownerId))(function (data) {
+			return readFile(resolve(this.dirPath, 'direct', ownerId))(function (data) {
 				var value;
 				try {
 					String(data).split('\n\n').forEach(function (data) {
