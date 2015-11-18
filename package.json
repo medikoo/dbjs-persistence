@@ -22,7 +22,7 @@
     "es6-set": "^0.1.3",
     "event-emitter": "^0.3.4",
     "fs2": "^0.2.3",
-    "memoizee": "0.3.9",
+    "memoizee": "^0.3.9",
     "observable-set": "0.0.4",
     "time-uuid": "1",
     "timers-ext": "0.1"
