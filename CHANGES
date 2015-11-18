@@ -1,3 +1,27 @@
+v0.0.10  --  2015.11.18
+* Significant reorganisation and improvements to internal logic
+* Removed various race condition vulnerabilities
+* Implement internally write lock functionality
+* Rename all driver methods so they start with `__` prefixes
+* Make one central method for writes: `__storeRaw`
+* Improve methods (both public and private) naming
+* `indexCollection` method
+* `clear` method
+* `trackColletionSize` method
+* `trackMultipleSize` method
+* Introduce `onWriteDrain` `onWriteLockDrain`  (on demand promises)
+* Suppport observation of object creation
+* Fix emit of progress events
+* Fix keyPaths filter handling
+* Bring back support for function filters
+* Emit size change events
+* Introduce error codes
+* Do not memoize indexes, instead crash on duplicate names
+* Rename 'custom' namespace to 'reduced'
+* Rename 'index' namespace to 'computed'
+* Update TextFile storage to use three different (direct, computed, reduced) buckets of data
+  instead of one
+
 v0.0.9  --  2015.10.25
 * Automatically resolve stamps when handling custom records
 * Ensure updates come with new data objects
