@@ -287,6 +287,21 @@ module.exports = function (opts, copyOpts) {
 							}),
 							driverCopy._getRaw('reduced', 'elo')(function (data) {
 								a(data.value, '3marko');
+							}),
+							driverCopy.getReduced('typeTest/boolean')(function (data) { a(data.value, '11'); }),
+							driverCopy.getReduced('typeTest/number')(function (data) { a(data.value, '222'); }),
+							driverCopy.getReduced('typeTest/string')(function (data) { a(data.value, '3foo'); }),
+							driverCopy.getReduced('typeTest/date')(function (data) {
+								a(data.value, '41447794621442');
+							}),
+							driverCopy.getReduced('typeTest/regexp')(function (data) {
+								a(data.value, '5/foo/');
+							}),
+							driverCopy.getReduced('typeTest/function')(function (data) {
+								a(data.value, '6function (foo) { return \'bar\'; }');
+							}),
+							driverCopy.getReduced('typeTest/object')(function (data) {
+								a(data.value, '7Object');
 							})
 						);
 					});
