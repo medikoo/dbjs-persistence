@@ -16,7 +16,7 @@
   "dependencies": {
     "d": "^0.1.1",
     "debug-ext": "1",
-    "deferred": "0.7.3",
+    "deferred": "^0.7.4",
     "dbjs": "git://github.com/medikoo/dbjs.git#ce8dab253927f3319ca85dd7c60c5d6701a1d689",
     "es5-ext": "^0.10.8",
     "es6-set": "^0.1.2",
