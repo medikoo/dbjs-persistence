@@ -53,7 +53,7 @@ var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 	if (!result) result = create(null);
 	forEach(map, function (data, path) {
 		if (keyPaths && (path !== '.')) {
-			if (!keyPaths.has(resolveKeyPath(path))) return;
+			if (!keyPaths.has(resolveKeyPath(ownerId + '/' + path))) return;
 		}
 		result[(path === '.') ? ownerId : ownerId + '/' + path] = data;
 	});

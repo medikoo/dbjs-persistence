@@ -1,8 +1,9 @@
 'use strict';
 
-var deferred           = require('deferred')
-  , Database           = require('dbjs')
-  , Event              = require('dbjs/_setup/event')
+var Set              = require('es6-set')
+  , deferred         = require('deferred')
+  , Database         = require('dbjs')
+  , Event            = require('dbjs/_setup/event')
   , resolveEventKeys = require('../lib/resolve-event-keys');
 
 module.exports = function (opts, copyOpts) {
@@ -135,6 +136,10 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				return driver._getRaw('direct', 'fooBar')(function (data) {
 					a(data.value, '7SomeType#');
+				});
+			})(function () {
+				return driver.getDirectObject('fooBar', { keyPaths: new Set(['miszka']) })(function (data) {
+					a.deep(data.map(function (data) { return data.id; }), ['fooBar', 'fooBar/miszka']);
 				});
 			})(function () {
 				return driver.getReducedNs('miszkaAll')(function (result) {
