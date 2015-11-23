@@ -200,42 +200,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this)).finally(this._onOperationEnd);
 		return promise;
 	}),
-	_handleStoreDirect: d(function (event) {
-		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
-		if (this._directInProgress[id]) {
-			return this._directInProgress[id](this._handleStoreDirect.bind(this, event));
-		}
-		ownerId = event.object.master.__id__;
-		targetPath = id.slice(ownerId.length + 1) || null;
-		nu = { value: serializeValue(event.value), stamp: event.stamp };
-		if (targetPath) {
-			keyPath = (event.object._kind_ === 'item')
-				? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
-		} else {
-			keyPath = null;
-		}
-		promise = this._getRaw('direct', ownerId, targetPath)(function (old) {
-			var promise;
-			if (old && (old.stamp >= nu.stamp)) return;
-			debug("direct update %s %s", id, event.stamp);
-			promise = this._storeRaw('direct', ownerId, targetPath, nu);
-			var driverEvent = {
-				type: 'direct',
-				id: id,
-				ownerId: ownerId,
-				keyPath: keyPath,
-				path: targetPath,
-				data: nu,
-				old: old
-			};
-			this.emit('direct:' + (keyPath || '&'), driverEvent);
-			this.emit('object:' + ownerId, driverEvent);
-			return promise;
-		}.bind(this));
-		this._directInProgress[id] = promise;
-		promise.finally(function () { delete this._directInProgress[id]; }.bind(this));
-		return promise;
-	}),
 	storeEvent: d(function (event) {
 		event = ensureObject(event);
 		this._ensureOpen();
@@ -708,6 +672,45 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.trackComputedSize(name, indexName, '11')
 		);
 	}),
+	__searchDirect: d(notImplemented),
+	__searchComputed: d(notImplemented),
+
+	_handleStoreDirect: d(function (event) {
+		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
+		if (this._directInProgress[id]) {
+			return this._directInProgress[id](this._handleStoreDirect.bind(this, event));
+		}
+		ownerId = event.object.master.__id__;
+		targetPath = id.slice(ownerId.length + 1) || null;
+		nu = { value: serializeValue(event.value), stamp: event.stamp };
+		if (targetPath) {
+			keyPath = (event.object._kind_ === 'item')
+				? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
+		} else {
+			keyPath = null;
+		}
+		promise = this._getRaw('direct', ownerId, targetPath)(function (old) {
+			var promise;
+			if (old && (old.stamp >= nu.stamp)) return;
+			debug("direct update %s %s", id, event.stamp);
+			promise = this._storeRaw('direct', ownerId, targetPath, nu);
+			var driverEvent = {
+				type: 'direct',
+				id: id,
+				ownerId: ownerId,
+				keyPath: keyPath,
+				path: targetPath,
+				data: nu,
+				old: old
+			};
+			this.emit('direct:' + (keyPath || '&'), driverEvent);
+			this.emit('object:' + ownerId, driverEvent);
+			return promise;
+		}.bind(this));
+		this._directInProgress[id] = promise;
+		promise.finally(function () { delete this._directInProgress[id]; }.bind(this));
+		return promise;
+	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
 		var id = path + '/' + ns, promise;
 		if (this._computedInProgress[id]) {
@@ -752,9 +755,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise.finally(function () { delete this._computedInProgress[id]; }.bind(this));
 		return promise;
 	}),
-	__searchDirect: d(notImplemented),
-	__searchComputed: d(notImplemented),
-
 	// Reduced data
 	getReduced: d(function (key) {
 		var index, ownerId, path;
