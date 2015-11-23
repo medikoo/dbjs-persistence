@@ -216,16 +216,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise = this._getRaw('direct', ownerId, targetPath)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
+			debug("direct update %s %s", id, event.stamp);
 			promise = this._storeRaw('direct', ownerId, targetPath, nu);
 			var driverEvent = {
+				type: 'direct',
 				id: id,
 				ownerId: ownerId,
 				keyPath: keyPath,
+				path: targetPath,
 				data: nu,
 				old: old
 			};
-			debug("direct update %s %s", id, event.stamp);
 			this.emit('direct:' + (keyPath || '&'), driverEvent);
+			this.emit('object:' + ownerId, driverEvent);
 			return promise;
 		}.bind(this));
 		this._directInProgress[id] = promise;
@@ -276,8 +279,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		this._ensureOpen();
 		this._indexes[name] = {
+			type: 'computed',
 			name: name,
-			type: 'index',
 			keyPath: keyPath
 		};
 		listener = function (event) {
@@ -567,8 +570,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 		});
 		this._indexes[name] = {
-			name: name,
 			type: 'size',
+			name: name,
 			direct: true,
 			keyPath: keyPath,
 			searchValue: searchValue,
@@ -592,8 +595,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 		});
 		this._indexes[name] = {
-			name: name,
 			type: 'size',
+			name: name,
 			keyPath: keyPath,
 			searchValue: searchValue,
 			promise: promise
@@ -659,8 +662,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this)
 		});
 		this._indexes[name] = {
-			name: name,
 			type: 'size',
+			name: name,
 			multiple: sizeIndexes,
 			promise: promise
 		};
@@ -698,12 +701,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
 				stamp: stamp
 			};
+			debug("computed update %s %s %s", path, ns, stamp);
 			promise = this._storeRaw('computed', ns, path, nu);
 			var driverEvent;
-			debug("computed update %s %s %s", path, ns, stamp);
 			driverEvent = {
+				type: 'computed',
+				id: id,
 				ownerId: path,
-				name: ns,
+				keyPath: ns,
 				data: nu,
 				old: old
 			};
@@ -758,13 +763,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			debug("reduced update %s", key, stamp);
 			promise = this._storeRaw('reduced', ownerId, keyPath, data)(data);
 			driverEvent = {
+				type: 'reduced',
 				id: key,
 				ownerId: ownerId,
 				keyPath: keyPath,
 				data: data,
-				old: oldData
+				old: oldData,
+				directEvent: directEvent
 			};
-			this.emit('reduced:' + ownerId, driverEvent);
+			this.emit('reduced:' + (key || '&'), driverEvent);
+			this.emit('object:' + ownerId, driverEvent);
 			return promise;
 		}.bind(this)).finally(this._onOperationEnd);
 		this._reducedInProgress[key] = promise;
