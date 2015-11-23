@@ -6,6 +6,7 @@ var aFrom                 = require('es5-ext/array/from')
   , compact               = require('es5-ext/array/#/compact')
   , flatten               = require('es5-ext/array/#/flatten')
   , isCopy                = require('es5-ext/array/#/is-copy')
+  , uniq                  = require('es5-ext/array/#/uniq')
   , ensureArray           = require('es5-ext/array/valid-array')
   , customError           = require('es5-ext/error/custom')
   , ensureIterable        = require('es5-ext/iterable/validate-object')
@@ -377,7 +378,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		listener = function (event) {
 			++this._runningOperations;
 			deferred(conf.resolveEvent(event))(function (result) {
-				var nu, old, oldData, nuData, promise;
+				var nu, old, oldData, nuData;
 				if (!result) return;
 				nu = result.nu;
 				old = result.old;
@@ -389,17 +390,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				oldData = current;
 				if (stamp <= oldData.stamp) stamp = oldData.stamp + 1;
 				nuData = current = { value: serializeValue(size), stamp: stamp };
-				promise = this._handleStoreReduced(name, nuData.value, nuData.stamp);
-				var driverEvent;
-				debug("size update %s %s", name, size);
-				driverEvent = {
-					name: name,
-					data: nuData,
-					old: oldData,
-					directEvent: event.directEvent || event
-				};
-				this.emit('size:' + name, driverEvent);
-				return promise;
+				return this._handleStoreReduced(name, nuData.value, nuData.stamp, event);
 			}.bind(this)).finally(this._onOperationEnd).done();
 		}.bind(this);
 		var initialize = function (data) {
@@ -604,7 +595,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return promise;
 	}),
 	trackMultipleSize: d(function (name, sizeIndexes) {
-		var promise, dependencyPromises = [];
+		var promise, dependencyPromises = [], metas = create(null);
 		name = ensureString(name);
 		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
 		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
@@ -617,22 +608,66 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
 					'NOT_SUPPORTED_INDEX');
 			}
+			if (metas[meta.keyPath]) {
+				if (!isArray(metas[meta.keyPath])) metas[meta.keyPath] = [metas[meta.keyPath]];
+				metas[meta.keyPath].push(meta);
+			} else {
+				metas[meta.keyPath] = meta;
+			}
 			dependencyPromises.push(meta.promise);
 		}, this);
 		promise = this._trackSize(name, {
 			initPromise: deferred.map(dependencyPromises),
-			eventNames: sizeIndexes.map(function (name) { return 'size:' + name; }),
+			eventNames: uniq.call(flatten.call(sizeIndexes.map(function self(name) {
+				var meta = this._indexes[name];
+				if (meta.multiple) return meta.multiple.map(self);
+				if (meta.direct) return 'direct:' + (meta.keyPath || '&');
+				return 'computed:' + meta.keyPath;
+			}, this))),
 			recalculate: function (getSizeUpdate) {
 				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
 					return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
 				}.bind(this));
 			}.bind(this),
 			resolveEvent: function (event) {
-				var ownerId = event.directEvent.ownerId;
+				var ownerId = event.ownerId, nu, old, meta = metas[event.keyPath]
+				  , searchValue, value, diff;
+				var checkMeta = function (meta) {
+					if (event.type === 'direct') {
+						if (event.keyPath === event.path) {
+							// Singular
+							old = Boolean(event.old && meta.filter(event.old.value));
+							nu = meta.filter(event.data.value);
+						} else {
+							// Multiple
+							if ((meta.searchValue == null) || (typeof meta.searchValue === 'function')) return;
+							searchValue = meta.searchValue;
+							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
+							value = event.path.slice(event.keyPath.length + 1);
+							if (!isDigit(value[0])) value = '3' + value;
+							if (value !== searchValue) return;
+							old = Boolean(event.old && (event.old.value === '11'));
+							nu = (event.data.value === '11');
+						}
+					} else {
+						old = resolveFilter(meta.searchValue, event.old ? event.old.value : '');
+						nu = resolveFilter(meta.searchValue, event.data.value);
+					}
+					return nu - old;
+				};
+				if (isArray(meta)) {
+					diff = meta.map(checkMeta).filter(Boolean).reduce(function (a, b) {
+						if (a == null) return a;
+						if (b && a && (b !== a)) return null;
+						return b;
+					}, 0);
+				} else {
+					diff = checkMeta(meta);
+				}
+				if (!diff) return;
 				return deferred.every(sizeIndexes, function self(name) {
-					var meta, keyPath;
-					if (event.name === name) return true;
-					meta = this._indexes[name];
+					var meta = this._indexes[name], keyPath;
+					if (event.keyPath === meta.keyPath) return true;
 					if (meta.multiple) return deferred.every(meta.multiple, self, this);
 					if (meta.direct) {
 						keyPath = meta.keyPath;
@@ -653,11 +688,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						return resolveFilter(meta.searchValue, data ? data.value : '');
 					});
 				}, this)(function (isEffective) {
-					var old, nu;
 					if (!isEffective) return;
-					old = unserializeValue(event.old.value);
-					nu = unserializeValue(event.data.value);
-					return { old: (old > nu), nu: (old < nu) };
+					return { old: (diff < 0), nu: (diff > 0) };
 				});
 			}.bind(this)
 		});
@@ -739,10 +771,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		return this._handleStoreReduced(key, value, stamp);
 	}),
-	_handleStoreReduced: d(function (key, value, stamp) {
+	_handleStoreReduced: d(function (key, value, stamp, directEvent) {
 		var index, ownerId, keyPath, promise;
 		if (this._reducedInProgress[key]) {
-			return this._reducedInProgress[key](this._handleStoreReduced.bind(this, key, value, stamp));
+			return this._reducedInProgress[key](this._handleStoreReduced.bind(this,
+				key, value, stamp, directEvent));
 		}
 		index = key.indexOf('/');
 		ownerId = (index !== -1) ? key.slice(0, index) : key;
