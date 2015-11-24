@@ -322,12 +322,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return deferred.map(aFrom(set), function (value) { return onAdd(value); })
 			.finally(this._onOperationEnd);
 	}),
-	indexKeyPath: d(function (keyPath, set) {
-		return this._trackComputed(keyPath, set, keyPath);
-	}),
-	indexCollection: d(function (name, set) {
-		return this._trackComputed(name, set);
-	}),
+	indexKeyPath: d(function (keyPath, set) { return this._trackComputed(keyPath, set, keyPath); }),
+	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
 
 	// Size tracking
 	_trackSize: d(function (name, conf) {
