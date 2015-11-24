@@ -126,6 +126,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
 		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
+	getDirectAllObjectIds: d(function () {
+		this._ensureOpen();
+		++this._runningOperations;
+		return this.__getDirectAllObjectIds().finally(this._onOperationEnd);
+	}),
 	getReducedNs: d(function (ns/*, options*/) {
 		var keyPaths, options = arguments[1];
 		ns = ensureOwnerId(ns);
@@ -916,6 +921,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__getRaw: d(notImplemented),
 	__getDirectObject: d(notImplemented),
 	__getDirectAll: d(notImplemented),
+	__getDirectAllObjectIds: d(notImplemented),
 	__getReducedNs: d(notImplemented),
 	__storeRaw: d(notImplemented),
 	__searchDirect: d(notImplemented),

@@ -89,6 +89,16 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
+	__getDirectAllObjectIds: d(function () {
+		return this.dbDir()(function () {
+			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (data) {
+				return data.filter(isId).sort();
+			}, function (e) {
+				if (e.code === 'ENOENT') return [];
+				throw e;
+			});
+		}.bind(this));
+	}),
 	__storeRaw: d(function (cat, ns, path, data) {
 		if (cat === 'reduced') {
 			return this._getReducedStorage(ns)(function (map) {
@@ -110,7 +120,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Database data
 	__getDirectAll: d(function () {
-		return this._getAllObjectIds().map(function (ownerId) {
+		return this.__getDirectAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
 				return { ownerId: ownerId, map: map };
 			});
@@ -123,7 +133,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	__searchDirect: d(function (callback) {
-		return this._getAllObjectIds().map(function (ownerId) {
+		return this.__getDirectAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
 				forEach(map, function (data, keyPath) {
 					var postfix = keyPath === '.' ? '' : '/' + keyPath;
@@ -209,17 +219,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Connection related
 	__close: d(function () { return deferred(undefined); }), // Nothing to close
 
-	// Specific to driver
-	_getAllObjectIds: d(function () {
-		return this.dbDir()(function () {
-			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (data) {
-				return data.filter(isId).sort();
-			}, function (e) {
-				if (e.code === 'ENOENT') return [];
-				throw e;
-			});
-		}.bind(this));
-	}),
 	_writeStorage: d(function (name, map) {
 		return this.dbDir()(function () {
 			return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
