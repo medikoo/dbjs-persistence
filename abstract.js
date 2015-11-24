@@ -84,50 +84,6 @@ var ensureOwnerId = function (ownerId) {
 };
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
-	// Any data
-	_getRaw: d(function (cat, ns, path) {
-		if (this._transient[cat][ns] && this._transient[cat][ns][path || '']) {
-			return deferred(this._transient[cat][ns][path || '']);
-		}
-		return this.__getRaw(cat, ns, path);
-	}),
-	_storeRaw: d(function (cat, ns, path, data) {
-		var transient = this._transient[cat];
-		if (!transient[ns]) transient[ns] = create(null);
-		transient = transient[ns];
-		transient[path || ''] = data;
-		if (this._writeLockCounter) {
-			if (!this._writeLockCache) this._writeLockCache = [];
-			this._writeLockCache.push(arguments);
-			return this.onWriteLockDrain;
-		}
-		++this._runningWriteOperations;
-		return this.__storeRaw(cat, ns, path, data).finally(function () {
-			if (transient[path || ''] === data) delete transient[path || ''];
-			if (--this._runningWriteOperations) return;
-			if (this._onWriteDrain) {
-				this._onWriteDrain.resolve();
-				delete this._onWriteDrain;
-			}
-		}.bind(this));
-	}),
-	_safeGet: d(function (method) {
-		++this._writeLock;
-		return this.onWriteDrain(method.bind(this))
-			.finally(function () { --this._writeLock; }.bind(this));
-	}),
-	__getRaw: d(notImplemented),
-	__storeRaw: d(notImplemented),
-
-	// Database data
-	_load: d(function (id, value, stamp) {
-		var proto;
-		if (this._loadedEventsMap[id + '.' + stamp]) return;
-		this._loadedEventsMap[id + '.' + stamp] = true;
-		value = unserializeValue(value, this.db.objects);
-		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
-		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
-	}),
 	getDirect: d(function (id) {
 		var index, ownerId, path;
 		id = ensureString(id);
@@ -139,84 +95,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getRaw('direct', ownerId, path).finally(this._onOperationEnd);
 	}),
-	_getDirectObject: d(function (ownerId, keyPaths) {
-		var initData = create(null);
-		if (this._transient.direct[ownerId]) {
-			forEach(this._transient.direct[ownerId], function (transientData, id) {
-				if (keyPaths && id && !keyPaths.has(resolveKeyPath(ownerId + '/' + id))) return;
-				initData[ownerId + (id && ('/' + id))] = transientData;
-			});
-		}
-		return this._safeGet(function () {
-			return this.__getDirectObject(ownerId, keyPaths)(function (data) {
-				return toArray(assign(data, initData),
-					function (data, id) { return { id: id, data: data }; }, null, byStamp);
-			}.bind(this));
-		});
-	}),
-	getDirectObject: d(function (ownerId/*, options*/) {
-		var keyPaths, options = arguments[1];
-		ownerId = ensureOwnerId(ownerId);
-		this._ensureOpen();
-		++this._runningOperations;
-		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
-	}),
-	load: d(function (id) {
-		return this.getDirect(id)(function (data) {
-			if (!data) return null;
-			return this._load(id, data.value, data.stamp);
-		}.bind(this));
-	}),
-	loadObject: d(function (ownerId) {
-		return this.getDirectObject(ownerId)(function (data) {
-			return compact.call(data.map(function (data) {
-				return this._load(data.id, data.data.value, data.data.stamp);
-			}, this));
-		}.bind(this));
-	}),
-	_getDirectAll: d(function () {
-		var initData = create(null);
-		forEach(this._transient.direct, function (ownerData, ownerId) {
-			forEach(ownerData, function (transientData, id) {
-				initData[ownerId + (id && ('/' + id))] = transientData;
-			});
-		});
-		return this._safeGet(function () {
-			return this.__getDirectAll()(function (data) {
-				return toArray(assign(data, initData),
-					function (data, id) { return { id: id, data: data }; }, null, byStamp);
-			}.bind(this));
-		});
-	}),
-	loadAll: d(function () {
-		var promise, progress = 0;
-		this._ensureOpen();
-		++this._runningOperations;
-		promise = this._getDirectAll()(function (data) {
-			return compact.call(data.map(function (data) {
-				if (!(++progress % 1000)) promise.emit('progress');
-				return this._load(data.id, data.data.value, data.data.stamp);
-			}, this));
-		}.bind(this)).finally(this._onOperationEnd);
-		return promise;
-	}),
-	storeEvent: d(function (event) {
-		event = ensureObject(event);
-		this._ensureOpen();
-		++this._runningOperations;
-		return this._handleStoreDirect(event).finally(this._onOperationEnd);
-	}),
-	storeEvents: d(function (events) {
-		events = ensureArray(events);
-		this._ensureOpen();
-		++this._runningOperations;
-		return deferred.map(events, this._handleStoreDirect, this).finally(this._onOperationEnd);
-	}),
-	__getDirectObject: d(notImplemented),
-	__getDirectAll: d(notImplemented),
-
-	// Indexed database data
 	getComputed: d(function (id) {
 		var ownerId, keyPath, index;
 		id = ensureString(id);
@@ -230,267 +108,84 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getRaw('computed', ensureString(keyPath), ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
 	}),
-	_trackComputed: d(function (name, set, keyPath) {
-		var names, key, onAdd, onDelete, listener, setListener;
-		name = ensureString(name);
-		if (this._indexes[name]) {
-			throw customError("Index of " + stringify(name) + " was already registered",
-				'DUPLICATE_INDEX');
-		}
-		set = ensureObservableSet(set);
-		if (keyPath != null) {
-			keyPath = ensureString(keyPath);
-			names = tokenize(ensureString(keyPath));
-			key = names[names.length - 1];
-		}
+	getReduced: d(function (key) {
+		var index, ownerId, path;
+		key = ensureString(key);
 		this._ensureOpen();
-		this._indexes[name] = {
-			type: 'computed',
-			name: name,
-			keyPath: keyPath
-		};
-		listener = function (event) {
-			var sValue, stamp, ownerId = event.target.object.master.__id__;
-			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
-			if (isSet(event.target)) {
-				sValue = [];
-				event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
-			} else {
-				sValue = serializeValue(event.newValue);
-			}
-			++this._runningOperations;
-			this._handleStoreComputed(name, ownerId, sValue, stamp).finally(this._onOperationEnd).done();
-		}.bind(this);
-		onAdd = function (owner, event) {
-			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
-			if (event) stamp = event.stamp;
-			if (keyPath) {
-				obj = ensureObject(resolveObject(owner, names));
-				if (obj.isKeyStatic(key)) {
-					value = obj[key];
-				} else {
-					value = obj._get_(key);
-					observable = obj._getObservable_(key);
-					if (!stamp) stamp = observable.lastModified;
-					if (isSet(value)) {
-						value.on('change', listener);
-						this._cleanupCalls.push(value.off.bind(value, 'change', listener));
-					} else {
-						observable.on('change', listener);
-						this._cleanupCalls.push(observable.off.bind(observable, 'change', listener));
-					}
-				}
-				if (isSet(value)) {
-					sValue = [];
-					value.forEach(function (value) { sValue.push(serializeKey(value)); });
-				} else {
-					sValue = serializeValue(value);
-				}
-			} else {
-				sValue = '11';
-			}
-			return this._handleStoreComputed(name, ownerId, sValue, stamp);
-		}.bind(this);
-		onDelete = function (owner, event) {
-			var obj, stamp = 0;
-			if (event) stamp = event.stamp;
-			if (keyPath) {
-				obj = resolveObject(owner, names);
-				if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
-			}
-			return this._handleStoreComputed(name, owner.__id__, '', stamp);
-		}.bind(this);
-		set.on('change', setListener = function (event) {
-			if (event.type === 'add') {
-				++this._runningOperations;
-				onAdd(event.value, event.dbjs).finally(this._onOperationEnd).done();
-				return;
-			}
-			if (event.type === 'delete') {
-				++this._runningOperations;
-				onDelete(event.value, event.dbjs).finally(this._onOperationEnd).done();
-				return;
-			}
-			if (event.type === 'batch') {
-				if (event.added) {
-					++this._runningOperations;
-					deferred.map(event.added, function (value) { return onAdd(value, event.dbjs); })
-						.finally(this._onOperationEnd).done();
-				}
-				if (event.deleted) {
-					++this._runningOperations;
-					deferred.map(event.deleted, function (value) { return onDelete(value, event.dbjs); })
-						.finally(this._onOperationEnd).done();
-				}
-			}
-		}.bind(this));
-		this._cleanupCalls.push(set.off.bind(set, 'change', setListener));
 		++this._runningOperations;
-		return deferred.map(aFrom(set), function (value) { return onAdd(value); })
-			.finally(this._onOperationEnd);
+		index = key.indexOf('/');
+		ownerId = (index !== -1) ? key.slice(0, index) : key;
+		path = (index !== -1) ? key.slice(index + 1) : null;
+		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
 	}),
-	indexKeyPath: d(function (keyPath, set) { return this._trackComputed(keyPath, set, keyPath); }),
-	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
+	getDirectObject: d(function (ownerId/*, options*/) {
+		var keyPaths, options = arguments[1];
+		ownerId = ensureOwnerId(ownerId);
+		this._ensureOpen();
+		++this._runningOperations;
+		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
+		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
+	}),
+	getReducedNs: d(function (ns/*, options*/) {
+		var keyPaths, options = arguments[1];
+		ns = ensureOwnerId(ns);
+		this._ensureOpen();
+		++this._runningOperations;
+		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
+		return this._getReducedNs(ns, keyPaths).finally(this._onOperationEnd);
+	}),
 
-	// Size tracking
-	_trackSize: d(function (name, conf) {
-		var index, ownerId, path, listener, size = 0, isInitialised = false, current, stamp;
-		if (this._indexes[name]) {
-			throw customError("Index of " + stringify(name) + " was already registered",
-				'DUPLICATE_INDEX');
-		}
-		index = name.indexOf('/');
-		ownerId = (index !== -1) ? name.slice(0, index) : name;
-		path = (index !== -1) ? name.slice(index + 1) : null;
-		listener = function (event) {
-			++this._runningOperations;
-			deferred(conf.resolveEvent(event))(function (result) {
-				var nu, old, oldData, nuData;
-				if (!result) return;
-				nu = result.nu;
-				old = result.old;
-				if (nu === old) return;
-				if (nu) ++size;
-				else --size;
-				stamp = event.data.stamp;
-				if (!isInitialised) return;
-				oldData = current;
-				if (stamp <= oldData.stamp) stamp = oldData.stamp + 1;
-				nuData = current = { value: serializeValue(size), stamp: stamp };
-				return this._handleStoreReduced(name, nuData.value, nuData.stamp, event);
-			}.bind(this)).finally(this._onOperationEnd).done();
-		}.bind(this);
-		var initialize = function (data) {
-			size = unserializeValue(data.value);
-			current = data;
-			isInitialised = true;
-			return size;
-		};
-		var getSize = function () { return size; };
+	load: d(function (id) {
+		return this.getDirect(id)(function (data) {
+			if (!data) return null;
+			return this._load(id, data.value, data.stamp);
+		}.bind(this));
+	}),
+	loadObject: d(function (ownerId) {
+		return this.getDirectObject(ownerId)(function (data) {
+			return compact.call(data.map(function (data) {
+				return this._load(data.id, data.data.value, data.data.stamp);
+			}, this));
+		}.bind(this));
+	}),
+	loadAll: d(function () {
+		var promise, progress = 0;
+		this._ensureOpen();
 		++this._runningOperations;
-		return deferred(conf.initPromise)(function () {
-			if (conf.eventNames) {
-				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
-			} else {
-				this.on(conf.eventName, listener);
-			}
-			return this._getRaw('reduced', ownerId, path)(function (data) {
-				if (data) {
-					if (!size) return initialize(data);
-					data = {
-						value: serializeValue(unserializeValue(data.value + size)),
-						stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
-					};
-					initialize(data);
-					return this._handleStoreReduced(name, data.value, data.stamp)(getSize);
-				}
-				size = 0;
-				return conf.recalculate(getSize)(initialize);
-			}.bind(this));
+		promise = this._getDirectAll()(function (data) {
+			return compact.call(data.map(function (data) {
+				if (!(++progress % 1000)) promise.emit('progress');
+				return this._load(data.id, data.data.value, data.data.stamp);
+			}, this));
 		}.bind(this)).finally(this._onOperationEnd);
+		return promise;
 	}),
-	_searchDirect: d(function (callback) {
-		var done = create(null);
-		forEach(this._transient.direct, function (ownerData, ownerId) {
-			forEach(ownerData, function (data, path) {
-				var id = ownerId + (path ? '/' + path : '');
-				done[id] = true;
-				callback(id, data);
-			});
-		});
-		return this._safeGet(function () {
-			return this.__searchDirect(function (id, data) {
-				if (!done[id]) callback(id, data);
-			});
-		});
-	}),
-	_recalculateDirectSet: d(function (keyPath, searchValue) {
-		var filter = getSearchValueFilter(searchValue), result = new Set();
-		return this._searchDirect(function (id, data) {
-			var index = id.indexOf('/'), targetPath, sValue, ownerId;
-			if (!keyPath) {
-				if (index !== -1) return;
-				sValue = data.value;
-				ownerId = id;
-			} else {
-				targetPath = id.slice(id.indexOf('/') + 1);
-				if (!startsWith.call(targetPath, keyPath)) return;
-				if (targetPath !== keyPath) {
-					if (targetPath[keyPath.length] !== '*') return;
-					// Multiple
-					if (searchValue == null) return; // No support for multiple size check
-					if (typeof searchValue === 'function') return; // No support for function filter
-					if (data.value !== '11') return;
-					sValue = targetPath.slice(keyPath.length + 1);
-					if (!isDigit(sValue[0])) sValue = '3' + sValue;
-				} else {
-					// Singular
-					sValue = data.value;
-				}
-				ownerId = id.slice(0, index);
-			}
-			if (filter(sValue)) result.add(ownerId);
-		})(result);
-	}),
-	recalculateDirectSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
-		name = ensureString(name);
-		if (keyPath != null) keyPath = ensureString(keyPath);
+
+	storeEvent: d(function (event) {
+		event = ensureObject(event);
+		this._ensureOpen();
 		++this._runningOperations;
-		return this._recalculateDirectSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
-		}.bind(this)).finally(this._onOperationEnd);
+		return this._handleStoreDirect(event).finally(this._onOperationEnd);
 	}),
-	_recalculateMultipleSet: d(function (sizeIndexes) {
-		return deferred.map(sizeIndexes, function self(name) {
-			var meta = this._indexes[name];
-			if (meta.multiple) return deferred.map(meta.multiple, self, this);
-			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
-			return this._recalculateComputedSet(meta.keyPath, meta.searchValue);
-		}, this).invoke(flatten)(function (sets) {
-			var result;
-			sets.sort(function (a, b) { return a.size - b.size; }).forEach(function (set) {
-				if (result) {
-					result.forEach(function (item) {
-						if (!set.has(item)) result.delete(item);
-					});
-				} else {
-					result = set;
-				}
-			});
-			return result;
-		});
+	storeEvents: d(function (events) {
+		events = ensureArray(events);
+		this._ensureOpen();
+		++this._runningOperations;
+		return deferred.map(events, this._handleStoreDirect, this).finally(this._onOperationEnd);
 	}),
+	storeReduced: d(function (key, value, stamp) {
+		key = ensureString(key);
+		this._ensureOpen();
+		return this._handleStoreReduced(key, value, stamp);
+	}),
+
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
 	}),
-	_searchComputed: d(function (keyPath, callback) {
-		var done = create(null), transient = this._transient.computed[keyPath];
-		if (transient) {
-			forEach(transient, function (data, ownerId) {
-				done[ownerId] = true;
-				callback(ownerId, data);
-			});
-		}
-		return this._safeGet(function () {
-			return this.__searchComputed(keyPath, function (ownerId, data) {
-				if (!done[ownerId]) callback(ownerId, data);
-			});
-		});
-	}),
-	_recalculateComputedSet: d(function (keyPath, searchValue) {
-		var result = new Set();
-		return this._searchComputed(keyPath, function (ownerId, data) {
-			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
-		})(result);
-	}),
-	recalculateComputedSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
-		name = ensureString(name);
-		keyPath = ensureString(keyPath);
-		++this._runningOperations;
-		return this._recalculateComputedSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
-		}.bind(this)).finally(this._onOperationEnd);
-	}),
+
+	indexKeyPath: d(function (keyPath, set) { return this._trackComputed(keyPath, set, keyPath); }),
+	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
+
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]), promise;
 		name = ensureString(name);
@@ -560,6 +255,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			promise: promise
 		};
 		return promise;
+	}),
+	trackCollectionSize: d(function (name, set) {
+		var indexName = 'sizeIndex/' + ensureString(name);
+		return deferred(
+			this.indexCollection(indexName, set),
+			this.trackComputedSize(name, indexName, '11')
+		);
 	}),
 	trackMultipleSize: d(function (name, sizeIndexes) {
 		var promise, dependencyPromises = [], metas = create(null);
@@ -668,15 +370,162 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		return promise;
 	}),
-	trackCollectionSize: d(function (name, set) {
-		var indexName = 'sizeIndex/' + ensureString(name);
-		return deferred(
-			this.indexCollection(indexName, set),
-			this.trackComputedSize(name, indexName, '11')
-		);
+
+	recalculateDirectSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
+		name = ensureString(name);
+		if (keyPath != null) keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._recalculateDirectSet(keyPath, searchValue)(function (result) {
+			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
+		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	__searchDirect: d(notImplemented),
-	__searchComputed: d(notImplemented),
+	recalculateComputedSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
+		name = ensureString(name);
+		keyPath = ensureString(keyPath);
+		++this._runningOperations;
+		return this._recalculateComputedSet(keyPath, searchValue)(function (result) {
+			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
+
+	export: d(function (externalStore) {
+		ensureDriver(externalStore);
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._safeGet(function () {
+			return this.__exportAll(externalStore);
+		}).finally(this._onOperationEnd);
+	}),
+	clear: d(function () {
+		var transient;
+		this._ensureOpen();
+		++this._runningOperations;
+		transient = this._transient;
+		keys(transient.direct).forEach(function (key) { delete transient.direct[key]; });
+		keys(transient.computed).forEach(function (key) { delete transient.computed[key]; });
+		keys(transient.reduced).forEach(function (key) { delete transient.reduced[key]; });
+		return this._safeGet(function () {
+			++this._runningWriteOperations;
+			return this.__clear();
+		}).finally(function () {
+			if (--this._runningWriteOperations) return;
+			if (this._onWriteDrain) {
+				this._onWriteDrain.resolve();
+				delete this._onWriteDrain;
+			}
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
+	isClosed: d(false),
+	close: d(function () {
+		this._ensureOpen();
+		this.isClosed = true;
+		if (this.hasOwnProperty('_cleanupCalls')) {
+			this._cleanupCalls.forEach(function (cb) { cb(); });
+		}
+		delete this._cleanupCalls;
+		if (this._runningOperations) {
+			this._closeDeferred = deferred();
+			return this._closeDeferred.promise;
+		}
+		return this.__close();
+	}),
+
+	onDrain: d.gs(function () {
+		if (!this._runningOperations) return deferred(undefined);
+		if (!this._onDrain) this._onDrain = deferred();
+		return this._onDrain.promise;
+	}),
+	onWriteDrain: d.gs(function () {
+		if (!this._runningWriteOperations) return deferred(undefined);
+		if (!this._onWriteDrain) this._onWriteDrain = deferred();
+		return this._onWriteDrain.promise;
+	}),
+	onWriteLockDrain: d.gs(function () {
+		if (!this._writeLockCounter) return this.onWriteDrain;
+		if (!this._onWriteLockDrain) this._onWriteLockDrain = deferred();
+		return this._onWriteLockDrain.promise;
+	}),
+
+	_getRaw: d(function (cat, ns, path) {
+		if (this._transient[cat][ns] && this._transient[cat][ns][path || '']) {
+			return deferred(this._transient[cat][ns][path || '']);
+		}
+		return this.__getRaw(cat, ns, path);
+	}),
+	_getDirectObject: d(function (ownerId, keyPaths) {
+		var initData = create(null);
+		if (this._transient.direct[ownerId]) {
+			forEach(this._transient.direct[ownerId], function (transientData, id) {
+				if (keyPaths && id && !keyPaths.has(resolveKeyPath(ownerId + '/' + id))) return;
+				initData[ownerId + (id && ('/' + id))] = transientData;
+			});
+		}
+		return this._safeGet(function () {
+			return this.__getDirectObject(ownerId, keyPaths)(function (data) {
+				return toArray(assign(data, initData),
+					function (data, id) { return { id: id, data: data }; }, null, byStamp);
+			}.bind(this));
+		});
+	}),
+	_getDirectAll: d(function () {
+		var initData = create(null);
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (transientData, id) {
+				initData[ownerId + (id && ('/' + id))] = transientData;
+			});
+		});
+		return this._safeGet(function () {
+			return this.__getDirectAll()(function (data) {
+				return toArray(assign(data, initData),
+					function (data, id) { return { id: id, data: data }; }, null, byStamp);
+			}.bind(this));
+		});
+	}),
+	_getReducedNs: d(function (ns, keyPaths) {
+		var initData = create(null);
+		if (this._transient.reduced[ns]) {
+			forEach(this._transient.reduced[ns], function (transientData, id) {
+				if (keyPaths && id && !keyPaths.has(id)) return;
+				initData[ns + (id && ('/' + id))] = transientData;
+			});
+		}
+		return this._safeGet(function () {
+			return this.__getReducedNs(ns, keyPaths)(function (data) {
+				return toArray(assign(data, initData),
+					function (data, id) { return { id: id, data: data }; }, null, byStamp);
+			}.bind(this));
+		});
+	}),
+
+	_load: d(function (id, value, stamp) {
+		var proto;
+		if (this._loadedEventsMap[id + '.' + stamp]) return;
+		this._loadedEventsMap[id + '.' + stamp] = true;
+		value = unserializeValue(value, this.db.objects);
+		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
+		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
+	}),
+
+	_storeRaw: d(function (cat, ns, path, data) {
+		var transient = this._transient[cat];
+		if (!transient[ns]) transient[ns] = create(null);
+		transient = transient[ns];
+		transient[path || ''] = data;
+		if (this._writeLockCounter) {
+			if (!this._writeLockCache) this._writeLockCache = [];
+			this._writeLockCache.push(arguments);
+			return this.onWriteLockDrain;
+		}
+		++this._runningWriteOperations;
+		return this.__storeRaw(cat, ns, path, data).finally(function () {
+			if (transient[path || ''] === data) delete transient[path || ''];
+			if (--this._runningWriteOperations) return;
+			if (this._onWriteDrain) {
+				this._onWriteDrain.resolve();
+				delete this._onWriteDrain;
+			}
+		}.bind(this));
+	}),
 
 	_handleStoreDirect: d(function (event) {
 		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
@@ -758,22 +607,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise.finally(function () { delete this._computedInProgress[id]; }.bind(this));
 		return promise;
 	}),
-	// Reduced data
-	getReduced: d(function (key) {
-		var index, ownerId, path;
-		key = ensureString(key);
-		this._ensureOpen();
-		++this._runningOperations;
-		index = key.indexOf('/');
-		ownerId = (index !== -1) ? key.slice(0, index) : key;
-		path = (index !== -1) ? key.slice(index + 1) : null;
-		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
-	}),
-	storeReduced: d(function (key, value, stamp) {
-		key = ensureString(key);
-		this._ensureOpen();
-		return this._handleStoreReduced(key, value, stamp);
-	}),
 	_handleStoreReduced: d(function (key, value, stamp, directEvent) {
 		var index, ownerId, keyPath, promise;
 		if (this._reducedInProgress[key]) {
@@ -815,97 +648,259 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise.finally(function () { delete this._reducedInProgress[key]; }.bind(this));
 		return promise;
 	}),
-	_getReducedNs: d(function (ns, keyPaths) {
-		var initData = create(null);
-		if (this._transient.reduced[ns]) {
-			forEach(this._transient.reduced[ns], function (transientData, id) {
-				if (keyPaths && id && !keyPaths.has(id)) return;
-				initData[ns + (id && ('/' + id))] = transientData;
+
+	_searchDirect: d(function (callback) {
+		var done = create(null);
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (data, path) {
+				var id = ownerId + (path ? '/' + path : '');
+				done[id] = true;
+				callback(id, data);
+			});
+		});
+		return this._safeGet(function () {
+			return this.__searchDirect(function (id, data) {
+				if (!done[id]) callback(id, data);
+			});
+		});
+	}),
+	_searchComputed: d(function (keyPath, callback) {
+		var done = create(null), transient = this._transient.computed[keyPath];
+		if (transient) {
+			forEach(transient, function (data, ownerId) {
+				done[ownerId] = true;
+				callback(ownerId, data);
 			});
 		}
 		return this._safeGet(function () {
-			return this.__getReducedNs(ns, keyPaths)(function (data) {
-				return toArray(assign(data, initData),
-					function (data, id) { return { id: id, data: data }; }, null, byStamp);
-			}.bind(this));
+			return this.__searchComputed(keyPath, function (ownerId, data) {
+				if (!done[ownerId]) callback(ownerId, data);
+			});
 		});
 	}),
-	getReducedNs: d(function (ns/*, options*/) {
-		var keyPaths, options = arguments[1];
-		ns = ensureOwnerId(ns);
-		this._ensureOpen();
-		++this._runningOperations;
-		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getReducedNs(ns, keyPaths).finally(this._onOperationEnd);
-	}),
-	__getReducedNs: d(notImplemented),
 
-	// Storage export/import
-	export: d(function (externalStore) {
-		ensureDriver(externalStore);
+	_trackComputed: d(function (name, set, keyPath) {
+		var names, key, onAdd, onDelete, listener, setListener;
+		name = ensureString(name);
+		if (this._indexes[name]) {
+			throw customError("Index of " + stringify(name) + " was already registered",
+				'DUPLICATE_INDEX');
+		}
+		set = ensureObservableSet(set);
+		if (keyPath != null) {
+			keyPath = ensureString(keyPath);
+			names = tokenize(ensureString(keyPath));
+			key = names[names.length - 1];
+		}
 		this._ensureOpen();
-		++this._runningOperations;
-		return this._safeGet(function () {
-			return this.__exportAll(externalStore);
-		}).finally(this._onOperationEnd);
-	}),
-	clear: d(function () {
-		var transient;
-		this._ensureOpen();
-		++this._runningOperations;
-		transient = this._transient;
-		keys(transient.direct).forEach(function (key) { delete transient.direct[key]; });
-		keys(transient.computed).forEach(function (key) { delete transient.computed[key]; });
-		keys(transient.reduced).forEach(function (key) { delete transient.reduced[key]; });
-		return this._safeGet(function () {
-			++this._runningWriteOperations;
-			return this.__clear();
-		}).finally(function () {
-			if (--this._runningWriteOperations) return;
-			if (this._onWriteDrain) {
-				this._onWriteDrain.resolve();
-				delete this._onWriteDrain;
+		this._indexes[name] = {
+			type: 'computed',
+			name: name,
+			keyPath: keyPath
+		};
+		listener = function (event) {
+			var sValue, stamp, ownerId = event.target.object.master.__id__;
+			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
+			if (isSet(event.target)) {
+				sValue = [];
+				event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
+			} else {
+				sValue = serializeValue(event.newValue);
 			}
+			++this._runningOperations;
+			this._handleStoreComputed(name, ownerId, sValue, stamp).finally(this._onOperationEnd).done();
+		}.bind(this);
+		onAdd = function (owner, event) {
+			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
+			if (event) stamp = event.stamp;
+			if (keyPath) {
+				obj = ensureObject(resolveObject(owner, names));
+				if (obj.isKeyStatic(key)) {
+					value = obj[key];
+				} else {
+					value = obj._get_(key);
+					observable = obj._getObservable_(key);
+					if (!stamp) stamp = observable.lastModified;
+					if (isSet(value)) {
+						value.on('change', listener);
+						this._cleanupCalls.push(value.off.bind(value, 'change', listener));
+					} else {
+						observable.on('change', listener);
+						this._cleanupCalls.push(observable.off.bind(observable, 'change', listener));
+					}
+				}
+				if (isSet(value)) {
+					sValue = [];
+					value.forEach(function (value) { sValue.push(serializeKey(value)); });
+				} else {
+					sValue = serializeValue(value);
+				}
+			} else {
+				sValue = '11';
+			}
+			return this._handleStoreComputed(name, ownerId, sValue, stamp);
+		}.bind(this);
+		onDelete = function (owner, event) {
+			var obj, stamp = 0;
+			if (event) stamp = event.stamp;
+			if (keyPath) {
+				obj = resolveObject(owner, names);
+				if (obj && !obj.isKeyStatic(key)) obj._getObservable_(key).off('change', listener);
+			}
+			return this._handleStoreComputed(name, owner.__id__, '', stamp);
+		}.bind(this);
+		set.on('change', setListener = function (event) {
+			if (event.type === 'add') {
+				++this._runningOperations;
+				onAdd(event.value, event.dbjs).finally(this._onOperationEnd).done();
+				return;
+			}
+			if (event.type === 'delete') {
+				++this._runningOperations;
+				onDelete(event.value, event.dbjs).finally(this._onOperationEnd).done();
+				return;
+			}
+			if (event.type === 'batch') {
+				if (event.added) {
+					++this._runningOperations;
+					deferred.map(event.added, function (value) { return onAdd(value, event.dbjs); })
+						.finally(this._onOperationEnd).done();
+				}
+				if (event.deleted) {
+					++this._runningOperations;
+					deferred.map(event.deleted, function (value) { return onDelete(value, event.dbjs); })
+						.finally(this._onOperationEnd).done();
+				}
+			}
+		}.bind(this));
+		this._cleanupCalls.push(set.off.bind(set, 'change', setListener));
+		++this._runningOperations;
+		return deferred.map(aFrom(set), function (value) { return onAdd(value); })
+			.finally(this._onOperationEnd);
+	}),
+	_trackSize: d(function (name, conf) {
+		var index, ownerId, path, listener, size = 0, isInitialised = false, current, stamp;
+		if (this._indexes[name]) {
+			throw customError("Index of " + stringify(name) + " was already registered",
+				'DUPLICATE_INDEX');
+		}
+		index = name.indexOf('/');
+		ownerId = (index !== -1) ? name.slice(0, index) : name;
+		path = (index !== -1) ? name.slice(index + 1) : null;
+		listener = function (event) {
+			++this._runningOperations;
+			deferred(conf.resolveEvent(event))(function (result) {
+				var nu, old, oldData, nuData;
+				if (!result) return;
+				nu = result.nu;
+				old = result.old;
+				if (nu === old) return;
+				if (nu) ++size;
+				else --size;
+				stamp = event.data.stamp;
+				if (!isInitialised) return;
+				oldData = current;
+				if (stamp <= oldData.stamp) stamp = oldData.stamp + 1;
+				nuData = current = { value: serializeValue(size), stamp: stamp };
+				return this._handleStoreReduced(name, nuData.value, nuData.stamp, event);
+			}.bind(this)).finally(this._onOperationEnd).done();
+		}.bind(this);
+		var initialize = function (data) {
+			size = unserializeValue(data.value);
+			current = data;
+			isInitialised = true;
+			return size;
+		};
+		var getSize = function () { return size; };
+		++this._runningOperations;
+		return deferred(conf.initPromise)(function () {
+			if (conf.eventNames) {
+				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
+			} else {
+				this.on(conf.eventName, listener);
+			}
+			return this._getRaw('reduced', ownerId, path)(function (data) {
+				if (data) {
+					if (!size) return initialize(data);
+					data = {
+						value: serializeValue(unserializeValue(data.value + size)),
+						stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
+					};
+					initialize(data);
+					return this._handleStoreReduced(name, data.value, data.stamp)(getSize);
+				}
+				size = 0;
+				return conf.recalculate(getSize)(initialize);
+			}.bind(this));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	__exportAll: d(notImplemented),
-	__clear: d(notImplemented),
 
-	// Clonnection related
-	isClosed: d(false),
-	close: d(function () {
-		this._ensureOpen();
-		this.isClosed = true;
-		if (this.hasOwnProperty('_cleanupCalls')) {
-			this._cleanupCalls.forEach(function (cb) { cb(); });
-		}
-		delete this._cleanupCalls;
-		if (this._runningOperations) {
-			this._closeDeferred = deferred();
-			return this._closeDeferred.promise;
-		}
-		return this.__close();
+	_recalculateDirectSet: d(function (keyPath, searchValue) {
+		var filter = getSearchValueFilter(searchValue), result = new Set();
+		return this._searchDirect(function (id, data) {
+			var index = id.indexOf('/'), targetPath, sValue, ownerId;
+			if (!keyPath) {
+				if (index !== -1) return;
+				sValue = data.value;
+				ownerId = id;
+			} else {
+				targetPath = id.slice(id.indexOf('/') + 1);
+				if (!startsWith.call(targetPath, keyPath)) return;
+				if (targetPath !== keyPath) {
+					if (targetPath[keyPath.length] !== '*') return;
+					// Multiple
+					if (searchValue == null) return; // No support for multiple size check
+					if (typeof searchValue === 'function') return; // No support for function filter
+					if (data.value !== '11') return;
+					sValue = targetPath.slice(keyPath.length + 1);
+					if (!isDigit(sValue[0])) sValue = '3' + sValue;
+				} else {
+					// Singular
+					sValue = data.value;
+				}
+				ownerId = id.slice(0, index);
+			}
+			if (filter(sValue)) result.add(ownerId);
+		})(result);
 	}),
+	_recalculateComputedSet: d(function (keyPath, searchValue) {
+		var result = new Set();
+		return this._searchComputed(keyPath, function (ownerId, data) {
+			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
+		})(result);
+	}),
+	_recalculateMultipleSet: d(function (sizeIndexes) {
+		return deferred.map(sizeIndexes, function self(name) {
+			var meta = this._indexes[name];
+			if (meta.multiple) return deferred.map(meta.multiple, self, this);
+			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
+			return this._recalculateComputedSet(meta.keyPath, meta.searchValue);
+		}, this).invoke(flatten)(function (sets) {
+			var result;
+			sets.sort(function (a, b) { return a.size - b.size; }).forEach(function (set) {
+				if (result) {
+					result.forEach(function (item) {
+						if (!set.has(item)) result.delete(item);
+					});
+				} else {
+					result = set;
+				}
+			});
+			return result;
+		});
+	}),
+
 	_ensureOpen: d(function () {
 		if (this.isClosed) throw customError("Database not accessible", 'DB_DISCONNECTED');
 	}),
+	_safeGet: d(function (method) {
+		++this._writeLock;
+		return this.onWriteDrain(method.bind(this))
+			.finally(function () { --this._writeLock; }.bind(this));
+	}),
+
 	_runningOperations: d(0),
 	_runningWriteOperations: d(0),
-	onDrain: d.gs(function () {
-		if (!this._runningOperations) return deferred(undefined);
-		if (!this._onDrain) this._onDrain = deferred();
-		return this._onDrain.promise;
-	}),
-	onWriteDrain: d.gs(function () {
-		if (!this._runningWriteOperations) return deferred(undefined);
-		if (!this._onWriteDrain) this._onWriteDrain = deferred();
-		return this._onWriteDrain.promise;
-	}),
-	onWriteLockDrain: d.gs(function () {
-		if (!this._writeLockCounter) return this.onWriteDrain;
-		if (!this._onWriteLockDrain) this._onWriteLockDrain = deferred();
-		return this._onWriteLockDrain.promise;
-	}),
 	_writeLockCounter: d(0),
 	_writeLock: d.gs(function () {
 		return this._writeLockCounter;
@@ -917,7 +912,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			if (this._onWriteLockDrain) this._onWriteLockDrain.resolve(this.onWriteDrain);
 		}
 	}),
+
+	__getRaw: d(notImplemented),
+	__getDirectObject: d(notImplemented),
+	__getDirectAll: d(notImplemented),
+	__getReducedNs: d(notImplemented),
+	__storeRaw: d(notImplemented),
+	__searchDirect: d(notImplemented),
+	__searchComputed: d(notImplemented),
+	__exportAll: d(notImplemented),
+	__clear: d(notImplemented),
 	__close: d(notImplemented)
+
 }, autoBind({
 	emitError: d(emitError),
 	_onOperationEnd: d(function () {
