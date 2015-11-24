@@ -55,19 +55,20 @@ var byStamp = function (a, b) {
 };
 
 var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
-	var autoSaveFilter, options;
+	var autoSaveFilter, options, listener;
 	if (!(this instanceof PersistenceDriver)) return new PersistenceDriver(dbjs, arguments[1]);
 	options = Object(arguments[1]);
 	this.db = ensureDatabase(dbjs);
 	autoSaveFilter = (options.autoSaveFilter != null)
 		? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
-	dbjs.objects.on('update', this._dbjsListener = function (event) {
+	dbjs.objects.on('update', listener = function (event) {
 		if (event.sourceId === 'persistentLayer') return;
 		if (!autoSaveFilter(event)) return;
 		this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
 		++this._runningOperations;
 		this._handleStoreDirect(event).finally(this._onOperationEnd).done();
 	}.bind(this));
+	this._cleanupCalls.push(this.db.objects.off.bind(this.db.objects, 'update', listener));
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
@@ -230,7 +231,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			.finally(this._onOperationEnd);
 	}),
 	_trackComputed: d(function (name, set, keyPath) {
-		var names, key, onAdd, onDelete, listener;
+		var names, key, onAdd, onDelete, listener, setListener;
 		name = ensureString(name);
 		if (this._indexes[name]) {
 			throw customError("Index of " + stringify(name) + " was already registered",
@@ -271,8 +272,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					value = obj._get_(key);
 					observable = obj._getObservable_(key);
 					if (!stamp) stamp = observable.lastModified;
-					if (isSet(value)) value.on('change', listener);
-					else observable.on('change', listener);
+					if (isSet(value)) {
+						value.on('change', listener);
+						this._cleanupCalls.push(value.off.bind(value, 'change', listener));
+					} else {
+						observable.on('change', listener);
+						this._cleanupCalls.push(observable.off.bind(observable, 'change', listener));
+					}
 				}
 				if (isSet(value)) {
 					sValue = [];
@@ -294,7 +300,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			return this._handleStoreComputed(name, owner.__id__, '', stamp);
 		}.bind(this);
-		set.on('change', function (event) {
+		set.on('change', setListener = function (event) {
 			if (event.type === 'add') {
 				++this._runningOperations;
 				onAdd(event.value, event.dbjs).finally(this._onOperationEnd).done();
@@ -318,6 +324,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				}
 			}
 		}.bind(this));
+		this._cleanupCalls.push(set.off.bind(set, 'change', setListener));
 		++this._runningOperations;
 		return deferred.map(aFrom(set), function (value) { return onAdd(value); })
 			.finally(this._onOperationEnd);
@@ -869,7 +876,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	close: d(function () {
 		this._ensureOpen();
 		this.isClosed = true;
-		this.db.objects.off('update', this._dbjsListener);
+		if (this.hasOwnProperty('_cleanupCalls')) {
+			this._cleanupCalls.forEach(function (cb) { cb(); });
+		}
+		delete this._cleanupCalls;
 		if (this._runningOperations) {
 			this._closeDeferred = deferred();
 			return this._closeDeferred.promise;
@@ -920,6 +930,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._closeDeferred.resolve(this.__close());
 	})
 }), lazy({
+	_cleanupCalls: d(function () { return []; }),
 	_loadedEventsMap: d(function () { return create(null); }),
 	_indexes: d(function () { return create(null); }),
 	_directInProgress: d(function () { return create(null); }),
