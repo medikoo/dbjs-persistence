@@ -8,7 +8,7 @@ var aFrom        = require('es5-ext/array/from')
   , fork         = require('child_process').fork
   , ensureDriver = require('../ensure')
 
-  , create = Object.create;
+  , create = Object.create, keys = Object.keys;
 
 module.exports = function (driver, slaveScriptPath) {
 	var promise;
@@ -25,9 +25,10 @@ module.exports = function (driver, slaveScriptPath) {
 					ownerIds.add(ownerId);
 				})(function () {
 					// Apply calculations
-					return deferred.map(indexesData[name], function (data) {
-						ownerIds.delete(data.path);
-						return driver._handleStoreComputed(name, data.path, data.value, data.stamp);
+					return deferred.map(keys(indexesData[name]), function (ownerId) {
+						var data = indexesData[name][ownerId];
+						ownerIds.delete(ownerId);
+						return driver._handleStoreComputed(name, ownerId, data.value, data.stamp);
 					});
 				})(function () {
 					// Delete not used ownerids
@@ -44,7 +45,7 @@ module.exports = function (driver, slaveScriptPath) {
 				if (message.type === 'init') {
 					if (!indexes) {
 						indexes = message.indexes;
-						indexes.forEach(function (name) { indexesData[name] = []; });
+						indexes.forEach(function (name) { indexesData[name] = create(null); });
 					}
 					if (!ids.length) {
 						cleanup();
@@ -56,7 +57,7 @@ module.exports = function (driver, slaveScriptPath) {
 					return;
 				}
 				if (message.type === 'update') {
-					indexesData[message.ns].push(message);
+					indexesData[message.ns][message.path] = message;
 					return;
 				}
 				if (message.type === 'health') {
