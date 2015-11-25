@@ -60,17 +60,18 @@ module.exports = function (driver, slaveScriptPath) {
 					return;
 				}
 				if (message.type === 'health') {
-					promise.emit('progress');
 					if (!ids.length) {
 						cleanup();
 						return;
 					}
 					if (message.value < 2000) {
+						promise.emit('progress', { type: 'nextObject' });
 						driver.getDirectObject(ids.shift()).done(function (data) {
 							pool.send({ type: 'data', data: data });
 						}, def.reject);
 						return;
 					}
+					promise.emit('progress', { type: 'nextPool' });
 					reinitializePool();
 				}
 			});
