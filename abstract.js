@@ -391,6 +391,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				serializeValue(result.size + (getUpdate ? getUpdate() : 0)));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	recalculateAllSizes: d(function () {
+		return deferred.map(keys(this._indexes), function (name) {
+			if (this._indexes[name].type !== 'size') return;
+			return this.recalculateSize(name);
+		}, this)(Function.prototype);
+	}),
 
 	export: d(function (externalStore) {
 		ensureDriver(externalStore);
