@@ -294,7 +294,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			initPromise: deferred.map(dependencyPromises),
 			eventNames: uniq.call(flatten.call(sizeIndexes.map(function self(name) {
 				var meta = this._indexes[name];
-				if (meta.sizeType === 'multiple') return meta.sizeIndexes.map(self);
+				if (meta.sizeType === 'multiple') return meta.sizeIndexes.map(self, this);
 				if (meta.sizeType === 'direct') return 'direct:' + (meta.keyPath || '&');
 				return 'computed:' + meta.keyPath;
 			}, this))),
