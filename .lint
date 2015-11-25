@@ -22,5 +22,5 @@ predef+ Buffer
 ./test
 predef+ __dirname
 
-./computer/slave/index.js
+./recompute/slave/index.js
 predef+ process
