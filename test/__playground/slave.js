@@ -2,7 +2,7 @@
 
 var db = require('./db');
 
-var slave = require('../../computer/slave')(db);
+var slave = require('../../recompute/slave')(db);
 
 require('./indexes')(slave.driver);
 slave.initialize();
