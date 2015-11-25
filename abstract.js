@@ -199,8 +199,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			eventName: 'direct:' + (keyPath || '&'),
 			meta: {
 				type: 'size',
+				sizeType: 'direct',
 				name: name,
-				direct: true,
 				keyPath: keyPath,
 				searchValue: searchValue,
 				filter: filter
@@ -243,6 +243,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			eventName: 'computed:' + keyPath,
 			meta: {
 				type: 'size',
+				sizeType: 'computed',
 				name: name,
 				keyPath: keyPath,
 				searchValue: searchValue
@@ -267,8 +268,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
 		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
-		sizeIndexes.forEach(function (name) {
-			var meta = this._indexes[ensureString(name)];
+		sizeIndexes.forEach(function self(name) {
+			var meta = this._indexes[ensureString(name)], keyPath;
 			if (!meta) {
 				throw customError("No index for " + stringify(name) + " was setup", 'DUPLICATE_INDEX');
 			}
@@ -276,11 +277,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				throw customError("Index " + stringify(name) + " is not of \"size\" type as expected",
 					'NOT_SUPPORTED_INDEX');
 			}
-			if (metas[meta.keyPath]) {
-				if (!isArray(metas[meta.keyPath])) metas[meta.keyPath] = [metas[meta.keyPath]];
-				metas[meta.keyPath].push(meta);
+			if (meta.sizeType === 'multiple') {
+				meta.sizeIndexes.forEach(self);
+				return;
+			}
+			keyPath = meta.keyPath || '&';
+			if (metas[keyPath]) {
+				if (!isArray(metas[keyPath])) metas[keyPath] = [metas[keyPath]];
+				metas[keyPath].push(meta);
 			} else {
-				metas[meta.keyPath] = meta;
+				metas[keyPath] = meta;
 			}
 			dependencyPromises.push(meta.promise);
 		}, this);
@@ -288,17 +294,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			initPromise: deferred.map(dependencyPromises),
 			eventNames: uniq.call(flatten.call(sizeIndexes.map(function self(name) {
 				var meta = this._indexes[name];
-				if (meta.multiple) return meta.multiple.map(self);
-				if (meta.direct) return 'direct:' + (meta.keyPath || '&');
+				if (meta.sizeType === 'multiple') return meta.sizeIndexes.map(self);
+				if (meta.sizeType === 'direct') return 'direct:' + (meta.keyPath || '&');
 				return 'computed:' + meta.keyPath;
 			}, this))),
 			meta: {
 				type: 'size',
+				sizeType: 'multiple',
 				name: name,
-				multiple: sizeIndexes
+				sizeIndexes: sizeIndexes
 			},
 			resolveEvent: function (event) {
-				var ownerId = event.ownerId, nu, old, meta = metas[event.keyPath]
+				var ownerId = event.ownerId, nu, old, meta = metas[event.keyPath || '&']
 				  , searchValue, value, diff;
 				var checkMeta = function (meta) {
 					if (event.type === 'direct') {
@@ -336,12 +343,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				return deferred.every(sizeIndexes, function self(name) {
 					var meta = this._indexes[name], keyPath;
 					if (event.keyPath === meta.keyPath) return true;
-					if (meta.multiple) return deferred.every(meta.multiple, self, this);
-					if (meta.direct) {
+					if (meta.sizeType === 'multiple') return deferred.every(meta.sizeIndexes, self, this);
+					if (meta.sizeType === 'direct') {
 						keyPath = meta.keyPath;
 						return this._getRaw('direct', ownerId, keyPath)(function (data) {
 							var searchValue;
 							if (data) return meta.filter(data.value);
+							if (!keyPath) return false;
 							if (meta.searchValue == null) return false;
 							if (typeof meta.searchValue === 'function') return false;
 							searchValue = meta.searchValue;
@@ -371,9 +379,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		if (getUpdate != null) ensureCallable(getUpdate);
 		++this._runningOperations;
-		if (meta.direct) promise = this._recalculateDirectSet(meta.keyPath, meta.searchValue);
-		else if (meta.multiple) promise = this._recalculateMultipleSet(meta.multiple);
-		else promise = this._recalculateComputedSet(meta.keyPath, meta.searchValue);
+		if (meta.sizeType === 'direct') {
+			promise = this._recalculateDirectSet(meta.keyPath, meta.searchValue);
+		} else if (meta.sizeType === 'multiple') {
+			promise = this._recalculateMultipleSet(meta.sizeIndexes);
+		} else {
+			promise = this._recalculateComputedSet(meta.keyPath, meta.searchValue);
+		}
 		return promise(function (result) {
 			return this._handleStoreReduced(name,
 				serializeValue(result.size + (getUpdate ? getUpdate() : 0)));
@@ -865,8 +877,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_recalculateMultipleSet: d(function (sizeIndexes) {
 		return deferred.map(sizeIndexes, function self(name) {
 			var meta = this._indexes[name];
-			if (meta.multiple) return deferred.map(meta.multiple, self, this);
-			if (meta.direct) return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
+			if (meta.sizeType === 'multiple') return deferred.map(meta.sizeIndexes, self, this);
+			if (meta.sizeType === 'direct') {
+				return this._recalculateDirectSet(meta.keyPath, meta.searchValue);
+			}
 			return this._recalculateComputedSet(meta.keyPath, meta.searchValue);
 		}, this).invoke(flatten)(function (sets) {
 			var result;
