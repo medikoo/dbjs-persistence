@@ -192,12 +192,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
 
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]), promise;
+		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
-		promise = this._trackSize(name, {
+		return this._trackSize(name, {
 			eventName: 'direct:' + (keyPath || '&'),
-			recalculate: this.recalculateDirectSize.bind(this, name, keyPath, searchValue),
+			meta: {
+				type: 'size',
+				name: name,
+				direct: true,
+				keyPath: keyPath,
+				searchValue: searchValue,
+				filter: filter
+			},
 			resolveEvent: function (event) {
 				var targetPath, sValue;
 				if (!keyPath) {
@@ -227,24 +234,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 			}
 		});
-		this._indexes[name] = {
-			type: 'size',
-			name: name,
-			direct: true,
-			keyPath: keyPath,
-			searchValue: searchValue,
-			filter: filter,
-			promise: promise
-		};
-		return promise;
 	}),
 	trackComputedSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2], promise;
+		var searchValue = arguments[2];
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
-		promise = this._trackSize(name, {
+		return this._trackSize(name, {
 			eventName: 'computed:' + keyPath,
-			recalculate: this.recalculateComputedSize.bind(this, name, keyPath, searchValue),
+			meta: {
+				type: 'size',
+				name: name,
+				keyPath: keyPath,
+				searchValue: searchValue
+			},
 			resolveEvent: function (event) {
 				return {
 					nu: resolveFilter(searchValue, event.data.value),
@@ -252,14 +254,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 			}
 		});
-		this._indexes[name] = {
-			type: 'size',
-			name: name,
-			keyPath: keyPath,
-			searchValue: searchValue,
-			promise: promise
-		};
-		return promise;
 	}),
 	trackCollectionSize: d(function (name, set) {
 		var indexName = 'sizeIndex/' + ensureString(name);
@@ -269,7 +263,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		);
 	}),
 	trackMultipleSize: d(function (name, sizeIndexes) {
-		var promise, dependencyPromises = [], metas = create(null);
+		var dependencyPromises = [], metas = create(null);
 		name = ensureString(name);
 		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
 		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
@@ -290,7 +284,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 			dependencyPromises.push(meta.promise);
 		}, this);
-		promise = this._trackSize(name, {
+		return this._trackSize(name, {
 			initPromise: deferred.map(dependencyPromises),
 			eventNames: uniq.call(flatten.call(sizeIndexes.map(function self(name) {
 				var meta = this._indexes[name];
@@ -298,11 +292,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (meta.direct) return 'direct:' + (meta.keyPath || '&');
 				return 'computed:' + meta.keyPath;
 			}, this))),
-			recalculate: function (getSizeUpdate) {
-				return this._recalculateMultipleSet(sizeIndexes)(function (result) {
-					return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
-				}.bind(this));
-			}.bind(this),
+			meta: {
+				type: 'size',
+				name: name,
+				multiple: sizeIndexes
+			},
 			resolveEvent: function (event) {
 				var ownerId = event.ownerId, nu, old, meta = metas[event.keyPath]
 				  , searchValue, value, diff;
@@ -367,29 +361,22 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				});
 			}.bind(this)
 		});
-		this._indexes[name] = {
-			type: 'size',
-			name: name,
-			multiple: sizeIndexes,
-			promise: promise
-		};
-		return promise;
 	}),
 
-	recalculateDirectSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
-		name = ensureString(name);
-		if (keyPath != null) keyPath = ensureString(keyPath);
+	recalculateSize: d(function (name/*, getUpdate*/) {
+		var meta = this._indexes[ensureString(name)], getUpdate = arguments[1], promise;
+		if (!meta) throw new Error("There's no index registered for " + stringify(name));
+		if (meta.type !== 'size') {
+			throw new Error("Registered " + stringify(name) + " index is not size index");
+		}
+		if (getUpdate != null) ensureCallable(getUpdate);
 		++this._runningOperations;
-		return this._recalculateDirectSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
-		}.bind(this)).finally(this._onOperationEnd);
-	}),
-	recalculateComputedSize: d(function (name, keyPath, searchValue, getSizeUpdate) {
-		name = ensureString(name);
-		keyPath = ensureString(keyPath);
-		++this._runningOperations;
-		return this._recalculateComputedSet(keyPath, searchValue)(function (result) {
-			return this._handleStoreReduced(name, serializeValue(result.size + getSizeUpdate()));
+		if (meta.direct) promise = this._recalculateDirectSet(meta.keyPath, meta.searchValue);
+		else if (meta.multiple) promise = this._recalculateMultipleSet(meta.multiple);
+		else promise = this._recalculateComputedSet(meta.keyPath, meta.searchValue);
+		return promise(function (result) {
+			return this._handleStoreReduced(name,
+				serializeValue(result.size + (getUpdate ? getUpdate() : 0)));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 
@@ -817,8 +804,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return size;
 		};
 		var getSize = function () { return size; };
+		this._indexes[name] = conf.meta;
 		++this._runningOperations;
-		return deferred(conf.initPromise)(function () {
+		return (conf.meta.promise = deferred(conf.initPromise)(function () {
 			if (conf.eventNames) {
 				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
 			} else {
@@ -835,9 +823,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					return this._handleStoreReduced(name, data.value, data.stamp)(getSize);
 				}
 				size = 0;
-				return conf.recalculate(getSize)(initialize);
+				return this.recalculateSize(name, getSize)(initialize);
 			}.bind(this));
-		}.bind(this)).finally(this._onOperationEnd);
+		}.bind(this)).finally(this._onOperationEnd));
 	}),
 
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
