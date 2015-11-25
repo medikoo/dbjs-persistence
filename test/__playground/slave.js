@@ -4,5 +4,5 @@ var db = require('./db');
 
 var slave = require('../../recompute/slave')(db);
 
-require('./indexes')(slave.driver);
+require('./indexes')(slave.driver).done();
 slave.initialize();

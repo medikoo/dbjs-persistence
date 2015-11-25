@@ -3,12 +3,14 @@
 'use strict';
 
 var toArray           = require('es5-ext/array/to-array')
+  , customError       = require('es5-ext/error/custom')
   , ensureIterable    = require('es5-ext/iterable/validate-object')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , d                 = require('d')
   , deferred          = require('deferred')
   , PersistenceDriver = require('../../abstract')
 
+  , stringify = JSON.stringify
   , resolved = deferred(undefined);
 
 var ComputerDriver = module.exports = Object.defineProperties(function (dbjs) {
@@ -34,6 +36,15 @@ ComputerDriver.prototype = Object.create(PersistenceDriver.prototype, {
 		return resolved;
 	}),
 
+	_trackSize: d(function (name, conf) {
+		if (this._indexes[name]) {
+			throw customError("Index of " + stringify(name) + " was already registered",
+				'DUPLICATE_INDEX');
+		}
+		this._indexes[name] = conf.meta;
+		return resolved;
+	}),
+
 	// Connection related
-	__close: d(function () { return deferred(undefined); }) // Nothing to close
+	__close: d(function () { return resolved; }) // Nothing to close
 });
