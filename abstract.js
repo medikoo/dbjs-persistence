@@ -582,14 +582,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise = this._getRaw('computed', ns, path)(function (old) {
 			var nu, promise;
 			if (old) {
-				if (old.stamp >= stamp) {
-					if (isArray(value)) {
-						if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
-							return deferred(null);
-						}
-					} else {
-						if (old.value === value) return deferred(null);
+				if (isArray(value)) {
+					if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
+						return deferred(null);
 					}
+				} else {
+					if (old.value === value) return deferred(null);
+				}
+				if (old.stamp >= stamp) {
 					stamp = old.stamp + 1; // most likely model update
 				}
 			}
@@ -630,11 +630,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise = this._getRaw('reduced', ownerId, keyPath)(function (oldData) {
 			var data, promise, driverEvent;
 			if (oldData) {
-				if (oldData.value === value) {
-					if (!stamp || (stamp <= oldData.stamp)) return;
-				} else if (!stamp || (stamp <= oldData.stamp)) {
-					stamp = oldData.stamp + 1;
-				}
+				if (oldData.value === value) return;
+				if (!stamp || (stamp <= oldData.stamp)) stamp = oldData.stamp + 1;
 			} else if (!stamp) {
 				stamp = getStamp();
 			}
