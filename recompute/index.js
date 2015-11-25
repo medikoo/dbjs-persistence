@@ -32,7 +32,7 @@ module.exports = function (driver, slaveScriptPath) {
 				})(function () {
 					// Delete not used ownerids
 					deferred.map(aFrom(ownerIds), function (ownerId) {
-						return driver._handleStoreComputed(name, ownerId, '', getStamp);
+						return driver._handleStoreComputed(name, ownerId, '', getStamp());
 					});
 				});
 			}));
