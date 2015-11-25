@@ -11,9 +11,10 @@ var aFrom        = require('es5-ext/array/from')
   , create = Object.create;
 
 module.exports = function (driver, slaveScriptPath) {
+	var promise;
 	ensureDriver(driver);
 	slaveScriptPath = ensureString(slaveScriptPath);
-	return driver.getDirectAllObjectIds()(function (ids) {
+	promise = driver.getDirectAllObjectIds()(function (ids) {
 		var indexes, indexesData = create(null), def = deferred(), pool;
 		var cleanup = function () {
 			pool.kill();
@@ -59,6 +60,7 @@ module.exports = function (driver, slaveScriptPath) {
 					return;
 				}
 				if (message.type === 'health') {
+					promise.emit('progress');
 					if (!ids.length) {
 						cleanup();
 						return;
@@ -81,4 +83,5 @@ module.exports = function (driver, slaveScriptPath) {
 		reinitializePool();
 		return def.promise;
 	});
+	return promise;
 };
