@@ -278,7 +278,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					'NOT_SUPPORTED_INDEX');
 			}
 			if (meta.sizeType === 'multiple') {
-				meta.sizeIndexes.forEach(self);
+				meta.sizeIndexes.forEach(self, this);
 				return;
 			}
 			keyPath = meta.keyPath || '&';
