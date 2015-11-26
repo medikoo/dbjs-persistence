@@ -669,17 +669,26 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return promise;
 	}),
 
-	_searchDirect: d(function (callback) {
+	_searchDirect: d(function (keyPath, callback) {
 		var done = create(null);
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, path) {
-				var id = ownerId + (path ? '/' + path : '');
+				var id;
+				if (!keyPath) {
+					if (path) return;
+				} else {
+					if (!path) return;
+					if (keyPath !== path) {
+						if (!startsWith.call(path, keyPath + '*')) return;
+					}
+				}
+				id = ownerId + (path ? '/' + path : '');
 				done[id] = true;
 				callback(id, data);
 			});
 		});
 		return this._safeGet(function () {
-			return this.__searchDirect(function (id, data) {
+			return this.__searchDirect(keyPath, function (id, data) {
 				if (!done[id]) callback(id, data);
 			});
 		});
@@ -858,22 +867,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
 		var filter = getSearchValueFilter(searchValue), result = new Set();
-		return this._searchDirect(function (id, data) {
-			var index = id.indexOf('/'), targetPath, sValue, ownerId;
+		return this._searchDirect(keyPath, function (id, data) {
+			var index = id.indexOf('/'), path, sValue, ownerId;
 			if (!keyPath) {
-				if (index !== -1) return;
 				sValue = data.value;
 				ownerId = id;
 			} else {
-				targetPath = id.slice(id.indexOf('/') + 1);
-				if (!startsWith.call(targetPath, keyPath)) return;
-				if (targetPath !== keyPath) {
-					if (targetPath[keyPath.length] !== '*') return;
+				path = id.slice(id.indexOf('/') + 1);
+				if (path !== keyPath) {
 					// Multiple
 					if (searchValue == null) return; // No support for multiple size check
 					if (typeof searchValue === 'function') return; // No support for function filter
 					if (data.value !== '11') return;
-					sValue = targetPath.slice(keyPath.length + 1);
+					sValue = path.slice(keyPath.length + 1);
 					if (!isDigit(sValue[0])) sValue = '3' + sValue;
 				} else {
 					// Singular

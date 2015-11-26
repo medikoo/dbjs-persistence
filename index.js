@@ -8,6 +8,7 @@ var assign            = require('es5-ext/object/assign')
   , toArray           = require('es5-ext/object/to-array')
   , ensureObject      = require('es5-ext/object/valid-object')
   , ensureString      = require('es5-ext/object/validate-stringifiable-value')
+  , startsWith        = require('es5-ext/string/#/starts-with')
   , d                 = require('d')
   , memoizeMethods    = require('memoizee/methods')
   , deferred          = require('deferred')
@@ -140,12 +141,19 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Size tracking
-	__searchDirect: d(function (callback) {
+	__searchDirect: d(function (keyPath, callback) {
 		return this.__getDirectAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
-				forEach(map, function (data, keyPath) {
-					var postfix = keyPath === '.' ? '' : '/' + keyPath;
-					callback(ownerId + postfix, data);
+				if (!keyPath) {
+					if (map['.']) callback(ownerId, map['.']);
+					return;
+				}
+				forEach(map, function (data, path) {
+					if (!path) return;
+					if (keyPath !== path) {
+						if (!startsWith.call(path, keyPath + '*')) return;
+					}
+					callback(ownerId + '/' + path, data);
 				});
 			});
 		}, this);
