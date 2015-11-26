@@ -183,7 +183,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var index, ownerId, path;
 		id = ensureString(id);
 		value = ensureString(value);
-		stamp = ensureNaturalNumber(stamp);
+		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : getStamp();
 		index = id.indexOf('/');
 		ownerId = (index !== -1) ? id.slice(0, index) : id;
 		path = (index !== -1) ? id.slice(index + 1) : null;
