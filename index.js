@@ -91,9 +91,17 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	__getDirectAllObjectIds: d(function () {
 		return this.dbDir()(function () {
-			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (data) {
-				return data.filter(isId).sort();
-			}, function (e) {
+			var data = create(null);
+			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
+				return deferred.map(names, function (id) {
+					if (!isId(id)) return;
+					return this._getDirectStorage(id)(function (map) {
+						data[id] = map['.'] || { stamp: 0 };
+					});
+				}, this)(function () {
+					return toArray(data, function (el, id) { return id; }, this, byStamp);
+				});
+			}.bind(this), function (e) {
 				if (e.code === 'ENOENT') return [];
 				throw e;
 			});
