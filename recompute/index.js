@@ -15,7 +15,7 @@ module.exports = function (driver, slaveScriptPath) {
 	ensureDriver(driver);
 	slaveScriptPath = ensureString(slaveScriptPath);
 	promise = driver.getDirectAllObjectIds()(function (ids) {
-		var indexes, indexesData = create(null), def = deferred(), pool;
+		var indexes, indexesData = create(null), def = deferred(), pool, count = 0;
 		var cleanup = function () {
 			pool.kill();
 			def.resolve(deferred.map(indexes, function (name) {
@@ -66,7 +66,7 @@ module.exports = function (driver, slaveScriptPath) {
 						return;
 					}
 					if (message.value < 2000) {
-						promise.emit('progress', { type: 'nextObject' });
+						if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
 						driver.getDirectObject(ids.shift()).done(function (data) {
 							pool.send({ type: 'data', data: data });
 						}, def.reject);
