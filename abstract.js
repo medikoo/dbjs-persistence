@@ -40,6 +40,7 @@ var aFrom                 = require('es5-ext/array/from')
   , ensureDriver          = require('./ensure')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
   , resolveFilter         = require('./lib/resolve-filter')
+  , resolveDirectFilter   = require('./lib/resolve-direct-filter')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
@@ -207,7 +208,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
 
 	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
-		var searchValue = arguments[2], filter = getSearchValueFilter(arguments[2]);
+		var searchValue = arguments[2];
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		return this._trackSize(name, {
@@ -217,35 +218,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				sizeType: 'direct',
 				name: name,
 				keyPath: keyPath,
-				searchValue: searchValue,
-				filter: filter
+				searchValue: searchValue
 			},
 			resolveEvent: function (event) {
-				var targetPath, sValue;
-				if (!keyPath) {
-					return {
-						old: Boolean(event.old && filter(event.old.value)),
-						nu: filter(event.data.value)
-					};
-				}
-
-				targetPath = event.id.slice(event.id.indexOf('/') + 1);
-				if (targetPath !== keyPath) {
-					// Multiple
-					if (searchValue == null) return; // No support for multiple size validation
-					if (typeof searchValue === 'function') return; // No support for function filter
-					sValue = targetPath.slice(keyPath.length + 1);
-					if (!isDigit(sValue[0])) sValue = '3' + sValue;
-					if (sValue !== searchValue) return;
-					return {
-						old: Boolean(event.old && (event.old.value === '11')),
-						nu: (event.data.value === '11')
-					};
-				}
-				// Singular
 				return {
-					old: Boolean(event.old && filter(event.old.value)),
-					nu: filter(event.data.value)
+					nu: resolveDirectFilter(searchValue, event.data.value, event.id),
+					old: Boolean(event.old && resolveDirectFilter(searchValue, event.old.value, event.id))
 				};
 			}
 		});
@@ -320,25 +298,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				sizeIndexes: sizeIndexes
 			},
 			resolveEvent: function (event) {
-				var ownerId = event.ownerId, nu, old, meta = metas[event.keyPath || '&']
-				  , searchValue, value, diff;
+				var ownerId = event.ownerId, nu, old, meta = metas[event.keyPath || '&'], diff;
 				var checkMeta = function (meta) {
 					if (event.type === 'direct') {
-						if (event.keyPath === event.path) {
-							// Singular
-							old = Boolean(event.old && meta.filter(event.old.value));
-							nu = meta.filter(event.data.value);
-						} else {
-							// Multiple
-							if ((meta.searchValue == null) || (typeof meta.searchValue === 'function')) return;
-							searchValue = meta.searchValue;
-							if (searchValue[0] === '3') searchValue = serializeKey(unserializeValue(searchValue));
-							value = event.path.slice(event.keyPath.length + 1);
-							if (!isDigit(value[0])) value = '3' + value;
-							if (value !== searchValue) return;
-							old = Boolean(event.old && (event.old.value === '11'));
-							nu = (event.data.value === '11');
-						}
+						nu = resolveDirectFilter(meta.searchValue, event.data.value, event.id);
+						old = Boolean(event.old && resolveDirectFilter(meta.searchValue,
+							event.old.value, event.id));
 					} else {
 						old = resolveFilter(meta.searchValue, event.old ? event.old.value : '');
 						nu = resolveFilter(meta.searchValue, event.data.value);
@@ -363,7 +328,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						keyPath = meta.keyPath;
 						return this._getRaw('direct', ownerId, keyPath)(function (data) {
 							var searchValue;
-							if (data) return meta.filter(data.value);
+							if (data) {
+								return resolveDirectFilter(meta.searchValue, data.value,
+									ownerId + (keyPath ? ('/' + keyPath) : ''));
+							}
 							if (!keyPath) return false;
 							if (meta.searchValue == null) return false;
 							if (typeof meta.searchValue === 'function') return false;
