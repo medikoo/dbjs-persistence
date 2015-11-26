@@ -11,6 +11,7 @@ var aFrom                 = require('es5-ext/array/from')
   , customError           = require('es5-ext/error/custom')
   , ensureIterable        = require('es5-ext/iterable/validate-object')
   , assign                = require('es5-ext/object/assign')
+  , ensureNaturalNumber   = require('es5-ext/object/ensure-natural-number')
   , forEach               = require('es5-ext/object/for-each')
   , toArray               = require('es5-ext/object/to-array')
   , ensureCallable        = require('es5-ext/object/valid-callable')
@@ -66,7 +67,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 		if (!autoSaveFilter(event)) return;
 		this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
 		++this._runningOperations;
-		this._handleStoreDirect(event).finally(this._onOperationEnd).done();
+		this._storeEvent(event).finally(this._onOperationEnd).done();
 	}.bind(this));
 	this._cleanupCalls.push(this.db.objects.off.bind(this.db.objects, 'update', listener));
 }, {
@@ -170,13 +171,24 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		event = ensureObject(event);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._handleStoreDirect(event).finally(this._onOperationEnd);
+		return this._storeEvent(event).finally(this._onOperationEnd);
 	}),
 	storeEvents: d(function (events) {
 		events = ensureArray(events);
 		this._ensureOpen();
 		++this._runningOperations;
-		return deferred.map(events, this._handleStoreDirect, this).finally(this._onOperationEnd);
+		return deferred.map(events, this._storeEvent, this).finally(this._onOperationEnd);
+	}),
+	storeDirect: d(function (id, value, stamp) {
+		var index, ownerId, path;
+		id = ensureString(id);
+		value = ensureString(value);
+		stamp = ensureNaturalNumber(stamp);
+		index = id.indexOf('/');
+		ownerId = (index !== -1) ? id.slice(0, index) : id;
+		path = (index !== -1) ? id.slice(index + 1) : null;
+		++this._runningOperations;
+		this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
 	storeReduced: d(function (key, value, stamp) {
 		key = ensureString(key);
@@ -536,32 +548,33 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}
 		}.bind(this));
 	}),
-
-	_handleStoreDirect: d(function (event) {
-		var id = event.object.__valueId__, ownerId, targetPath, nu, keyPath, promise;
-		if (this._directInProgress[id]) {
-			return this._directInProgress[id](this._handleStoreDirect.bind(this, event));
-		}
+	_storeEvent: d(function (event) {
+		var ownerId, id;
+		id = event.object.__valueId__;
 		ownerId = event.object.master.__id__;
-		targetPath = id.slice(ownerId.length + 1) || null;
-		nu = { value: serializeValue(event.value), stamp: event.stamp };
-		if (targetPath) {
-			keyPath = (event.object._kind_ === 'item')
-				? targetPath.slice(0, -(event.object._sKey_.length + 1)) : targetPath;
-		} else {
-			keyPath = null;
+		return this._handleStoreDirect(ownerId, id.slice(ownerId.length + 1) || null,
+			serializeValue(event.value), event.stamp);
+	}),
+
+	_handleStoreDirect: d(function (ownerId, path, value, stamp) {
+		var id = ownerId + (path ? ('/' + path) : ''), nu, keyPath, promise;
+		if (this._directInProgress[id]) {
+			return this._directInProgress[id](this._handleStoreDirect.bind(this,
+				ownerId, path, value, stamp));
 		}
-		promise = this._getRaw('direct', ownerId, targetPath)(function (old) {
+		nu = { value: value, stamp: stamp };
+		keyPath = path ? resolveKeyPath(id) : null;
+		promise = this._getRaw('direct', ownerId, path)(function (old) {
 			var promise;
 			if (old && (old.stamp >= nu.stamp)) return;
-			debug("direct update %s %s", id, event.stamp);
-			promise = this._storeRaw('direct', ownerId, targetPath, nu);
+			debug("direct update %s %s", id, stamp);
+			promise = this._storeRaw('direct', ownerId, path, nu);
 			var driverEvent = {
 				type: 'direct',
 				id: id,
 				ownerId: ownerId,
 				keyPath: keyPath,
-				path: targetPath,
+				path: path,
 				data: nu,
 				old: old
 			};
