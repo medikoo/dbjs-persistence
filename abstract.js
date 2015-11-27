@@ -642,8 +642,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 
 	_searchDirect: d(function (keyPath, callback) {
-		var done = create(null);
-		var isComplete = some(this._transient.direct, function (ownerData, ownerId) {
+		var done = create(null), result;
+		some(this._transient.direct, function (ownerData, ownerId) {
 			return some(ownerData, function (data, path) {
 				var id;
 				if (!keyPath) {
@@ -656,14 +656,22 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				}
 				id = ownerId + (path ? '/' + path : '');
 				done[id] = true;
-				return callback(id, data);
+				if (callback(id, data)) {
+					result = { id: id, data: data };
+					return true;
+				}
 			});
 		});
-		if (isComplete) return deferred(undefined);
+		if (result) return deferred(result);
 		return this._safeGet(function () {
+			var result;
 			return this.__searchDirect(keyPath, function (id, data) {
-				if (!done[id]) return callback(id, data);
-			});
+				if (done[id]) return;
+				if (callback(id, data)) {
+					result = { id: id, data: data };
+					return true;
+				}
+			})(function () { return result; });
 		});
 	}),
 	_searchComputed: d(function (keyPath, callback) {
