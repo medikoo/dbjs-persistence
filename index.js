@@ -254,6 +254,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
+						if (!data[0] || !data[1] || !data[2]) return;
 						value = data[2];
 						if (value === '-') value = '';
 						map[data[0]] = {
@@ -277,6 +278,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
+						if (!data[0] || !data[1] || !data[2]) return;
 						value = data[2];
 						if (value[0] === '[') value = parse(data[2]);
 						else if (value === '-') value = '';
@@ -301,6 +303,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 				try {
 					String(data).split('\n\n').forEach(function (data) {
 						data = data.split('\n');
+						if (!data[0] || !data[1] || !data[2]) return;
 						value = data[2];
 						if (value[0] === '[') value = parse(data[2]);
 						else if (value === '-') value = '';
