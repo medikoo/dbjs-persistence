@@ -13,6 +13,7 @@ var aFrom                 = require('es5-ext/array/from')
   , assign                = require('es5-ext/object/assign')
   , ensureNaturalNumber   = require('es5-ext/object/ensure-natural-number')
   , forEach               = require('es5-ext/object/for-each')
+  , some                  = require('es5-ext/object/some')
   , toArray               = require('es5-ext/object/to-array')
   , ensureCallable        = require('es5-ext/object/valid-callable')
   , ensureObject          = require('es5-ext/object/valid-object')
@@ -642,8 +643,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	_searchDirect: d(function (keyPath, callback) {
 		var done = create(null);
-		forEach(this._transient.direct, function (ownerData, ownerId) {
-			forEach(ownerData, function (data, path) {
+		var isComplete = some(this._transient.direct, function (ownerData, ownerId) {
+			return some(ownerData, function (data, path) {
 				var id;
 				if (!keyPath) {
 					if (path) return;
@@ -655,22 +656,24 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				}
 				id = ownerId + (path ? '/' + path : '');
 				done[id] = true;
-				callback(id, data);
+				return callback(id, data);
 			});
 		});
+		if (isComplete) return deferred(undefined);
 		return this._safeGet(function () {
 			return this.__searchDirect(keyPath, function (id, data) {
-				if (!done[id]) callback(id, data);
+				if (!done[id]) return callback(id, data);
 			});
 		});
 	}),
 	_searchComputed: d(function (keyPath, callback) {
-		var done = create(null), transient = this._transient.computed[keyPath];
+		var done = create(null), transient = this._transient.computed[keyPath], isComplete;
 		if (transient) {
-			forEach(transient, function (data, ownerId) {
+			isComplete = some(transient, function (data, ownerId) {
 				done[ownerId] = true;
-				callback(ownerId, data);
+				return callback(ownerId, data);
 			});
+			if (isComplete) return deferred(undefined);
 		}
 		return this._safeGet(function () {
 			return this.__searchComputed(keyPath, function (ownerId, data) {

@@ -5,6 +5,7 @@
 var assign            = require('es5-ext/object/assign')
   , forEach           = require('es5-ext/object/for-each')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
+  , some              = require('es5-ext/object/some')
   , toArray           = require('es5-ext/object/to-array')
   , ensureObject      = require('es5-ext/object/valid-object')
   , ensureString      = require('es5-ext/object/validate-stringifiable-value')
@@ -142,25 +143,24 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	__searchDirect: d(function (keyPath, callback) {
-		return this.__getDirectAllObjectIds().map(function (ownerId) {
+		return this.__getDirectAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
 				if (!keyPath) {
-					if (map['.']) callback(ownerId, map['.']);
-					return;
+					if (map['.']) return callback(ownerId, map['.']);
 				}
-				forEach(map, function (data, path) {
+				return some(map, function (data, path) {
 					if (!path) return;
 					if (keyPath !== path) {
 						if (!startsWith.call(path, keyPath + '*')) return;
 					}
-					callback(ownerId + '/' + path, data);
+					return callback(ownerId + '/' + path, data);
 				});
 			});
-		}, this);
+		}, this)(Function.prototype);
 	}),
 	__searchComputed: d(function (keyPath, callback) {
 		return this._getComputedStorage(keyPath)(function (map) {
-			forEach(map, function (data, ownerId) { callback(ownerId, data); });
+			some(map, function (data, ownerId) { return callback(ownerId, data); });
 		});
 	}),
 
