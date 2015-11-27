@@ -189,7 +189,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		ownerId = (index !== -1) ? id.slice(0, index) : id;
 		path = (index !== -1) ? id.slice(index + 1) : null;
 		++this._runningOperations;
-		this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
+		return this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
 	storeReduced: d(function (key, value, stamp) {
 		key = ensureString(key);
