@@ -142,7 +142,7 @@ module.exports = function (opts, copyOpts) {
 					a.deep(data.map(function (data) { return data.id; }), ['fooBar', 'fooBar/miszka']);
 				});
 			})(function () {
-				return driver.getReducedNs('miszkaAll')(function (result) {
+				return driver.getReducedObject('miszkaAll')(function (result) {
 					a.deep(result, [{ id: 'miszkaAll', data: result[0].data }]);
 					a.deep(result[0].data.value, '23');
 				});

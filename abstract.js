@@ -150,13 +150,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this.__getDirectAllObjectIds().finally(this._onOperationEnd);
 	}),
-	getReducedNs: d(function (ns/*, options*/) {
+	getReducedObject: d(function (ns/*, options*/) {
 		var keyPaths, options = arguments[1];
 		ns = ensureOwnerId(ns);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getReducedNs(ns, keyPaths).finally(this._onOperationEnd);
+		return this._getReducedObject(ns, keyPaths).finally(this._onOperationEnd);
 	}),
 
 	load: d(function (id) {
@@ -491,7 +491,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		});
 	}),
-	_getReducedNs: d(function (ns, keyPaths) {
+	_getReducedObject: d(function (ns, keyPaths) {
 		var initData = create(null);
 		if (this._transient.reduced[ns]) {
 			forEach(this._transient.reduced[ns], function (transientData, id) {
@@ -500,7 +500,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			});
 		}
 		return this._safeGet(function () {
-			return this.__getReducedNs(ns, keyPaths)(function (data) {
+			return this.__getReducedObject(ns, keyPaths)(function (data) {
 				return toArray(assign(data, initData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
@@ -947,7 +947,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__getDirectObject: d(notImplemented),
 	__getDirectAll: d(notImplemented),
 	__getDirectAllObjectIds: d(notImplemented),
-	__getReducedNs: d(notImplemented),
+	__getReducedObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
 	__searchDirect: d(notImplemented),
 	__searchComputed: d(notImplemented),
