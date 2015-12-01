@@ -1,3 +1,21 @@
+v0.0.11  --  2015.12.01
+* Introduce `recompute` utilities to recalculate computed data in outer process
+* Introduce
+  - getDirectAllObjectIds
+  - getDirectObjectKeyPath
+  - searchDirect
+  - recalculateAllSizes
+* Replace recalculateDiretSize and recalculateComputedSize with recalculateSize
+* Rename getReducedNs to getReducedObject
+* Allow early return in search* methods, and make breaking record a resolution value
+  (they work similarily to `find` now)
+* Unify events names and structure
+* Do not emit 'size' events ('reduced' events should be observed instead)
+* Emit 'record' events (allows registration for specific ownerId + keyPath)
+* Ensure all registered listeners are unbound on close
+* Improve handling of bogus storages in TextFile driver
+* Reorganise and cleanup internals
+
 v0.0.10  --  2015.11.18
 * Significant reorganisation and improvements to internal logic
 * Removed various race condition vulnerabilities
