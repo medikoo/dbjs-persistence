@@ -1,3 +1,6 @@
+v0.0.12  --  2015.12.01
+* Fix `record` events dispatch
+
 v0.0.11  --  2015.12.01
 * Introduce `recompute` utilities to recalculate computed data in outer process
 * Introduce
