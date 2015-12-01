@@ -568,7 +568,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			};
 			this.emit('direct:' + (keyPath || '&'), driverEvent);
 			this.emit('object:' + ownerId, driverEvent);
-			this.emit('record:' + ownerId + (path ? ('/' + path) : ''), driverEvent);
+			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
 			return promise;
 		}.bind(this));
 		this._directInProgress[id] = promise;
@@ -613,7 +613,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			};
 			this.emit('computed:' + ns, driverEvent);
 			this.emit('object:' + path, driverEvent);
-			this.emit('record:' + ns  + '/' + path, driverEvent);
+			this.emit('record:' + path  + '/' + ns, driverEvent);
 			return promise;
 		}.bind(this));
 		this._computedInProgress[id] = promise;
