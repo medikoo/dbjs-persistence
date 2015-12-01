@@ -86,6 +86,26 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}
 		return this._getDirectStorage(ns)(function (map) { return map[path || '.'] || null; });
 	}),
+	__storeRaw: d(function (cat, ns, path, data) {
+		if (cat === 'reduced') {
+			return this._getReducedStorage(ns)(function (map) {
+				map[path || '.'] = data;
+				return this._writeStorage('reduced/' + ns, map);
+			}.bind(this));
+		}
+		if (cat === 'computed') {
+			return this._getComputedStorage(ns)(function (map) {
+				map[path] = data;
+				return this._writeStorage('computed/' + toComputedFilename(ns), map);
+			}.bind(this));
+		}
+		return this._getDirectStorage(ns)(function (map) {
+			map[path || '.'] = data;
+			return this._writeStorage('direct/' + ns, map);
+		}.bind(this));
+	}),
+
+	// Direct data
 	__getDirectObject: d(function (ownerId, keyPaths) {
 		return this._getDirectStorage(ownerId)(function (map) {
 			return resolveObjectMap(ownerId, map, keyPaths);
@@ -109,26 +129,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}),
-	__storeRaw: d(function (cat, ns, path, data) {
-		if (cat === 'reduced') {
-			return this._getReducedStorage(ns)(function (map) {
-				map[path || '.'] = data;
-				return this._writeStorage('reduced/' + ns, map);
-			}.bind(this));
-		}
-		if (cat === 'computed') {
-			return this._getComputedStorage(ns)(function (map) {
-				map[path] = data;
-				return this._writeStorage('computed/' + toComputedFilename(ns), map);
-			}.bind(this));
-		}
-		return this._getDirectStorage(ns)(function (map) {
-			map[path || '.'] = data;
-			return this._writeStorage('direct/' + ns, map);
-		}.bind(this));
-	}),
-
-	// Database data
 	__getDirectAll: d(function () {
 		return this.__getDirectAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
@@ -137,6 +137,19 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this)(function (maps) {
 			var result = create(null);
 			maps.forEach(function (data) { resolveObjectMap(data.ownerId, data.map, null, result); });
+			return result;
+		});
+	}),
+
+	// Reduced data
+	__getReducedObject: d(function (ns, keyPaths) {
+		return this._getReducedStorage(ns)(function (map) {
+			var result = create(null);
+			forEach(map, function (data, path) {
+				if (path === '.') path = null;
+				if (path && keyPaths && !keyPaths.has(path)) return;
+				result[ns + (path ? ('/' + path) : '')] = data;
+			});
 			return result;
 		});
 	}),
@@ -161,19 +174,6 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__searchComputed: d(function (keyPath, callback) {
 		return this._getComputedStorage(keyPath)(function (map) {
 			some(map, function (data, ownerId) { return callback(ownerId, data); });
-		});
-	}),
-
-	// Reduced
-	__getReducedObject: d(function (ns, keyPaths) {
-		return this._getReducedStorage(ns)(function (map) {
-			var result = create(null);
-			forEach(map, function (data, path) {
-				if (path === '.') path = null;
-				if (path && keyPaths && !keyPaths.has(path)) return;
-				result[ns + (path ? ('/' + path) : '')] = data;
-			});
-			return result;
 		});
 	}),
 
