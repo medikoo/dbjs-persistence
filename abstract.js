@@ -129,6 +129,17 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
 		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
+	deleteDirectObject: d(function (ownerId) {
+		ownerId = ensureOwnerId(ownerId);
+		this._ensureOpen();
+		++this._runningOperations;
+		return this._getDirectObject(ownerId).map(function (data) {
+			return this._storeRaw('direct', ownerId, data.id.slice(ownerId.length + 1) || null, {
+				value: '',
+				stamp: getStamp()
+			});
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
 	getDirectObjectKeyPath: d(function (id) {
 		var index, ownerId, keyPath;
 		id = ensureString(id);
