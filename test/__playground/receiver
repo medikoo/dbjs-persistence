@@ -1,0 +1,15 @@
+'use strict';
+
+var resolve = require('path').resolve
+  , Driver  = require('../../')
+  , getDb   = require('./db')
+
+  , dbPath = resolve(__dirname, 'receiver-storage');
+
+module.exports = function () {
+	var driver = new Driver(getDb(), { path: dbPath, autoSaveFilter: function () {
+		throw new Error("Should never happen");
+	} });
+
+	return driver;
+};
