@@ -13,16 +13,16 @@ var toArray           = require('es5-ext/array/to-array')
   , stringify = JSON.stringify
   , resolved = deferred(undefined);
 
-var ComputerDriver = module.exports = Object.defineProperties(function (dbjs) {
-	if (!(this instanceof ComputerDriver)) return new ComputerDriver(dbjs);
+var RecomputeDriver = module.exports = Object.defineProperties(function (dbjs) {
+	if (!(this instanceof RecomputeDriver)) return new RecomputeDriver(dbjs);
 	PersistenceDriver.call(this, dbjs);
 }, {
 	defaultAutoSaveFilter: d(function (event) { return false; })
 });
-setPrototypeOf(ComputerDriver, PersistenceDriver);
+setPrototypeOf(RecomputeDriver, PersistenceDriver);
 
-ComputerDriver.prototype = Object.create(PersistenceDriver.prototype, {
-	constructor: d(ComputerDriver),
+RecomputeDriver.prototype = Object.create(PersistenceDriver.prototype, {
+	constructor: d(RecomputeDriver),
 	loadRawEvents: d(function (events) {
 		this.db._postponed_ += 1;
 		toArray(ensureIterable(events)).forEach(function (data) {
