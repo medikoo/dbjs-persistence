@@ -16,6 +16,8 @@ regexp
 stupid
 vars
 
+predef+ setTimeout
+
 ./index.js
 predef+ Buffer
 
@@ -23,4 +25,6 @@ predef+ Buffer
 predef+ __dirname
 
 ./recompute/slave/index.js
+./lib/emitter.js
+./lib/receiver.js
 predef+ process
