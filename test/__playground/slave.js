@@ -1,8 +1,8 @@
 'use strict';
 
-var db = require('./db');
+var getDb = require('./db');
 
-var slave = require('../../recompute/slave')(db);
+var slave = require('../../recompute/slave')(getDb());
 
 require('./indexes')(slave.driver).done();
 slave.initialize();

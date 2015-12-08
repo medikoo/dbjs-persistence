@@ -27,4 +27,5 @@ predef+ __dirname
 ./recompute/slave/index.js
 ./lib/emitter.js
 ./lib/receiver.js
+./test/__playground
 predef+ process

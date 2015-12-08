@@ -3,12 +3,12 @@
 var Event   = require('dbjs/_setup/event')
   , resolve = require('path').resolve
   , Driver  = require('../../')
-  , db      = require('./db')
+  , getDb   = require('./db')
 
   , dbPath = resolve(__dirname, 'storage');
 
 module.exports = function () {
-	var driver = new Driver(db, { path: dbPath });
+	var db = getDb(), driver = new Driver(db, { path: dbPath });
 
 	db.SomeType.newNamed('aaa');
 	db.SomeType.newNamed('bbb');
