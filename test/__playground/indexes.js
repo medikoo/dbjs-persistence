@@ -7,7 +7,6 @@ module.exports = function (driver) {
 
 	return deferred(
 		driver.indexKeyPath('computed', db.SomeType.instances),
-		driver.indexKeyPath('computedSet', db.SomeType.instances),
-		driver.trackComputedSize('computedFooelo', 'computed', '3fooelo')
+		driver.indexKeyPath('computedSet', db.SomeType.instances)
 	);
 };
