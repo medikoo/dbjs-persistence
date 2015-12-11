@@ -244,7 +244,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	storeReduced: d(function (key, value, stamp) {
 		key = ensureString(key);
 		this._ensureOpen();
-		return this._handleStoreReduced(key, value, stamp);
+		++this._runningOperations;
+		return this._handleStoreReduced(key, value, stamp).finally(this._onOperationEnd);
 	}),
 
 	searchDirect: d(function (keyPath, callback) {
@@ -662,7 +663,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		index = key.indexOf('/');
 		ownerId = (index !== -1) ? key.slice(0, index) : key;
 		keyPath = (index !== -1) ? key.slice(index + 1) : null;
-		++this._runningOperations;
 		promise = this._getRaw('reduced', ownerId, keyPath)(function (oldData) {
 			var data, promise, driverEvent;
 			if (oldData) {
@@ -687,7 +687,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('object:' + ownerId, driverEvent);
 			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
 			return promise;
-		}.bind(this)).finally(this._onOperationEnd);
+		}.bind(this));
 		this._reducedInProgress[key] = promise;
 		promise.finally(function () { delete this._reducedInProgress[key]; }.bind(this));
 		return promise;
