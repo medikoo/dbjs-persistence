@@ -248,7 +248,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			var ownerId = (index !== -1) ? record.id.slice(0, index) : record.id;
 			var path = (index !== -1) ? record.id.slice(index + 1) : null;
 			return this._handleStoreDirect(ownerId, path, record.data.value, record.data.stamp);
-		}).finally(this._onOperationEnd);
+		}, this).finally(this._onOperationEnd);
 	}),
 	storeReduced: d(function (key, value, stamp) {
 		key = ensureString(key);
