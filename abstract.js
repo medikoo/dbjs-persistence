@@ -609,6 +609,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				data: nu,
 				old: old
 			};
+			if (value) this.emit('update', driverEvent);
+			else this.emit('delete', driverEvent);
 			this.emit('direct:' + (keyPath || '&'), driverEvent);
 			this.emit('object:' + ownerId, driverEvent);
 			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
