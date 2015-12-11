@@ -30,7 +30,7 @@ var aFrom                 = require('es5-ext/array/from')
   , debug                 = require('debug-ext')('db')
   , Set                   = require('es6-set')
   , ee                    = require('event-emitter')
-  , getStamp              = require('time-uuid/time')
+  , genStamp              = require('time-uuid/time')
   , ensureObservableSet   = require('observable-set/valid-observable-set')
   , ensureDatabase        = require('dbjs/valid-dbjs')
   , Event                 = require('dbjs/_setup/event')
@@ -137,7 +137,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getDirectObject(ownerId).map(function (data) {
 			return this._storeRaw('direct', ownerId, data.id.slice(ownerId.length + 1) || null, {
 				value: '',
-				stamp: getStamp()
+				stamp: genStamp()
 			});
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
@@ -213,7 +213,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var index, ownerId, path;
 		id = ensureString(id);
 		value = ensureString(value);
-		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : getStamp();
+		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : genStamp();
 		index = id.indexOf('/');
 		ownerId = (index !== -1) ? id.slice(0, index) : id;
 		path = (index !== -1) ? id.slice(index + 1) : null;
@@ -230,7 +230,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			record.data = {};
 			record.data.value = ensureString(data.data.value);
 			record.data.stamp =  (data.data.stamp == null)
-				? getStamp() : ensureNaturalNumber(data.data.stamp);
+				? genStamp() : ensureNaturalNumber(data.data.stamp);
 			records.push(record);
 		});
 		++this._runningOperations;
@@ -629,7 +629,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					stamp = old.stamp + 1; // most likely model update
 				}
 			}
-			if (!stamp) stamp = getStamp();
+			if (!stamp) stamp = genStamp();
 			nu = {
 				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
 				stamp: stamp
@@ -669,7 +669,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				if (oldData.value === value) return;
 				if (!stamp || (stamp <= oldData.stamp)) stamp = oldData.stamp + 1;
 			} else if (!stamp) {
-				stamp = getStamp();
+				stamp = genStamp();
 			}
 			data = { value: value, stamp: stamp };
 			debug("reduced update %s", key, stamp);
@@ -763,7 +763,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 		listener = function (event) {
 			var sValue, stamp, ownerId = event.target.object.master.__id__;
-			stamp = event.dbjs ? event.dbjs.stamp : getStamp();
+			stamp = event.dbjs ? event.dbjs.stamp : genStamp();
 			if (isSet(event.target)) {
 				sValue = [];
 				event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
