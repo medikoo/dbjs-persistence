@@ -51,6 +51,7 @@ var aFrom                 = require('es5-ext/array/from')
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
+  , incrementStamp = genStamp.increment
   , tokenize = resolvePropertyPath.tokenize, resolveObject = resolvePropertyPath.resolveObject
   , create = Object.create, defineProperties = Object.defineProperties, keys = Object.keys;
 
@@ -220,17 +221,25 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
-	storeDirectMany: d(function (records) {
-		records = [];
-		iterableForEach(records, function (data) {
+	storeDirectMany: d(function (data) {
+		var isStampGenerated, records = [];
+		iterableForEach(data, function (data) {
 			var record = {};
 			ensureObject(data);
 			record.id = ensureString(data.id);
 			ensureObject(data.data);
 			record.data = {};
 			record.data.value = ensureString(data.data.value);
-			record.data.stamp =  (data.data.stamp == null)
-				? genStamp() : ensureNaturalNumber(data.data.stamp);
+			if (data.data.stamp == null) {
+				if (!isStampGenerated) {
+					record.data.stamp = genStamp();
+					isStampGenerated = true;
+				} else {
+					record.data.stamp = incrementStamp();
+				}
+			} else {
+				record.data.stamp = ensureNaturalNumber(data.data.stamp);
+			}
 			records.push(record);
 		});
 		++this._runningOperations;
