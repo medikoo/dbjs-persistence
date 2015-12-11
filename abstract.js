@@ -10,6 +10,7 @@ var aFrom                 = require('es5-ext/array/from')
   , ensureArray           = require('es5-ext/array/valid-array')
   , customError           = require('es5-ext/error/custom')
   , ensureIterable        = require('es5-ext/iterable/validate-object')
+  , iterableForEach       = require('es5-ext/iterable/for-each')
   , assign                = require('es5-ext/object/assign')
   , ensureNaturalNumber   = require('es5-ext/object/ensure-natural-number')
   , forEach               = require('es5-ext/object/for-each')
@@ -218,6 +219,27 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		path = (index !== -1) ? id.slice(index + 1) : null;
 		++this._runningOperations;
 		return this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
+	}),
+	storeDirectMany: d(function (records) {
+		records = [];
+		iterableForEach(records, function (data) {
+			var record = {};
+			ensureObject(data);
+			record.id = ensureString(data.id);
+			ensureObject(data.data);
+			record.data = {};
+			record.data.value = ensureString(data.data.value);
+			record.data.stamp =  (data.data.stamp == null)
+				? getStamp() : ensureNaturalNumber(data.data.stamp);
+			records.push(record);
+		});
+		++this._runningOperations;
+		return deferred.map(records, function (record) {
+			var index = record.id.indexOf('/');
+			var ownerId = (index !== -1) ? record.id.slice(0, index) : record.id;
+			var path = (index !== -1) ? record.id.slice(index + 1) : null;
+			return this._handleStoreDirect(ownerId, path, record.data.value, record.data.stamp);
+		}).finally(this._onOperationEnd);
 	}),
 	storeReduced: d(function (key, value, stamp) {
 		key = ensureString(key);
