@@ -17,15 +17,13 @@ module.exports = function (t, a, d) {
 	t(driver, slave);
 	slave.once('message', function (data) {
 		a.deep(data, { type: 'init' });
-		emitter('dbAccessData', slave)({
-			events: [
-				{ id: 'aaa', data: { value: '7SomeType#', stamp: getStamp() } },
-				{ id: 'bbb', data: { value: '7SomeType#', stamp: getStamp() } },
-				{ id: 'ccc', data: { value: '7SomeType#', stamp: getStamp() } },
-				{ id: 'bbb/bar', data: { value: '3marko', stamp: getStamp() } },
-				{ id: 'ccc/bar', data: { value: '3miszka', stamp: getStamp() } }
-			]
-		})(function () {
+		emitter('dbAccessData', slave)([
+			{ id: 'aaa', data: { value: '7SomeType#', stamp: getStamp() } },
+			{ id: 'bbb', data: { value: '7SomeType#', stamp: getStamp() } },
+			{ id: 'ccc', data: { value: '7SomeType#', stamp: getStamp() } },
+			{ id: 'bbb/bar', data: { value: '3marko', stamp: getStamp() } },
+			{ id: 'ccc/bar', data: { value: '3miszka', stamp: getStamp() } }
+		])(function () {
 			return driver.onDrain(function () {
 				return deferred(
 					driver.getComputed('aaa/computed')(function (data) { a(data.value, '3fooelo'); }),

@@ -22,7 +22,7 @@ var EmitterDriver = module.exports = function (dbjs) {
 	PersistenceDriver.call(this, dbjs);
 	receiver('dbAccessData', function (data) {
 		this.db._postponed_ += 1;
-		toArray(ensureIterable(data.events)).forEach(function (data) {
+		toArray(ensureIterable(data)).forEach(function (data) {
 			this._load(data.id, data.data.value, data.data.stamp);
 		}, this);
 		this.db._postponed_ -= 1;
