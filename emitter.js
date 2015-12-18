@@ -34,10 +34,11 @@ EmitterDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	constructor: d(EmitterDriver),
 
 	_handleStoreDirect: d(function (ns, path, value, stamp) {
-		return this.recordEmitter({ type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
+		return this._recordEmitter({ type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
-		return this.recordEmitter({ type: 'computed', ns: ns, path: path, value: value, stamp: stamp });
+		return this._recordEmitter({ type: 'computed',
+			ns: ns, path: path, value: value, stamp: stamp });
 	}),
 
 	_trackSize: d(function (name, conf) {
@@ -52,5 +53,5 @@ EmitterDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Connection related
 	__close: d(function () { return resolved; }) // Nothing to close
 }, lazy({
-	recordEmitter: d(function () { return emitter('dbRecord'); })
+	_recordEmitter: d(function () { return emitter('dbRecord'); })
 })));
