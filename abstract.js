@@ -258,7 +258,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 
 	searchDirect: d(function (keyPath, callback) {
-		return this._searchDirect(ensureString(keyPath), ensureCallable(callback));
+		if (keyPath != null) keyPath = ensureString(keyPath);
+		return this._searchDirect(keyPath, ensureCallable(callback));
 	}),
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
