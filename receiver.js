@@ -3,6 +3,7 @@
 'use strict';
 
 var ensureObject = require('es5-ext/object/valid-object')
+  , deferred     = require('deferred')
   , ensureDriver = require('./ensure')
   , receiver     = require('./lib/receiver')
 
@@ -12,13 +13,15 @@ module.exports = function (dbDriver, slaveProcess) {
 	ensureDriver(dbDriver);
 	ensureObject(slaveProcess);
 
-	receiver('dbRecord', function (data) {
-		if (data.type === 'direct') {
-			return dbDriver._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
-		}
-		if (data.type === 'computed') {
-			return dbDriver._handleStoreComputed(data.ns, data.path, data.value, data.stamp);
-		}
-		throw new Error("Unrecognized request: ", stringify(data));
+	receiver('dbRecords', function (records) {
+		return deferred.map(records, function (data) {
+			if (data.type === 'direct') {
+				return dbDriver._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
+			}
+			if (data.type === 'computed') {
+				return dbDriver._handleStoreComputed(data.ns, data.path, data.value, data.stamp);
+			}
+			throw new Error("Unrecognized request: ", stringify(data));
+		});
 	}, slaveProcess);
 };
