@@ -8,6 +8,7 @@ var aFrom        = require('es5-ext/array/from')
   , fork         = require('child_process').fork
   , ensureDriver = require('../ensure')
 
+  , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , create = Object.create, keys = Object.keys;
 
 module.exports = function (driver, slaveScriptPath) {
@@ -42,6 +43,7 @@ module.exports = function (driver, slaveScriptPath) {
 			if (pool) pool.kill();
 			pool = fork(slaveScriptPath);
 			pool.on('message', function (message) {
+				var id;
 				if (message.type === 'init') {
 					if (!indexes) {
 						indexes = message.indexes;
@@ -51,7 +53,9 @@ module.exports = function (driver, slaveScriptPath) {
 						cleanup();
 						return;
 					}
-					driver.getDirectObject(ids.shift()).done(function (data) {
+					id = ids.shift();
+					if (!isObjectId(id)) return;
+					driver.getDirectObject(id).done(function (data) {
 						pool.send({ type: 'data', data: data });
 					}, def.reject);
 					return;
@@ -67,7 +71,9 @@ module.exports = function (driver, slaveScriptPath) {
 					}
 					if (message.value < 2000) {
 						if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
-						driver.getDirectObject(ids.shift()).done(function (data) {
+						id = ids.shift();
+						if (!isObjectId(id)) return;
+						driver.getDirectObject(id).done(function (data) {
 							pool.send({ type: 'data', data: data });
 						}, def.reject);
 						return;
