@@ -43,19 +43,17 @@ module.exports = function (driver, slaveScriptPath) {
 			if (pool) pool.kill();
 			pool = fork(slaveScriptPath);
 			pool.on('message', function (message) {
-				var id;
 				if (message.type === 'init') {
 					if (!indexes) {
 						indexes = message.indexes;
 						indexes.forEach(function (name) { indexesData[name] = create(null); });
 					}
+					while (ids.length && !isObjectId(ids[0])) ids.shift();
 					if (!ids.length) {
 						cleanup();
 						return;
 					}
-					id = ids.shift();
-					if (!isObjectId(id)) return;
-					driver.getDirectObject(id).done(function (data) {
+					driver.getDirectObject(ids.shift()).done(function (data) {
 						pool.send({ type: 'data', data: data });
 					}, def.reject);
 					return;
@@ -65,15 +63,14 @@ module.exports = function (driver, slaveScriptPath) {
 					return;
 				}
 				if (message.type === 'health') {
+					while (ids.length && !isObjectId(ids[0])) ids.shift();
 					if (!ids.length) {
 						cleanup();
 						return;
 					}
 					if (message.value < 2000) {
 						if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
-						id = ids.shift();
-						if (!isObjectId(id)) return;
-						driver.getDirectObject(id).done(function (data) {
+						driver.getDirectObject(ids.shift()).done(function (data) {
 							pool.send({ type: 'data', data: data });
 						}, def.reject);
 						return;
