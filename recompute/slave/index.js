@@ -1,7 +1,8 @@
 'use strict';
 
-var ensureDatabase = require('dbjs/valid-dbjs')
-  , Driver         = require('./driver')
+var ensureDatabase   = require('dbjs/valid-dbjs')
+  , Driver           = require('./driver')
+  , registerReceiver = require('../../lib/receiver')
 
   , keys = Object.keys;
 
@@ -11,22 +12,21 @@ module.exports = function (db) {
 	return {
 		driver: driver,
 		initialize: function () {
+			var records;
 			// Setup:
 			// On computed update pass data to master
-			driver.on('update', function (data) {
-				data.type = 'update';
-				process.send(data);
+			registerReceiver('data', function (data) {
+				var cumulated;
+				records = [];
+				driver.loadRawEvents(data);
+				cumulated = records;
+				records = null;
+				return {
+					events: cumulated,
+					health: (process.memoryUsage().rss / 1048576)
+				};
 			});
-			// Process sends us events that we should load into memory
-			process.on('message', function (data) {
-				driver.loadRawEvents(data.data);
-				// After events are loaded we report slave process health status
-				// If we reach certain memory limit, current slave process would be killed,
-				// and new one will be started to load following objects data
-				// (it's because currently with dbjs we're unable to reliably unload (destroy) objects
-				// the only solution is to start another process for remaining data
-				process.send({ type: 'health', value: (process.memoryUsage().rss / 1048576) });
-			});
+			driver.on('update', function (data) { records.push(data); });
 
 			// Inform master that we're ready and send list of all registered computed indexes
 			// (master will need that to ensure obsolete records are also removed for indexes that are
