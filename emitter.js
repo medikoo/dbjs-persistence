@@ -39,6 +39,7 @@ EmitterDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return this._storeRecord({ type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
+		if (typeof stamp === 'function') stamp = stamp();
 		return this._storeRecord({ type: 'computed',
 			ns: ns, path: path, value: value, stamp: stamp });
 	}),
