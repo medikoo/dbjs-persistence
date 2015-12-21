@@ -637,9 +637,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				} else {
 					if (old.value === value) return deferred(null);
 				}
+				if (typeof stamp === 'function') stamp = stamp();
 				if (old.stamp >= stamp) {
 					stamp = old.stamp + 1; // most likely model update
 				}
+			} else {
+				if (typeof stamp === 'function') stamp = stamp();
 			}
 			if (!stamp) stamp = genStamp();
 			nu = {
@@ -795,7 +798,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				} else {
 					value = obj._get_(key);
 					observable = obj._getObservable_(key);
-					if (!stamp) stamp = observable.lastModified;
+					if (!stamp) {
+						stamp = function () { return observable.lastModified; };
+					}
 					if (isSet(value)) {
 						value.on('change', listener);
 						this._cleanupCalls.push(value.off.bind(value, 'change', listener));
