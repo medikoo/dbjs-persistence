@@ -1,13 +1,15 @@
 'use strict';
 
-var ensureDatabase   = require('dbjs/valid-dbjs')
+var Map              = require('es6-map')
+  , ensureDatabase   = require('dbjs/valid-dbjs')
   , Driver           = require('./driver')
   , registerReceiver = require('../../lib/receiver')
 
   , keys = Object.keys;
 
 module.exports = function (db) {
-	var driver = new Driver(ensureDatabase(db));
+	var driver = new Driver(ensureDatabase(db))
+	  , stampResolvers = new Map();
 
 	return {
 		driver: driver,
@@ -26,7 +28,14 @@ module.exports = function (db) {
 					health: (process.memoryUsage().rss / 1048576)
 				};
 			});
-			driver.on('update', function (data) { records.push(data); });
+			registerReceiver('stamp', function (id) { return stampResolvers.get(id)(); });
+			driver.on('update', function (data) {
+				if (typeof data.stamp === 'function') {
+					stampResolvers.set(data.path + '/' + data.ns, data.stamp);
+					data.stamp = 'async';
+				}
+				records.push(data);
+			});
 
 			// Inform master that we're ready and send list of all registered computed indexes
 			// (master will need that to ensure obsolete records are also removed for indexes that are

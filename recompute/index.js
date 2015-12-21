@@ -2,9 +2,11 @@
 
 var aFrom           = require('es5-ext/array/from')
   , ensureString    = require('es5-ext/object/validate-stringifiable-value')
+  , Map             = require('es6-map')
   , Set             = require('es6-set')
+  , memoize         = require('memoizee/plain')
   , deferred        = require('deferred')
-  , getStamp        = require('time-uuid/time')
+  , genStamp        = require('time-uuid/time')
   , fork            = require('child_process').fork
   , ensureDriver    = require('../ensure')
   , registerEmitter = require('../lib/emitter')
@@ -13,37 +15,52 @@ var aFrom           = require('es5-ext/array/from')
   , create = Object.create, keys = Object.keys;
 
 module.exports = function (driver, slaveScriptPath) {
-	var promise;
+	var promise, indexes, indexesData = create(null);
 	ensureDriver(driver);
 	slaveScriptPath = ensureString(slaveScriptPath);
+	var resolveOwners = memoize(function () {
+		var owners = new Map();
+		return deferred.map(indexes, function (name) {
+			var ownerIds = new Set();
+			owners.set(name, ownerIds);
+			// Get all owner ids for saved records
+			return driver.searchComputed(name, function (ownerId) { ownerIds.add(ownerId); });
+		})(owners);
+	});
 	promise = driver.getDirectAllObjectIds()(function (ids) {
-		var indexes, indexesData = create(null), pool, count = 0, emitData
-		  , reinitializePool;
+		var pool, count = 0, emitData, getStamp, reinitializePool;
 		var cleanup = function () {
-			pool.kill();
-			return deferred.map(indexes, function (name) {
-				var ownerIds = new Set();
-				// Get all owner ids for saved records
-				return driver.searchComputed(name, function (ownerId) {
-					ownerIds.add(ownerId);
-				})(function () {
-					// Apply calculations
-					return deferred.map(keys(indexesData[name]), function (ownerId) {
-						var data = indexesData[name][ownerId];
-						ownerIds.delete(ownerId);
-						return driver._handleStoreComputed(name, ownerId, data.value, data.stamp);
-					});
-				})(function () {
+			return resolveOwners()(function (owners) {
+				return deferred.map(indexes, function (name) {
 					// Delete not used ownerids
-					deferred.map(aFrom(ownerIds), function (ownerId) {
-						return driver._handleStoreComputed(name, ownerId, '', getStamp());
+					return deferred.map(aFrom(owners.get(name)), function (ownerId) {
+						return driver._handleStoreComputed(name, ownerId, '', genStamp());
 					});
 				});
 			});
 		};
+		var clearPool = function () {
+			return resolveOwners()(function (owners) {
+				return deferred.map(indexes, function (name) {
+					var ownerIds = owners.get(name);
+					// Apply calculations
+					return deferred.map(keys(indexesData[name]), function (ownerId) {
+						var data = indexesData[name][ownerId], stamp;
+						ownerIds.delete(ownerId);
+						delete indexesData[name][ownerId];
+						if (data.stamp === 'async') {
+							stamp = function () { return getStamp(ownerId + '/' + name); };
+						} else {
+							stamp = data.stamp;
+						}
+						return driver._handleStoreComputed(name, ownerId, data.value, stamp);
+					});
+				});
+			})(function () { pool.kill(); });
+		};
 		var sendData = function (poolHealth) {
 			while (ids.length && !isObjectId(ids[0])) ids.shift();
-			if (!ids.length) return cleanup();
+			if (!ids.length) return clearPool()(cleanup);
 			if (!poolHealth || (poolHealth < 2000)) {
 				if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
 				return driver.getDirectObject(ids.shift())(emitData)(function (data) {
@@ -52,13 +69,13 @@ module.exports = function (driver, slaveScriptPath) {
 				});
 			}
 			promise.emit('progress', { type: 'nextPool' });
-			return reinitializePool();
+			return clearPool()(reinitializePool);
 		};
 		reinitializePool = function () {
 			var def = deferred();
-			if (pool) pool.kill();
 			pool = fork(slaveScriptPath);
 			emitData = registerEmitter('data', pool);
+			getStamp = registerEmitter('stamp', pool);
 			pool.once('message', function (message) {
 				if (message.type !== 'init') {
 					def.reject(new Error("Unexpected message"));

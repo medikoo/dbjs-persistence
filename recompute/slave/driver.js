@@ -32,7 +32,6 @@ RecomputeDriver.prototype = Object.create(PersistenceDriver.prototype, {
 	}),
 
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
-		if (typeof stamp === 'function') stamp = stamp();
 		this.emit('update', { ns: ns, path: path, value: value, stamp: stamp });
 		return resolved;
 	}),
