@@ -61,7 +61,7 @@ module.exports = function (driver, slaveScriptPath) {
 		var sendData = function (poolHealth) {
 			while (ids.length && !isObjectId(ids[0])) ids.shift();
 			if (!ids.length) return clearPool()(cleanup);
-			if (!poolHealth || (poolHealth < 2000)) {
+			if (!poolHealth || (poolHealth < 1500)) {
 				if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
 				return driver.getDirectObject(ids.shift())(emitData)(function (data) {
 					data.events.forEach(function (data) { indexesData[data.ns][data.path] = data; });
