@@ -638,30 +638,31 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					if (old.value === value) return deferred(null);
 				}
 			}
-			if (typeof stamp === 'function') stamp = stamp();
-			if (!stamp) stamp = genStamp();
-			if (old && (old.stamp >= stamp)) {
-				stamp = old.stamp + 1; // most likely model update
-			}
-			nu = {
-				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
-				stamp: stamp
-			};
-			debug("computed update %s %s %s", path, ns, stamp);
-			promise = this._storeRaw('computed', ns, path, nu);
-			var driverEvent;
-			driverEvent = {
-				type: 'computed',
-				id: id,
-				ownerId: path,
-				keyPath: ns,
-				data: nu,
-				old: old
-			};
-			this.emit('computed:' + ns, driverEvent);
-			this.emit('object:' + path, driverEvent);
-			this.emit('record:' + path  + '/' + ns, driverEvent);
-			return promise;
+			return deferred((typeof stamp === 'function') ? stamp() : stamp)(function (stamp) {
+				if (!stamp) stamp = genStamp();
+				if (old && (old.stamp >= stamp)) {
+					stamp = old.stamp + 1; // most likely model update
+				}
+				nu = {
+					value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
+					stamp: stamp
+				};
+				debug("computed update %s %s %s", path, ns, stamp);
+				promise = this._storeRaw('computed', ns, path, nu);
+				var driverEvent;
+				driverEvent = {
+					type: 'computed',
+					id: id,
+					ownerId: path,
+					keyPath: ns,
+					data: nu,
+					old: old
+				};
+				this.emit('computed:' + ns, driverEvent);
+				this.emit('object:' + path, driverEvent);
+				this.emit('record:' + path  + '/' + ns, driverEvent);
+				return promise;
+			}.bind(this));
 		}.bind(this));
 		this._computedInProgress[id] = promise;
 		promise.finally(function () { delete this._computedInProgress[id]; }.bind(this));
