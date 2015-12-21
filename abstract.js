@@ -637,14 +637,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				} else {
 					if (old.value === value) return deferred(null);
 				}
-				if (typeof stamp === 'function') stamp = stamp();
-				if (old.stamp >= stamp) {
-					stamp = old.stamp + 1; // most likely model update
-				}
-			} else {
-				if (typeof stamp === 'function') stamp = stamp();
 			}
+			if (typeof stamp === 'function') stamp = stamp();
 			if (!stamp) stamp = genStamp();
+			if (old && (old.stamp >= stamp)) {
+				stamp = old.stamp + 1; // most likely model update
+			}
 			nu = {
 				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
 				stamp: stamp
