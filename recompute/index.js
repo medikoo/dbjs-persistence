@@ -18,7 +18,8 @@ var aFrom           = require('es5-ext/array/from')
   , registerEmitter = require('../lib/emitter')
 
   , ceil = Math.ceil, min = Math.min
-  , create = Object.create, keys = Object.keys;
+  , create = Object.create, keys = Object.keys
+  , byStamp = function (a, b) { return a.data.stamp - b.data.stamp; };
 
 module.exports = function (driver, data) {
 	var promise, slaveScriptPath, ids, getData;
@@ -78,7 +79,9 @@ module.exports = function (driver, data) {
 					if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
 					return deferred.map(ids.splice(0, 10), function (objId) {
 						return getData(objId);
-					}).invoke(flatten)(emitData)(function (data) {
+					})(function (data) {
+						return flatten.call(data).sort(byStamp);
+					})(emitData)(function (data) {
 						data.events.forEach(function (data) { indexesData[data.ns][data.path] = data; });
 						return sendData(data.health);
 					});
