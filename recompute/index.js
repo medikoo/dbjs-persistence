@@ -29,6 +29,7 @@ module.exports = function (driver, slaveScriptPath) {
 	});
 	promise = driver.getDirectAllObjectIds()(function (ids) {
 		var pool, count = 0, emitData, getStamp, reinitializePool;
+		ids = ids.filter(isObjectId);
 		var cleanup = function () {
 			return resolveOwners()(function (owners) {
 				return deferred.map(indexes, function (name) {
@@ -59,7 +60,6 @@ module.exports = function (driver, slaveScriptPath) {
 			})(function () { pool.kill(); });
 		};
 		var sendData = function (poolHealth) {
-			while (ids.length && !isObjectId(ids[0])) ids.shift();
 			if (!ids.length) return clearPool()(cleanup);
 			if (!poolHealth || (poolHealth < 1500)) {
 				if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
