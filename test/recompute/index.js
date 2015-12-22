@@ -12,7 +12,11 @@ var deferred         = require('deferred')
 module.exports = function (t, a, d) {
 	var driver = initDb();
 	driver.onDrain(function () {
-		return t(driver, slavePath)(function () {
+		return t(driver, {
+			slaveScriptPath: slavePath,
+			ids: driver.getDirectAllObjectIds(),
+			getData: function (id) { return driver.getDirectObject(id); }
+		})(function () {
 			return deferred(
 				driver.getComputed('aaa/computed')(function (data) { a(data.value, '3fooelo'); }),
 				driver.getComputed('bbb/computed')(function (data) { a(data.value, '3foomarko'); }),

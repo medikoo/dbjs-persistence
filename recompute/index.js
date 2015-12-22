@@ -1,7 +1,11 @@
 'use strict';
 
 var aFrom           = require('es5-ext/array/from')
+  , toArray         = require('es5-ext/array/to-array')
   , flatten         = require('es5-ext/array/#/flatten')
+  , ensureIterable  = require('es5-ext/iterable/validate-object')
+  , ensureCallable  = require('es5-ext/object/valid-callable')
+  , ensureObject    = require('es5-ext/object/valid-object')
   , ensureString    = require('es5-ext/object/validate-stringifiable-value')
   , Map             = require('es6-map')
   , Set             = require('es6-set')
@@ -14,16 +18,18 @@ var aFrom           = require('es5-ext/array/from')
   , registerEmitter = require('../lib/emitter')
 
   , ceil = Math.ceil, min = Math.min
-  , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , create = Object.create, keys = Object.keys;
 
-module.exports = function (driver, slaveScriptPath) {
-	var promise;
+module.exports = function (driver, data) {
+	var promise, slaveScriptPath, ids, getData;
 	ensureDriver(driver);
-	slaveScriptPath = ensureString(slaveScriptPath);
-	promise = driver.getDirectAllObjectIds()(function (ids) {
+	ensureObject(data);
+	ids = ensureObject(data.ids);
+	getData = ensureCallable(data.getData);
+	slaveScriptPath = ensureString(data.slaveScriptPath);
+	promise = deferred(ids)(function (ids) {
 		var count = 0, emitData, getStamp, indexes, processesCount, promises;
-		ids = ids.filter(isObjectId);
+		ids = toArray(ensureIterable(ids));
 		if (!ids.length) return;
 		var resolveOwners = memoize(function () {
 			var owners = new Map();
@@ -71,7 +77,7 @@ module.exports = function (driver, slaveScriptPath) {
 				if (!poolHealth || (poolHealth < 1500)) {
 					if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
 					return deferred.map(ids.splice(0, 10), function (objId) {
-						return driver.getDirectObject(objId);
+						return getData(objId);
 					}).invoke(flatten)(emitData)(function (data) {
 						data.events.forEach(function (data) { indexesData[data.ns][data.path] = data; });
 						return sendData(data.health);
