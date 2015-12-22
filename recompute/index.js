@@ -9,9 +9,11 @@ var aFrom           = require('es5-ext/array/from')
   , deferred        = require('deferred')
   , genStamp        = require('time-uuid/time')
   , fork            = require('child_process').fork
+  , cpus            = require('os').cpus
   , ensureDriver    = require('../ensure')
   , registerEmitter = require('../lib/emitter')
 
+  , ceil = Math.ceil, min = Math.min
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , create = Object.create, keys = Object.keys;
 
@@ -20,7 +22,7 @@ module.exports = function (driver, slaveScriptPath) {
 	ensureDriver(driver);
 	slaveScriptPath = ensureString(slaveScriptPath);
 	promise = driver.getDirectAllObjectIds()(function (ids) {
-		var count = 0, emitData, getStamp, indexes;
+		var count = 0, emitData, getStamp, indexes, processesCount, promises;
 		ids = ids.filter(isObjectId);
 		var resolveOwners = memoize(function () {
 			var owners = new Map();
@@ -104,7 +106,10 @@ module.exports = function (driver, slaveScriptPath) {
 			return reinitializePool();
 		};
 
-		return initializePool()(cleanup);
+		processesCount = min(cpus().length, ceil(ids.length / 10));
+		promises = [];
+		while (processesCount--) promises.push(initializePool());
+		return deferred.map(promises)(cleanup);
 	});
 	return promise;
 };
