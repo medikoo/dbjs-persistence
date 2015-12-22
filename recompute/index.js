@@ -1,6 +1,7 @@
 'use strict';
 
 var aFrom           = require('es5-ext/array/from')
+  , flatten         = require('es5-ext/array/#/flatten')
   , ensureString    = require('es5-ext/object/validate-stringifiable-value')
   , Map             = require('es6-map')
   , Set             = require('es6-set')
@@ -28,7 +29,7 @@ module.exports = function (driver, slaveScriptPath) {
 		})(owners);
 	});
 	promise = driver.getDirectAllObjectIds()(function (ids) {
-		var pool, count = 0, emitData, getStamp, reinitializePool;
+		var pool, emitData, getStamp, reinitializePool;
 		ids = ids.filter(isObjectId);
 		var cleanup = function () {
 			return resolveOwners()(function (owners) {
@@ -62,8 +63,10 @@ module.exports = function (driver, slaveScriptPath) {
 		var sendData = function (poolHealth) {
 			if (!ids.length) return clearPool()(cleanup);
 			if (!poolHealth || (poolHealth < 1500)) {
-				if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
-				return driver.getDirectObject(ids.shift())(emitData)(function (data) {
+				promise.emit('progress', { type: 'nextObject' });
+				return deferred.map(ids.splice(0, 10), function (objId) {
+					return driver.getDirectObject(objId);
+				}).invoke(flatten)(emitData)(function (data) {
 					data.events.forEach(function (data) { indexesData[data.ns][data.path] = data; });
 					return sendData(data.health);
 				});
