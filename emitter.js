@@ -7,6 +7,7 @@ var toArray           = require('es5-ext/array/to-array')
   , ensureIterable    = require('es5-ext/iterable/validate-object')
   , assign            = require('es5-ext/object/assign')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
+  , Map               = require('es6-map')
   , d                 = require('d')
   , lazy              = require('d/lazy')
   , deferred          = require('deferred')
@@ -29,6 +30,11 @@ var EmitterDriver = module.exports = function (dbjs) {
 		this.db._postponed_ -= 1;
 		if (this.hasOwnProperty('_waitingRecords')) return this._storeDeferred.promise;
 	}.bind(this));
+	receiver('dbStampData', function (id) {
+		var resolver = this._unresolvedStamps.get(id);
+		this._unresolvedStamps.delete(id);
+		return resolver();
+	}.bind(this));
 };
 setPrototypeOf(EmitterDriver, PersistenceDriver);
 
@@ -39,7 +45,10 @@ EmitterDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		return this._storeRecord({ type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
-		if (typeof stamp === 'function') stamp = stamp();
+		if (typeof stamp === 'function') {
+			this._unresolvedStamps.set(path + '/' + ns, stamp);
+			stamp = 'async';
+		}
 		return this._storeRecord({ type: 'computed',
 			ns: ns, path: path, value: value, stamp: stamp });
 	}),
@@ -62,6 +71,7 @@ EmitterDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	__close: d(function () { return resolved; }) // Nothing to close
 }, lazy({
 	_waitingRecords: d(function () { return []; }),
+	_unresolvedStamps: d(function () { return new Map(); }),
 	_storeDeferred: d(function () { return deferred(); }),
 	_emitRecords: d(function () {
 		return once(function () {
