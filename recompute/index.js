@@ -16,21 +16,22 @@ var aFrom           = require('es5-ext/array/from')
   , create = Object.create, keys = Object.keys;
 
 module.exports = function (driver, slaveScriptPath) {
-	var promise, indexes, indexesData = create(null);
+	var promise;
 	ensureDriver(driver);
 	slaveScriptPath = ensureString(slaveScriptPath);
-	var resolveOwners = memoize(function () {
-		var owners = new Map();
-		return deferred.map(indexes, function (name) {
-			var ownerIds = new Set();
-			owners.set(name, ownerIds);
-			// Get all owner ids for saved records
-			return driver.searchComputed(name, function (ownerId) { ownerIds.add(ownerId); });
-		})(owners);
-	});
 	promise = driver.getDirectAllObjectIds()(function (ids) {
-		var pool, count = 0, emitData, getStamp, reinitializePool;
+		var pool, count = 0, emitData, getStamp, reinitializePool, indexes, indexesData = create(null);
 		ids = ids.filter(isObjectId);
+		var resolveOwners = memoize(function () {
+			var owners = new Map();
+			return deferred.map(indexes, function (name) {
+				var ownerIds = new Set();
+				owners.set(name, ownerIds);
+				// Get all owner ids for saved records
+				return driver.searchComputed(name, function (ownerId) { ownerIds.add(ownerId); });
+			})(owners);
+		});
+
 		var cleanup = function () {
 			return resolveOwners()(function (owners) {
 				return deferred.map(indexes, function (name) {
