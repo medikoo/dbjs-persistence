@@ -29,7 +29,7 @@ module.exports = function (driver, data) {
 	getData = ensureCallable(data.getData);
 	slaveScriptPath = ensureString(data.slaveScriptPath);
 	promise = deferred(ids)(function (ids) {
-		var count = 0, emitData, getStamp, indexes, processesCount, promises;
+		var count = 0, indexes, processesCount, promises;
 		ids = toArray(ensureIterable(ids));
 		if (!ids.length) return;
 		var resolveOwners = memoize(function () {
@@ -52,8 +52,8 @@ module.exports = function (driver, data) {
 			});
 		};
 
-		var initializePool = function () {
-			var pool, reinitializePool, indexesData;
+		var initializePool = function (id) {
+			var pool, reinitializePool, indexesData, emitData, getStamp;
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
 					return deferred.map(indexes, function (name) {
