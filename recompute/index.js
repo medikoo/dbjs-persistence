@@ -20,7 +20,7 @@ module.exports = function (driver, slaveScriptPath) {
 	ensureDriver(driver);
 	slaveScriptPath = ensureString(slaveScriptPath);
 	promise = driver.getDirectAllObjectIds()(function (ids) {
-		var count = 0, emitData, getStamp, indexes, indexesData = create(null);
+		var count = 0, emitData, getStamp, indexes;
 		ids = ids.filter(isObjectId);
 		var resolveOwners = memoize(function () {
 			var owners = new Map();
@@ -43,7 +43,7 @@ module.exports = function (driver, slaveScriptPath) {
 		};
 
 		var initializePool = function () {
-			var pool, reinitializePool;
+			var pool, reinitializePool, indexesData;
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
 					return deferred.map(indexes, function (name) {
@@ -87,8 +87,9 @@ module.exports = function (driver, slaveScriptPath) {
 						def.reject(new Error("Unexpected message"));
 						return;
 					}
-					if (!indexes) {
-						indexes = message.indexes;
+					if (!indexes) indexes = message.indexes;
+					if (!indexesData) {
+						indexesData = create(null);
 						indexes.forEach(function (name) { indexesData[name] = create(null); });
 					}
 					def.resolve(sendData());
