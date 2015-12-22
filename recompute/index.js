@@ -24,6 +24,7 @@ module.exports = function (driver, slaveScriptPath) {
 	promise = driver.getDirectAllObjectIds()(function (ids) {
 		var count = 0, emitData, getStamp, indexes, processesCount, promises;
 		ids = ids.filter(isObjectId);
+		if (!ids.length) return;
 		var resolveOwners = memoize(function () {
 			var owners = new Map();
 			return deferred.map(indexes, function (name) {
