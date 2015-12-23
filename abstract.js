@@ -589,18 +589,24 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 
 	_handleStoreDirect: d(function (ownerId, path, value, stamp) {
-		var id = ownerId + (path ? ('/' + path) : ''), nu, keyPath, promise;
+		var id = ownerId + (path ? ('/' + path) : ''), nu, keyPath, resultDef, promise;
 		if (this._directInProgress[id]) {
 			return this._directInProgress[id](this._handleStoreDirect.bind(this,
 				ownerId, path, value, stamp));
 		}
 		nu = { value: value, stamp: stamp };
 		keyPath = path ? resolveKeyPath(id) : null;
-		promise = this._getRaw('direct', ownerId, path)(function (old) {
-			var promise;
-			if (old && (old.stamp >= nu.stamp)) return;
+		promise = this._getRaw('direct', ownerId, path);
+		resultDef = deferred();
+		this._directInProgress[id] = resultDef.promise;
+		resultDef.promise.finally(function () { delete this[id]; }.bind(this._directInProgress));
+		promise.done(function (old) {
+			if (old && (old.stamp >= nu.stamp)) {
+				resultDef.resolve();
+				return;
+			}
 			debug("direct update %s %s", id, stamp);
-			promise = this._storeRaw('direct', ownerId, path, nu);
+			resultDef.resolve(this._storeRaw('direct', ownerId, path, nu));
 			var driverEvent = {
 				type: 'direct',
 				id: id,
@@ -615,30 +621,35 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('direct:' + (keyPath || '&'), driverEvent);
 			this.emit('object:' + ownerId, driverEvent);
 			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
-			return promise;
-		}.bind(this));
-		this._directInProgress[id] = promise;
-		promise.finally(function () { delete this._directInProgress[id]; }.bind(this));
-		return promise;
+		}.bind(this), resultDef.reject);
+		return resultDef.promise;
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
-		var id = path + '/' + ns, promise;
+		var id = path + '/' + ns, resultDef, promise;
 		if (this._computedInProgress[id]) {
 			return this._computedInProgress[id](this._handleStoreComputed.bind(this,
 				ns, path, value, stamp));
 		}
-		promise = this._getRaw('computed', ns, path)(function (old) {
-			var nu, promise;
+		promise = this._getRaw('computed', ns, path);
+		resultDef = deferred();
+		this._computedInProgress[id] = resultDef.promise;
+		resultDef.promise.finally(function () { delete this[id]; }.bind(this._computedInProgress));
+		promise.done(function (old) {
+			var nu;
 			if (old) {
 				if (isArray(value)) {
 					if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
-						return deferred(null);
+						resultDef.resolve();
+						return;
 					}
 				} else {
-					if (old.value === value) return deferred(null);
+					if (old.value === value) {
+						resultDef.resolve();
+						return;
+					}
 				}
 			}
-			return deferred((typeof stamp === 'function') ? stamp() : stamp)(function (stamp) {
+			deferred((typeof stamp === 'function') ? stamp() : stamp).done(function (stamp) {
 				if (!stamp) stamp = genStamp();
 				if (old && (old.stamp >= stamp)) {
 					stamp = old.stamp + 1; // most likely model update
@@ -648,7 +659,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					stamp: stamp
 				};
 				debug("computed update %s %s %s", path, ns, stamp);
-				promise = this._storeRaw('computed', ns, path, nu);
+				resultDef.resolve(this._storeRaw('computed', ns, path, nu));
 				var driverEvent;
 				driverEvent = {
 					type: 'computed',
@@ -661,15 +672,12 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				this.emit('computed:' + ns, driverEvent);
 				this.emit('object:' + path, driverEvent);
 				this.emit('record:' + path  + '/' + ns, driverEvent);
-				return promise;
-			}.bind(this));
-		}.bind(this));
-		this._computedInProgress[id] = promise;
-		promise.finally(function () { delete this._computedInProgress[id]; }.bind(this));
-		return promise;
+			}.bind(this), resultDef.reject);
+		}.bind(this), resultDef.reject);
+		return resultDef.promise;
 	}),
 	_handleStoreReduced: d(function (key, value, stamp, directEvent) {
-		var index, ownerId, keyPath, promise;
+		var index, ownerId, keyPath, resultDef, promise;
 		if (this._reducedInProgress[key]) {
 			return this._reducedInProgress[key](this._handleStoreReduced.bind(this,
 				key, value, stamp, directEvent));
@@ -677,17 +685,24 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		index = key.indexOf('/');
 		ownerId = (index !== -1) ? key.slice(0, index) : key;
 		keyPath = (index !== -1) ? key.slice(index + 1) : null;
-		promise = this._getRaw('reduced', ownerId, keyPath)(function (oldData) {
-			var data, promise, driverEvent;
+		promise = this._getRaw('reduced', ownerId, keyPath);
+		resultDef = deferred();
+		this._reducedInProgress[key] = resultDef.promise;
+		resultDef.promise.finally(function () { delete this[key]; }.bind(this._reducedInProgress));
+		promise.done(function (oldData) {
+			var data, driverEvent;
 			if (oldData) {
-				if (oldData.value === value) return;
+				if (oldData.value === value) {
+					resultDef.resolve();
+					return;
+				}
 				if (!stamp || (stamp <= oldData.stamp)) stamp = oldData.stamp + 1;
 			} else if (!stamp) {
 				stamp = genStamp();
 			}
 			data = { value: value, stamp: stamp };
 			debug("reduced update %s", key, stamp);
-			promise = this._storeRaw('reduced', ownerId, keyPath, data)(data);
+			resultDef.resolve(this._storeRaw('reduced', ownerId, keyPath, data)(data));
 			driverEvent = {
 				type: 'reduced',
 				id: key,
@@ -700,11 +715,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			this.emit('reduced:' + (keyPath || '&'), driverEvent);
 			this.emit('object:' + ownerId, driverEvent);
 			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
-			return promise;
-		}.bind(this));
-		this._reducedInProgress[key] = promise;
-		promise.finally(function () { delete this._reducedInProgress[key]; }.bind(this));
-		return promise;
+		}.bind(this), resultDef.reject);
+		return resultDef.promise;
 	}),
 
 	_searchDirect: d(function (keyPath, callback) {
