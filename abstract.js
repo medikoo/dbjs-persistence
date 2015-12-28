@@ -572,13 +572,28 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this.onWriteLockDrain;
 		}
 		++this._runningWriteOperations;
-		return this.__storeRaw(cat, ns, path, data).finally(function () {
+		return this._handleStoreRaw(cat, ns, path, data).finally(function () {
 			if (transient[path || ''] === data) delete transient[path || ''];
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
 				this._onWriteDrain.resolve();
 				delete this._onWriteDrain;
 			}
+		}.bind(this));
+	}),
+	_handleStoreRaw: d(function (cat, ns, path, data) {
+		var id = cat + ':' + ns + (path ? ('/' + path) : ''), def, promise;
+		if (this._storeInProgress[id]) {
+			def = deferred();
+			this._storeInProgress[id].finally(function () {
+				def.resolve(this.__storeRaw(cat, ns, path, data));
+			}.bind(this));
+			this._storeInProgress[id] = promise = def.promise;
+		} else {
+			this._storeInProgress[id] = promise = this.__storeRaw(cat, ns, path, data);
+		}
+		return promise.finally(function () {
+			if (this._storeInProgress[id] === promise) delete this._storeInProgress[id];
 		}.bind(this));
 	}),
 	_storeEvent: d(function (event) {
@@ -1097,5 +1112,6 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			computed: d(function () { return create(null); }),
 			reduced: d(function () { return create(null); })
 		}));
-	})
+	}),
+	_storeInProgress: d(function () { return create(null); })
 }))));
