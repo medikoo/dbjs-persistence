@@ -598,9 +598,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_handleStoreReduced: d(function (ns, path, value, stamp) {
 		return this._handleStore('reduced', ns, path, value, stamp);
 	}),
-	_handleStore: d(function (segment, ns, path, value, stamp) {
-		var uncertain = this._uncertain[segment], resolvedDef, storedDef, result, uncertainPromise
-		  , methodName = '_store' + capitalize.call(segment);
+	_handleStore: d(function (cat, ns, path, value, stamp) {
+		var uncertain = this._uncertain[cat], resolvedDef, storedDef, result, uncertainPromise
+		  , methodName = '_store' + capitalize.call(cat);
 		if (!uncertain[ns]) uncertain[ns] = create(null);
 		uncertain = uncertain[ns];
 		if (uncertain[path]) {
