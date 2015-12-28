@@ -14,7 +14,6 @@ var aFrom                 = require('es5-ext/array/from')
   , assign                = require('es5-ext/object/assign')
   , ensureNaturalNumber   = require('es5-ext/object/ensure-natural-number')
   , forEach               = require('es5-ext/object/for-each')
-  , some                  = require('es5-ext/object/some')
   , toArray               = require('es5-ext/object/to-array')
   , ensureCallable        = require('es5-ext/object/valid-callable')
   , ensureObject          = require('es5-ext/object/valid-object')
@@ -48,6 +47,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
   , isArray = Array.isArray, stringify = JSON.stringify
+  , resolved = deferred(undefined)
   , isDigit = RegExp.prototype.test.bind(/[0-9]/)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , isDbId = RegExp.prototype.test.bind(/^[0-9a-z][^\n]*$/)
@@ -91,18 +91,20 @@ var ensureOwnerId = function (ownerId) {
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	getDirect: d(function (id) {
-		var index, ownerId, path;
+		var index, ownerId, path, uncertain;
 		id = ensureString(id);
 		if (!isDbId(id)) throw new TypeError(id + " is not a database value id");
 		index = id.indexOf('/');
 		ownerId = (index !== -1) ? id.slice(0, index) : id;
 		path = (index !== -1) ? id.slice(index + 1) : null;
 		this._ensureOpen();
+		uncertain = this._uncertain.direct[ownerId];
+		if (uncertain && uncertain[path || '']) return uncertain[path || ''];
 		++this._runningOperations;
 		return this._getRaw('direct', ownerId, path).finally(this._onOperationEnd);
 	}),
 	getComputed: d(function (id) {
-		var ownerId, keyPath, index;
+		var ownerId, keyPath, index, uncertain;
 		id = ensureString(id);
 		index = id.indexOf('/');
 		if (index === -1) {
@@ -110,18 +112,23 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		ownerId = id.slice(0, index);
 		keyPath = id.slice(index + 1);
+		this._ensureOpen();
+		uncertain = this._uncertain.computed[keyPath];
+		if (uncertain && uncertain[ownerId]) return uncertain[ownerId];
 		++this._runningOperations;
 		return this._getRaw('computed', ensureString(keyPath), ensureOwnerId(ownerId))
 			.finally(this._onOperationEnd);
 	}),
 	getReduced: d(function (key) {
-		var index, ownerId, path;
+		var index, ownerId, path, uncertain;
 		key = ensureString(key);
-		this._ensureOpen();
-		++this._runningOperations;
 		index = key.indexOf('/');
 		ownerId = (index !== -1) ? key.slice(0, index) : key;
 		path = (index !== -1) ? key.slice(index + 1) : null;
+		this._ensureOpen();
+		uncertain = this._uncertain.reduced[ownerId];
+		if (uncertain && uncertain[path || '']) return uncertain[path || ''];
+		++this._runningOperations;
 		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
 	}),
 	getDirectObject: d(function (ownerId/*, options*/) {
@@ -144,11 +151,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	getDirectObjectKeyPath: d(function (id) {
-		var index, ownerId, keyPath;
+		var index, ownerId, keyPath, uncertain;
 		id = ensureString(id);
 		this._ensureOpen();
 		index = id.indexOf('/');
 		if (index === -1) {
+			uncertain = this._uncertain.direct[id];
+			if (uncertain && uncertain['']) return uncertain[''];
 			return this._getRaw('direct', id)(function (data) {
 				if (!data) return [];
 				return [data];
@@ -508,45 +517,69 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this.__getRaw(cat, ns, path);
 	}),
 	_getDirectObject: d(function (ownerId, keyPaths) {
-		var initData = create(null);
+		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		if (this._transient.direct[ownerId]) {
-			forEach(this._transient.direct[ownerId], function (transientData, id) {
-				if (keyPaths && id && !keyPaths.has(resolveKeyPath(ownerId + '/' + id))) return;
-				initData[ownerId + (id && ('/' + id))] = transientData;
+			forEach(this._transient.direct[ownerId], function (data, path) {
+				if (keyPaths && path && !keyPaths.has(resolveKeyPath(ownerId + '/' + path))) return;
+				transientData[ownerId + (path && ('/' + path))] = data;
 			});
 		}
+		if (this._uncertain.direct[ownerId]) {
+			uncertainPromise = deferred.map(keys(this._uncertain.direct[ownerId]), function (path) {
+				if (keyPaths && path && !keyPaths.has(resolveKeyPath(ownerId + '/' + path))) return;
+				return this[path](function (data) {
+					uncertainData[ownerId + (path && ('/' + path))] = data;
+				});
+			}, this._uncertain.direct[ownerId]);
+		}
 		return this._safeGet(function () {
-			return this.__getDirectObject(ownerId, keyPaths)(function (data) {
-				return toArray(assign(data, initData),
+			var promise = (uncertainPromise || resolved)(this.__getDirectObject(ownerId, keyPaths));
+			return promise(function (data) {
+				return toArray(assign(data, transientData, uncertainData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
 	}),
 	_getDirectAll: d(function () {
-		var initData = create(null);
+		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		forEach(this._transient.direct, function (ownerData, ownerId) {
-			forEach(ownerData, function (transientData, id) {
-				initData[ownerId + (id && ('/' + id))] = transientData;
+			forEach(ownerData, function (data, id) {
+				transientData[ownerId + (id && ('/' + id))] = data;
 			});
 		});
+		uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
+			return deferred.map(keys(this[ownerId]), function (path) {
+				return this[path](function (data) {
+					uncertainData[ownerId + (path && ('/' + path))] = data;
+				});
+			}, this[ownerId]);
+		}, this._uncertain.direct);
 		return this._safeGet(function () {
-			return this.__getDirectAll()(function (data) {
-				return toArray(assign(data, initData),
+			return uncertainPromise(this.__getDirectAll())(function (data) {
+				return toArray(assign(data, transientData, uncertainPromise),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
 	}),
 	_getReducedObject: d(function (ns, keyPaths) {
-		var initData = create(null);
+		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		if (this._transient.reduced[ns]) {
-			forEach(this._transient.reduced[ns], function (transientData, id) {
-				if (keyPaths && id && !keyPaths.has(id)) return;
-				initData[ns + (id && ('/' + id))] = transientData;
+			forEach(this._transient.reduced[ns], function (data, path) {
+				if (keyPaths && path && !keyPaths.has(path)) return;
+				transientData[ns + (path && ('/' + path))] = data;
 			});
 		}
+		if (this._uncertain.reduced[ns]) {
+			uncertainPromise = deferred.map(keys(this._uncertain.reduced[ns]), function (path) {
+				if (keyPaths && path && !keyPaths.has(path)) return;
+				return this[path](function (data) {
+					uncertainData[ns + (path && ('/' + path))] = data;
+				});
+			}, this._uncertain.reduced[ns]);
+		}
 		return this._safeGet(function () {
-			return this.__getReducedObject(ns, keyPaths)(function (data) {
-				return toArray(assign(data, initData),
+			return (uncertainPromise || resolved)(this.__getReducedObject(ns, keyPaths))(function (data) {
+				return toArray(assign(data, transientData, uncertainData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
@@ -787,9 +820,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 
 	_searchDirect: d(function (keyPath, callback) {
-		var done = create(null), result;
-		some(this._transient.direct, function (ownerData, ownerId) {
-			return some(ownerData, function (data, path) {
+		var done = create(null), result, transientData = [], uncertainPromise;
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (data, path) {
 				var id;
 				if (!keyPath) {
 					if (path) return;
@@ -800,39 +833,87 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					}
 				}
 				id = ownerId + (path ? '/' + path : '');
+				transientData.push({ id: id, data: data });
+			});
+		});
+		uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
+			return deferred.map(keys(this[ownerId]), function (path) {
+				var id;
+				if (result) return;
+				if (!keyPath) {
+					if (path) return;
+				} else {
+					if (!path) return;
+					if (keyPath !== path) {
+						if (!startsWith.call(path, keyPath + '*')) return;
+					}
+				}
+				id = ownerId + (path ? '/' + path : '');
 				done[id] = true;
-				if (callback(id, data)) {
-					result = { id: id, data: data };
+				return this[path](function (data) {
+					if (result) return;
+					if (callback(id, data)) result = { id: id, data: data };
+				});
+			}, this[ownerId]);
+		}, this._uncertain.direct)(function () {
+			if (result) return;
+			transientData.some(function (data) {
+				if (done[data.id]) return;
+				done[data.id] = true;
+				if (callback(data.id, data.data)) {
+					result = data;
 					return true;
 				}
 			});
 		});
-		if (result) return deferred(result);
 		return this._safeGet(function () {
-			var result;
-			return this.__searchDirect(keyPath, function (id, data) {
-				if (done[id]) return;
-				if (callback(id, data)) {
-					result = { id: id, data: data };
-					return true;
-				}
-			})(function () { return result; });
-		});
+			return uncertainPromise(function () {
+				if (result) return result;
+				return this.__searchDirect(keyPath, function (id, data) {
+					if (done[id]) return;
+					if (callback(id, data)) {
+						result = { id: id, data: data };
+						return true;
+					}
+				})(function () { return result; });
+			}.bind(this));
+		}.bind(this));
 	}),
 	_searchComputed: d(function (keyPath, callback) {
-		var done = create(null), transient = this._transient.computed[keyPath], isComplete;
+		var done = create(null), uncertain = this._uncertain.computed[keyPath]
+		  , transient = this._transient.computed[keyPath], transientData = [], uncertainPromise, result;
 		if (transient) {
-			isComplete = some(transient, function (data, ownerId) {
-				done[ownerId] = true;
-				return callback(ownerId, data);
+			forEach(transient, function (data, ownerId) {
+				transientData.push({ ownerId: ownerId, data: data });
 			});
-			if (isComplete) return deferred(undefined);
+		}
+		if (uncertain) {
+			uncertainPromise = deferred.map(keys(uncertain), function (ownerId) {
+				return this[ownerId](function (data) {
+					if (result) return;
+					done[ownerId] = true;
+					if (callback(ownerId, data)) result = { id: ownerId + '/' + keyPath, data: data };
+				});
+			}, uncertain);
 		}
 		return this._safeGet(function () {
-			return this.__searchComputed(keyPath, function (ownerId, data) {
-				if (!done[ownerId]) callback(ownerId, data);
-			});
-		});
+			return (uncertainPromise || resolved)(function () {
+				if (result) return result;
+				transientData.some(function (data) {
+					if (done[data.ownerId]) return;
+					done[data.ownerId] = true;
+					if (callback(data.ownerId, data.data)) {
+						data.id = data.ownerId + '/' + keyPath;
+						result = data;
+						return true;
+					}
+				});
+				if (result) return result;
+				return this.__searchComputed(keyPath, function (ownerId, data) {
+					if (!done[ownerId]) callback(ownerId, data);
+				});
+			}.bind(this));
+		}.bind(this));
 	}),
 
 	_trackComputed: d(function (name, set, keyPath) {
