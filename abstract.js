@@ -732,30 +732,30 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		promise = this._getRaw('reduced', ownerId, keyPath);
 		resolvedDef = deferred();
 		storedDef = deferred();
-		promise.done(function (oldData) {
-			var data, driverEvent, promise;
-			if (oldData) {
-				if (oldData.value === value) {
+		promise.done(function (old) {
+			var nu, driverEvent, promise;
+			if (old) {
+				if (old.value === value) {
 					storedDef.resolve(resolvedDef.promise);
-					resolvedDef.resolve(oldData);
+					resolvedDef.resolve(old);
 					return;
 				}
-				if (!stamp || (stamp <= oldData.stamp)) stamp = oldData.stamp + 1;
+				if (!stamp || (stamp <= old.stamp)) stamp = old.stamp + 1;
 			} else if (!stamp) {
 				stamp = genStamp();
 			}
-			data = { value: value, stamp: stamp };
+			nu = { value: value, stamp: stamp };
 			debug("reduced update %s", key, stamp);
-			promise = this._storeRaw('reduced', ownerId, keyPath, data)(data);
-			resolvedDef.resolve(data);
+			promise = this._storeRaw('reduced', ownerId, keyPath, nu)(nu);
+			resolvedDef.resolve(nu);
 			storedDef.resolve(promise);
 			driverEvent = {
 				type: 'reduced',
 				id: key,
 				ownerId: ownerId,
 				keyPath: keyPath,
-				data: data,
-				old: oldData,
+				data: nu,
+				old: old,
 				directEvent: directEvent
 			};
 			this.emit('reduced:' + (keyPath || '&'), driverEvent);
