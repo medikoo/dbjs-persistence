@@ -618,23 +618,23 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		  , methodName = '_store' + capitalize.call(cat);
 		if (!uncertain[ns]) uncertain[ns] = create(null);
 		uncertain = uncertain[ns];
-		if (uncertain[path]) {
+		if (uncertain[path || '']) {
 			resolvedDef = deferred();
 			storedDef = deferred();
-			uncertain[path].finally(function () {
+			uncertain[path || ''].finally(function () {
 				var result = this[methodName](ns, path, value, stamp);
 				resolvedDef.resolve(result.resolved);
 				storedDef.resolve(result.stored);
 			}.bind(this));
-			uncertainPromise = uncertain[path] = resolvedDef.promise;
+			uncertainPromise = uncertain[path || ''] = resolvedDef.promise;
 			result = storedDef.promise;
 		} else {
 			result = this[methodName](ns, path, value, stamp);
-			uncertainPromise = uncertain[path] = result.resolved;
+			uncertainPromise = uncertain[path || ''] = result.resolved;
 			result = result.stored;
 		}
-		uncertain[path].finally(function () {
-			if (uncertain[path] === uncertainPromise) delete uncertain[path];
+		uncertain[path || ''].finally(function () {
+			if (uncertain[path || ''] === uncertainPromise) delete uncertain[path || ''];
 		});
 		return result;
 	}),
