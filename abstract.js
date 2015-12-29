@@ -54,7 +54,8 @@ var aFrom                 = require('es5-ext/array/from')
   , isModelId = RegExp.prototype.test.bind(/^[A-Z]/)
   , incrementStamp = genStamp.increment
   , tokenize = resolvePropertyPath.tokenize, resolveObject = resolvePropertyPath.resolveObject
-  , create = Object.create, defineProperties = Object.defineProperties, keys = Object.keys;
+  , create = Object.create, defineProperties = Object.defineProperties, keys = Object.keys
+  , dataByStampRev = function (a, b) { return b.data.stamp - a.data.stamp; };
 
 var byStamp = function (a, b) {
 	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
@@ -145,6 +146,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getDirectObject(ownerId)(function (data) {
 			return this.storeDirectMany(data.reverse().map(function (data) {
+				return { id: data.id, data: { value: '' } };
+			}));
+		}.bind(this)).finally(this._onOperationEnd);
+	}),
+	deleteDirectManyObjects: d(function (ownerIds) {
+		ownerIds = aFrom(ensureIterable(ownerIds), ensureString);
+		this._ensureOpen();
+		++this._runningOperations;
+		return deferred.map(function (ownerId) {
+			return this._getDirectObject(ownerId);
+		}, this)(function (data) {
+			return this.storeDirectMany(flatten.call(data).sort(dataByStampRev).map(function (data) {
 				return { id: data.id, data: { value: '' } };
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
