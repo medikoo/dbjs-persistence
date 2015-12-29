@@ -250,6 +250,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		id = ensureString(id);
 		value = ensureString(value);
 		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : genStamp();
+		this._ensureOpen();
 		index = id.indexOf('/');
 		ownerId = (index !== -1) ? id.slice(0, index) : id;
 		path = (index !== -1) ? id.slice(index + 1) : null;
@@ -286,10 +287,16 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}, this).finally(this._onOperationEnd);
 	}),
 	storeReduced: d(function (id, value, stamp) {
+		var index, ownerId, path;
 		id = ensureString(id);
+		value = ensureString(value);
+		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : genStamp();
 		this._ensureOpen();
+		index = id.indexOf('/');
+		ownerId = (index !== -1) ? id.slice(0, index) : id;
+		path = (index !== -1) ? id.slice(index + 1) : null;
 		++this._runningOperations;
-		return this._handleStoreReduced(id, value, stamp).finally(this._onOperationEnd);
+		return this._handleStoreReduced(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
 
 	searchDirect: d(function (keyPath, callback) {
@@ -466,7 +473,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			promise = this._recalculateComputedSet(meta.keyPath, meta.searchValue);
 		}
 		return promise(function (result) {
-			return this._handleStoreReduced(name,
+			var index = name.indexOf('/')
+			  , ownerId = (index !== -1) ? name.slice(0, index) : name
+			  , path = (index !== -1) ? name.slice(index + 1) : null;
+			return this._handleStoreReduced(ownerId, path,
 				serializeValue(result.size + (getUpdate ? getUpdate() : 0)));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
@@ -668,10 +678,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
 		return this._handleStore('computed', ns, path, value, stamp);
 	}),
-	_handleStoreReduced: d(function (ns, path, value, stamp) {
-		return this._handleStore('reduced', ns, path, value, stamp);
+	_handleStoreReduced: d(function (ns, path, value, stamp, directEvent) {
+		return this._handleStore('reduced', ns, path, value, stamp, directEvent);
 	}),
-	_handleStore: d(function (cat, ns, path, value, stamp) {
+	_handleStore: d(function (cat, ns, path, value, stamp, directEvent) {
 		var uncertain = this._uncertain[cat], resolvedDef, storedDef, result, uncertainPromise
 		  , methodName = '_store' + capitalize.call(cat);
 		if (!uncertain[ns]) uncertain[ns] = create(null);
@@ -680,14 +690,14 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			resolvedDef = deferred();
 			storedDef = deferred();
 			uncertain[path || ''].finally(function () {
-				var result = this[methodName](ns, path, value, stamp);
+				var result = this[methodName](ns, path, value, stamp, directEvent);
 				resolvedDef.resolve(result.resolved);
 				storedDef.resolve(result.stored);
 			}.bind(this));
 			uncertainPromise = uncertain[path || ''] = resolvedDef.promise;
 			result = storedDef.promise;
 		} else {
-			result = this[methodName](ns, path, value, stamp);
+			result = this[methodName](ns, path, value, stamp, directEvent);
 			uncertainPromise = uncertain[path || ''] = result.resolved;
 			result = result.stored;
 		}
@@ -795,11 +805,8 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			stored: storedDef.promise
 		};
 	}),
-	_storeReduced: d(function (key, value, stamp, directEvent) {
-		var index, ownerId, keyPath, resolvedDef, storedDef, promise;
-		index = key.indexOf('/');
-		ownerId = (index !== -1) ? key.slice(0, index) : key;
-		keyPath = (index !== -1) ? key.slice(index + 1) : null;
+	_storeReduced: d(function (ownerId, keyPath, value, stamp, directEvent) {
+		var key = ownerId + (keyPath ? ('/' + keyPath) : ''), resolvedDef, storedDef, promise;
 		promise = this._getRaw('reduced', ownerId, keyPath);
 		resolvedDef = deferred();
 		storedDef = deferred();
@@ -1065,7 +1072,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				oldData = current;
 				if (stamp <= oldData.stamp) stamp = oldData.stamp + 1;
 				nuData = current = { value: serializeValue(size), stamp: stamp };
-				return this._handleStoreReduced(name, nuData.value, nuData.stamp, event);
+				return this._handleStoreReduced(ownerId, path, nuData.value, nuData.stamp, event);
 			}.bind(this)).finally(this._onOperationEnd).done();
 		}.bind(this);
 		var initialize = function (data) {
@@ -1091,7 +1098,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 						stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
 					};
 					initialize(data);
-					return this._handleStoreReduced(name, data.value, data.stamp)(getSize);
+					return this._handleStoreReduced(ownerId, path, data.value, data.stamp)(getSize);
 				}
 				size = 0;
 				return this.recalculateSize(name, getSize)(initialize);
