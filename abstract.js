@@ -144,7 +144,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._getDirectObject(ownerId)(function (data) {
-			return this.storeDirectMany(data.map(function (data) {
+			return this.storeDirectMany(data.reverse().map(function (data) {
 				return { id: data.id, data: { value: '' } };
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
