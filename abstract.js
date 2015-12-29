@@ -171,7 +171,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	getDirectAllObjectIds: d(function () {
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__getDirectAllObjectIds().finally(this._onOperationEnd);
+		return this.__getDirectAllObjectIds()(function (data) {
+			return toArray(data, function (el, id) { return id; }, null, byStamp);
+		}).finally(this._onOperationEnd);
 	}),
 	getReducedObject: d(function (ns/*, options*/) {
 		var keyPaths, options = arguments[1];

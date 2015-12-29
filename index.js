@@ -120,17 +120,14 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					return this._getDirectStorage(id)(function (map) {
 						data[id] = map['.'] || { stamp: 0 };
 					});
-				}, this)(function () {
-					return toArray(data, function (el, id) { return id; }, this, byStamp);
-				});
+				}, this);
 			}.bind(this), function (e) {
-				if (e.code === 'ENOENT') return [];
-				throw e;
-			});
+				if (e.code !== 'ENOENT') throw e;
+			})(data);
 		}.bind(this));
 	}),
 	__getDirectAll: d(function () {
-		return this.__getDirectAllObjectIds().map(function (ownerId) {
+		return this.getDirectAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
 				return { ownerId: ownerId, map: map };
 			});
@@ -156,7 +153,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	__searchDirect: d(function (keyPath, callback) {
-		return this.__getDirectAllObjectIds().some(function (ownerId) {
+		return this.getDirectAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage(ownerId)(function (map) {
 				if (!keyPath) {
 					if (map['.']) return callback(ownerId, map['.']);
