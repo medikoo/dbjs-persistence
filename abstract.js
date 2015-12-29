@@ -169,10 +169,21 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getDirectObject(ownerId, new Set([keyPath])).finally(this._onOperationEnd);
 	}),
 	getDirectAllObjectIds: d(function () {
+		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		this._ensureOpen();
 		++this._runningOperations;
-		return this.__getDirectAllObjectIds()(function (data) {
-			return toArray(data, function (el, id) { return id; }, null, byStamp);
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			if (ownerData['']) transientData[ownerId] = ownerData[''];
+		});
+		uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
+			if (!this[ownerId]['']) return;
+			return this[ownerId][''](function (data) { uncertainData[ownerId] = data; });
+		}, this._uncertain.direct);
+		return this._safeGet(function () {
+			return uncertainPromise(this.__getDirectAllObjectIds())(function (data) {
+				return toArray(assign(data, transientData, uncertainData),
+					function (el, id) { return id; }, null, byStamp);
+			});
 		}).finally(this._onOperationEnd);
 	}),
 	getReducedObject: d(function (ns/*, options*/) {
