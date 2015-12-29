@@ -877,19 +877,18 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					if (callback(id, data)) result = { id: id, data: data };
 				});
 			}, this[ownerId]);
-		}, this._uncertain.direct)(function () {
-			if (result) return;
-			transientData.some(function (data) {
-				if (done[data.id]) return;
-				done[data.id] = true;
-				if (callback(data.id, data.data)) {
-					result = data;
-					return true;
-				}
-			});
-		});
+		}, this._uncertain.direct);
 		return this._safeGet(function () {
 			return uncertainPromise(function () {
+				if (result) return result;
+				transientData.some(function (data) {
+					if (done[data.id]) return;
+					done[data.id] = true;
+					if (callback(data.id, data.data)) {
+						result = data;
+						return true;
+					}
+				});
 				if (result) return result;
 				return this.__searchDirect(keyPath, function (id, data) {
 					if (done[id]) return;
