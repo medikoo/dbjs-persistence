@@ -1,3 +1,29 @@
+v0.0.13  --  2015.12.29
+* Introduce:
+  - deleteDirectObject method
+  - deleteDirectManyObjects method
+  - storeDirectMany method
+  - Generic receiver/emitter utils (to be removed to external repo in future)
+  - Receiver/emitter driver modes configuration
+* Improvements to recompute functionality:q
+  - Do not crash on invalid object ids
+  - Refactor to use internal emitter/receiver utils
+  - Process 10 objects at once
+  - Multi process recomputation
+  - Imply external object ids resolution and getData method
+* Introduce lazy stamps calculations with asonchronicity support, on computed properties updates
+* Emit update and delete events on direct changes
+* Fix collection change event 'batch' type handling
+* Fix keyPath validation in searchDirect
+* Fix queueing in store methods
+* Ensure expected resultion of get* operations (take into account uncertain states)
+* Change return value of __getDirectAllObjectIds, so it returns hash of events instead of array of
+  ids
+* In getDirectAllObjectIds do not return ids for not initialized objects
+* Introduce new name convention for driver specific methods (\_method\_)
+* Improve tests organisation
+* Unify internal conventions
+
 v0.0.12  --  2015.12.01
 * Fix `record` events dispatch
 
@@ -54,8 +80,8 @@ v0.0.9  --  2015.10.25
 * Automatic size tracker for both direct and index records
 * Remove `name` support from indexKeyPath (one storage should be after one object type after all)
 * Fixes to default driver
-	* Fix return value type in _close
-	* Ensure database folder is created before any operations
+  * Fix return value type in _close
+  * Ensure database folder is created before any operations
 
 v0.0.8  --  2015.10.22
 * Fix isObjectId resolution
