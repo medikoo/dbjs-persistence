@@ -285,11 +285,11 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this._handleStoreDirect(ownerId, path, record.data.value, record.data.stamp);
 		}, this).finally(this._onOperationEnd);
 	}),
-	storeReduced: d(function (key, value, stamp) {
-		key = ensureString(key);
+	storeReduced: d(function (id, value, stamp) {
+		id = ensureString(id);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._handleStoreReduced(key, value, stamp).finally(this._onOperationEnd);
+		return this._handleStoreReduced(id, value, stamp).finally(this._onOperationEnd);
 	}),
 
 	searchDirect: d(function (keyPath, callback) {
