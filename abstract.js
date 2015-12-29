@@ -143,11 +143,10 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getDirectObject(ownerId).map(function (data) {
-			return this._storeRaw('direct', ownerId, data.id.slice(ownerId.length + 1) || null, {
-				value: '',
-				stamp: genStamp()
-			});
+		return this._getDirectObject(ownerId)(function (data) {
+			return this.storeDirectMany(data.map(function (data) {
+				return { id: data.id, data: { value: '' } };
+			}));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
 	getDirectObjectKeyPath: d(function (id) {
