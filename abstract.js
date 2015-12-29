@@ -154,7 +154,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		ownerIds = aFrom(ensureIterable(ownerIds), ensureString);
 		this._ensureOpen();
 		++this._runningOperations;
-		return deferred.map(function (ownerId) {
+		return deferred.map(ownerIds, function (ownerId) {
 			return this._getDirectObject(ownerId);
 		}, this)(function (data) {
 			return this.storeDirectMany(flatten.call(data).sort(dataByStampRev).map(function (data) {
