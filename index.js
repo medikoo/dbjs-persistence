@@ -79,35 +79,35 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Any data
 	__getRaw: d(function (cat, ns, path) {
 		if (cat === 'reduced') {
-			return this._getReducedStorage(ns)(function (map) { return map[path || '.'] || null; });
+			return this._getReducedStorage_(ns)(function (map) { return map[path || '.'] || null; });
 		}
 		if (cat === 'computed') {
-			return this._getComputedStorage(ns)(function (map) { return map[path] || null; });
+			return this._getComputedStorage_(ns)(function (map) { return map[path] || null; });
 		}
-		return this._getDirectStorage(ns)(function (map) { return map[path || '.'] || null; });
+		return this._getDirectStorage_(ns)(function (map) { return map[path || '.'] || null; });
 	}),
 	__storeRaw: d(function (cat, ns, path, data) {
 		if (cat === 'reduced') {
-			return this._getReducedStorage(ns)(function (map) {
+			return this._getReducedStorage_(ns)(function (map) {
 				map[path || '.'] = data;
-				return this._writeStorage('reduced/' + ns, map);
+				return this._writeStorage_('reduced/' + ns, map);
 			}.bind(this));
 		}
 		if (cat === 'computed') {
-			return this._getComputedStorage(ns)(function (map) {
+			return this._getComputedStorage_(ns)(function (map) {
 				map[path] = data;
-				return this._writeStorage('computed/' + toComputedFilename(ns), map);
+				return this._writeStorage_('computed/' + toComputedFilename(ns), map);
 			}.bind(this));
 		}
-		return this._getDirectStorage(ns)(function (map) {
+		return this._getDirectStorage_(ns)(function (map) {
 			map[path || '.'] = data;
-			return this._writeStorage('direct/' + ns, map);
+			return this._writeStorage_('direct/' + ns, map);
 		}.bind(this));
 	}),
 
 	// Direct data
 	__getDirectObject: d(function (ownerId, keyPaths) {
-		return this._getDirectStorage(ownerId)(function (map) {
+		return this._getDirectStorage_(ownerId)(function (map) {
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
@@ -117,7 +117,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
 				return deferred.map(names, function (id) {
 					if (!isId(id)) return;
-					return this._getDirectStorage(id)(function (map) {
+					return this._getDirectStorage_(id)(function (map) {
 						if (map['.']) data[id] = map['.'];
 					});
 				}, this);
@@ -128,7 +128,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	__getDirectAll: d(function () {
 		return this.getDirectAllObjectIds().map(function (ownerId) {
-			return this._getDirectStorage(ownerId)(function (map) {
+			return this._getDirectStorage_(ownerId)(function (map) {
 				return { ownerId: ownerId, map: map };
 			});
 		}, this)(function (maps) {
@@ -140,7 +140,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Reduced data
 	__getReducedObject: d(function (ns, keyPaths) {
-		return this._getReducedStorage(ns)(function (map) {
+		return this._getReducedStorage_(ns)(function (map) {
 			var result = create(null);
 			forEach(map, function (data, path) {
 				if (path === '.') path = null;
@@ -154,7 +154,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Size tracking
 	__searchDirect: d(function (keyPath, callback) {
 		return this.getDirectAllObjectIds().some(function (ownerId) {
-			return this._getDirectStorage(ownerId)(function (map) {
+			return this._getDirectStorage_(ownerId)(function (map) {
 				if (!keyPath) {
 					if (map['.']) return callback(ownerId, map['.']);
 				}
@@ -169,7 +169,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}, this)(Function.prototype);
 	}),
 	__searchComputed: d(function (keyPath, callback) {
-		return this._getComputedStorage(keyPath)(function (map) {
+		return this._getComputedStorage_(keyPath)(function (map) {
 			some(map, function (data, ownerId) { return callback(ownerId, data); });
 		});
 	}),
@@ -184,7 +184,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					throw e;
 				}).map(function (filename) {
 					var ownerId = filename;
-					return this._getDirectStorage(ownerId)(function (map) {
+					return this._getDirectStorage_(ownerId)(function (map) {
 						return deferred.map(keys(map), function (path) {
 							var data = this[path];
 							if (path === '.') path = null;
@@ -198,7 +198,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					throw e;
 				}).map(function (filename) {
 					var keyPath = fromComputedFilename(filename);
-					return this._getComputedStorage(keyPath)(function (map) {
+					return this._getComputedStorage_(keyPath)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
 							if (!(++count % 1000)) promise.emit('progress');
 							return destDriver._storeRaw('computed', keyPath, ownerId, this[ownerId]);
@@ -209,7 +209,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 					if (e.code === 'ENOENT') return [];
 					throw e;
 				}).map(function (ns) {
-					return this._getReducedStorage(ns)(function (map) {
+					return this._getReducedStorage_(ns)(function (map) {
 						return deferred.map(keys(map), function (path) {
 							if (!(++count % 1000)) promise.emit('progress');
 							return destDriver._storeRaw('reduced', ns, (path === '.') ? null : path, this[path]);
@@ -222,9 +222,9 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 	__clear: d(function () {
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
-			this._getDirectStorage.clear();
-			this._getComputedStorage.clear();
-			this._getReducedStorage.clear();
+			this._getDirectStorage_.clear();
+			this._getComputedStorage_.clear();
+			this._getReducedStorage_.clear();
 			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
 		}.bind(this));
 	}),
@@ -232,7 +232,8 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	// Connection related
 	__close: d(function () { return deferred(undefined); }), // Nothing to close
 
-	_writeStorage: d(function (name, map) {
+	// Driver specific methods
+	_writeStorage_: d(function (name, map) {
 		return this.dbDir()(function () {
 			return writeFile(resolve(this.dirPath, name), toArray(map, function (data, id) {
 				var value = data.value;
@@ -243,7 +244,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	})
 }, memoizeMethods({
-	_getDirectStorage: d(function (ownerId) {
+	_getDirectStorage_: d(function (ownerId) {
 		return this.dbDir()(function () {
 			var map = create(null);
 			return readFile(resolve(this.dirPath, 'direct', ownerId))(function (data) {
@@ -267,7 +268,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}, { primitive: true }),
-	_getComputedStorage: d(function (keyPath) {
+	_getComputedStorage_: d(function (keyPath) {
 		return this.dbDir()(function () {
 			var map = create(null), filename = toComputedFilename(keyPath);
 			return readFile(resolve(this.dirPath, 'computed', filename))(function (data) {
@@ -292,7 +293,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			});
 		}.bind(this));
 	}, { primitive: true }),
-	_getReducedStorage: d(function (ns) {
+	_getReducedStorage_: d(function (ns) {
 		return this.dbDir()(function () {
 			var map = create(null);
 			return readFile(resolve(this.dirPath, 'reduced', ns))(function (data) {
