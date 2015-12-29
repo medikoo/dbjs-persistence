@@ -841,7 +841,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 	}),
 
-	_searchDirect: d(function (keyPath, callback) {
+	_searchDirect: d(function (keyPath, callback, certainOnly) {
 		var done = create(null), result, transientData = [], uncertainPromise;
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, path) {
@@ -858,28 +858,30 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				transientData.push({ id: id, data: data });
 			});
 		});
-		uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
-			return deferred.map(keys(this[ownerId]), function (path) {
-				var id;
-				if (result) return;
-				if (!keyPath) {
-					if (path) return;
-				} else {
-					if (!path) return;
-					if (keyPath !== path) {
-						if (!startsWith.call(path, keyPath + '*')) return;
-					}
-				}
-				id = ownerId + (path ? '/' + path : '');
-				done[id] = true;
-				return this[path](function (data) {
+		if (!certainOnly) {
+			uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
+				return deferred.map(keys(this[ownerId]), function (path) {
+					var id;
 					if (result) return;
-					if (callback(id, data)) result = { id: id, data: data };
-				});
-			}, this[ownerId]);
-		}, this._uncertain.direct);
+					if (!keyPath) {
+						if (path) return;
+					} else {
+						if (!path) return;
+						if (keyPath !== path) {
+							if (!startsWith.call(path, keyPath + '*')) return;
+						}
+					}
+					id = ownerId + (path ? '/' + path : '');
+					done[id] = true;
+					return this[path](function (data) {
+						if (result) return;
+						if (callback(id, data)) result = { id: id, data: data };
+					});
+				}, this[ownerId]);
+			}, this._uncertain.direct);
+		}
 		return this._safeGet(function () {
-			return uncertainPromise(function () {
+			return (uncertainPromise || resolved)(function () {
 				if (result) return result;
 				transientData.some(function (data) {
 					if (done[data.id]) return;
@@ -900,7 +902,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		}.bind(this));
 	}),
-	_searchComputed: d(function (keyPath, callback) {
+	_searchComputed: d(function (keyPath, callback, certainOnly) {
 		var done = create(null), uncertain = this._uncertain.computed[keyPath]
 		  , transient = this._transient.computed[keyPath], transientData = [], uncertainPromise, result;
 		if (transient) {
@@ -908,7 +910,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				transientData.push({ ownerId: ownerId, data: data });
 			});
 		}
-		if (uncertain) {
+		if (!certainOnly && uncertain) {
 			uncertainPromise = deferred.map(keys(uncertain), function (ownerId) {
 				return this[ownerId](function (data) {
 					if (result) return;
@@ -1120,13 +1122,13 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				ownerId = id.slice(0, index);
 			}
 			if (filter(sValue)) result.add(ownerId);
-		})(result);
+		}, true)(result);
 	}),
 	_recalculateComputedSet: d(function (keyPath, searchValue) {
 		var result = new Set();
 		return this._searchComputed(keyPath, function (ownerId, data) {
 			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
-		})(result);
+		}, true)(result);
 	}),
 	_recalculateMultipleSet: d(function (sizeIndexes) {
 		return deferred.map(sizeIndexes, function self(name) {
