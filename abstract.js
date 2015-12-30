@@ -180,7 +180,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getDirectObject(ownerId, new Set([keyPath])).finally(this._onOperationEnd);
 	}),
-	getDirectAllObjectIds: d(function () {
+	getAllObjectIds: d(function () {
 		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		this._ensureOpen();
 		++this._runningOperations;
@@ -192,7 +192,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this[ownerId][''](function (data) { uncertainData[ownerId] = data; });
 		}, this._uncertain.direct);
 		return this._safeGet(function () {
-			return uncertainPromise(this.__getDirectAllObjectIds())(function (data) {
+			return uncertainPromise(this.__getAllObjectIds())(function (data) {
 				return toArray(assign(data, transientData, uncertainData),
 					function (el, id) { return id; }, null, byStamp);
 			});
@@ -1186,7 +1186,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__getRaw: d(notImplemented),
 	__getDirectObject: d(notImplemented),
 	__getDirectAll: d(notImplemented),
-	__getDirectAllObjectIds: d(notImplemented),
+	__getAllObjectIds: d(notImplemented),
 	__getReducedObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
 	__searchDirect: d(notImplemented),

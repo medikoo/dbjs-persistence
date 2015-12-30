@@ -111,7 +111,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
 	}),
-	__getDirectAllObjectIds: d(function () {
+	__getAllObjectIds: d(function () {
 		return this.dbDir()(function () {
 			var data = create(null);
 			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
@@ -127,7 +127,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	__getDirectAll: d(function () {
-		return this.getDirectAllObjectIds().map(function (ownerId) {
+		return this.getAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
 				return { ownerId: ownerId, map: map };
 			});
@@ -153,7 +153,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 
 	// Size tracking
 	__searchDirect: d(function (keyPath, callback) {
-		return this.getDirectAllObjectIds().some(function (ownerId) {
+		return this.getAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
 				if (!keyPath) {
 					if (map['.']) return callback(ownerId, map['.']);

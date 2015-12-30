@@ -14,7 +14,7 @@ module.exports = function (t, a, d) {
 	driver.onDrain(function () {
 		return t(driver, {
 			slaveScriptPath: slavePath,
-			ids: driver.getDirectAllObjectIds(),
+			ids: driver.getAllObjectIds(),
 			getData: function (id) { return driver.getDirectObject(id); }
 		})(function () {
 			return deferred(
