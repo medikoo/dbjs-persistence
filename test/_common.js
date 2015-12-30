@@ -96,14 +96,14 @@ module.exports = function (opts, copyOpts) {
 			driver.storeEvent(fooBar._lastOwnEvent_),
 			driver.storeEvent(aaa._lastOwnEvent_),
 			driver.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
-			driver.storeReduced('elo', '3marko'),
-			driver.storeReduced('typeTest/boolean', '11'),
-			driver.storeReduced('typeTest/number', '222'),
-			driver.storeReduced('typeTest/string', '3foo'),
-			driver.storeReduced('typeTest/date', '41447794621442'),
-			driver.storeReduced('typeTest/regexp', '5/foo/'),
-			driver.storeReduced('typeTest/function', '6function (foo) { return \'bar\'; }'),
-			driver.storeReduced('typeTest/object', '7Object')
+			driver.store('elo/faa', '3marko'),
+			driver.store('typeTest/boolean', '11'),
+			driver.store('typeTest/number', '222'),
+			driver.store('typeTest/string', '3foo'),
+			driver.store('typeTest/date', '41447794621442'),
+			driver.store('typeTest/regexp', '5/foo/'),
+			driver.store('typeTest/function', '6function (foo) { return \'bar\'; }'),
+			driver.store('typeTest/object', '7Object')
 		)(function () {
 			a.throws(function () {
 				driver.trackSize('miszkaAll', 'miszka').done();
@@ -231,18 +231,16 @@ module.exports = function (opts, copyOpts) {
 					});
 				})(function () {
 					return deferred(
-						driver.getReduced('elo')(function (data) { a(data.value, '3marko'); }),
-						driver.getReduced('typeTest/boolean')(function (data) { a(data.value, '11'); }),
-						driver.getReduced('typeTest/number')(function (data) { a(data.value, '222'); }),
-						driver.getReduced('typeTest/string')(function (data) { a(data.value, '3foo'); }),
-						driver.getReduced('typeTest/date')(function (data) {
-							a(data.value, '41447794621442');
-						}),
-						driver.getReduced('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
-						driver.getReduced('typeTest/function')(function (data) {
+						driver.get('elo/faa')(function (data) { a(data.value, '3marko'); }),
+						driver.get('typeTest/boolean')(function (data) { a(data.value, '11'); }),
+						driver.get('typeTest/number')(function (data) { a(data.value, '222'); }),
+						driver.get('typeTest/string')(function (data) { a(data.value, '3foo'); }),
+						driver.get('typeTest/date')(function (data) { a(data.value, '41447794621442'); }),
+						driver.get('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
+						driver.get('typeTest/function')(function (data) {
 							a(data.value, '6function (foo) { return \'bar\'; }');
 						}),
-						driver.getReduced('typeTest/object')(function (data) { a(data.value, '7Object'); })
+						driver.get('typeTest/object')(function (data) { a(data.value, '7Object'); })
 					);
 				})(function () {
 					db.fooBar.bar = 'miszka';
@@ -286,24 +284,18 @@ module.exports = function (opts, copyOpts) {
 						driverCopy._getRaw('computed', 'computed', 'fooBar')(function (data) {
 							a(data.value, '3foomiszka');
 						}),
-						driverCopy._getRaw('reduced', 'elo')(function (data) {
+						driverCopy._getRaw('direct', 'elo', 'faa')(function (data) {
 							a(data.value, '3marko');
 						}),
-						driverCopy.getReduced('typeTest/boolean')(function (data) { a(data.value, '11'); }),
-						driverCopy.getReduced('typeTest/number')(function (data) { a(data.value, '222'); }),
-						driverCopy.getReduced('typeTest/string')(function (data) { a(data.value, '3foo'); }),
-						driverCopy.getReduced('typeTest/date')(function (data) {
-							a(data.value, '41447794621442');
-						}),
-						driverCopy.getReduced('typeTest/regexp')(function (data) {
-							a(data.value, '5/foo/');
-						}),
-						driverCopy.getReduced('typeTest/function')(function (data) {
+						driverCopy.get('typeTest/boolean')(function (data) { a(data.value, '11'); }),
+						driverCopy.get('typeTest/number')(function (data) { a(data.value, '222'); }),
+						driverCopy.get('typeTest/string')(function (data) { a(data.value, '3foo'); }),
+						driverCopy.get('typeTest/date')(function (data) { a(data.value, '41447794621442'); }),
+						driverCopy.get('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
+						driverCopy.get('typeTest/function')(function (data) {
 							a(data.value, '6function (foo) { return \'bar\'; }');
 						}),
-						driverCopy.getReduced('typeTest/object')(function (data) {
-							a(data.value, '7Object');
-						})
+						driverCopy.get('typeTest/object')(function (data) { a(data.value, '7Object'); })
 					);
 				});
 			})(function () {
