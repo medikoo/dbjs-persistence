@@ -224,7 +224,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var promise, progress = 0;
 		this._ensureOpen();
 		++this._runningOperations;
-		promise = this._getDirectAll()(function (data) {
+		promise = this._getAll()(function (data) {
 			return compact.call(data.map(function (data) {
 				if (!(++progress % 1000)) promise.emit('progress');
 				return this._load(data.id, data.data.value, data.data.stamp);
@@ -575,7 +575,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}.bind(this));
 		});
 	}),
-	_getDirectAll: d(function () {
+	_getAll: d(function () {
 		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, id) {
@@ -590,7 +590,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}, this[ownerId]);
 		}, this._uncertain.direct);
 		return this._safeGet(function () {
-			return uncertainPromise(this.__getDirectAll())(function (data) {
+			return uncertainPromise(this.__getAll())(function (data) {
 				return toArray(assign(data, transientData, uncertainPromise),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
@@ -1185,7 +1185,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	__getRaw: d(notImplemented),
 	__getObject: d(notImplemented),
-	__getDirectAll: d(notImplemented),
+	__getAll: d(notImplemented),
 	__getAllObjectIds: d(notImplemented),
 	__getReducedObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
