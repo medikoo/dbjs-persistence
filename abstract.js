@@ -834,7 +834,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				old: old,
 				directEvent: directEvent
 			};
-			this.emit('reduced:' + (keyPath || '&'), driverEvent);
+			this.emit('key:' + (keyPath || '&'), driverEvent);
 			this.emit('owner:' + ownerId, driverEvent);
 			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
 			resolvedDef.resolve(nu);
