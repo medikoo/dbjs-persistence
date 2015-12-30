@@ -15,7 +15,7 @@ module.exports = function (t, a, d) {
 		return t(driver, {
 			slaveScriptPath: slavePath,
 			ids: driver.getAllObjectIds(),
-			getData: function (id) { return driver.getDirectObject(id); }
+			getData: function (id) { return driver.getObject(id); }
 		})(function () {
 			return deferred(
 				driver.getComputed('aaa/computed')(function (data) { a(data.value, '3fooelo'); }),

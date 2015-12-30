@@ -138,7 +138,7 @@ module.exports = function (opts, copyOpts) {
 					a(data.value, '7SomeType#');
 				});
 			})(function () {
-				return driver.getDirectObject('fooBar', { keyPaths: new Set(['miszka']) })(function (data) {
+				return driver.getObject('fooBar', { keyPaths: new Set(['miszka']) })(function (data) {
 					a.deep(data.map(function (data) { return data.id; }), ['fooBar', 'fooBar/miszka']);
 				});
 			})(function () {

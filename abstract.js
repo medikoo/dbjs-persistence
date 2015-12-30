@@ -132,19 +132,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
 	}),
-	getDirectObject: d(function (ownerId/*, options*/) {
+	getObject: d(function (ownerId/*, options*/) {
 		var keyPaths, options = arguments[1];
 		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
-		return this._getDirectObject(ownerId, keyPaths).finally(this._onOperationEnd);
+		return this._getObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
 	deleteDirectObject: d(function (ownerId) {
 		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getDirectObject(ownerId)(function (data) {
+		return this._getObject(ownerId)(function (data) {
 			return this.storeDirectMany(data.reverse().map(function (data) {
 				return { id: data.id, data: { value: '' } };
 			}));
@@ -155,7 +155,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		++this._runningOperations;
 		return deferred.map(ownerIds, function (ownerId) {
-			return this._getDirectObject(ownerId);
+			return this._getObject(ownerId);
 		}, this)(function (data) {
 			return this.storeDirectMany(flatten.call(data).sort(dataByStampRev).map(function (data) {
 				return { id: data.id, data: { value: '' } };
@@ -178,7 +178,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		ownerId = id.slice(0, index);
 		keyPath = id.slice(index + 1);
 		++this._runningOperations;
-		return this._getDirectObject(ownerId, new Set([keyPath])).finally(this._onOperationEnd);
+		return this._getObject(ownerId, new Set([keyPath])).finally(this._onOperationEnd);
 	}),
 	getAllObjectIds: d(function () {
 		var transientData = create(null), uncertainData = create(null), uncertainPromise;
@@ -214,7 +214,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}.bind(this));
 	}),
 	loadObject: d(function (ownerId) {
-		return this.getDirectObject(ownerId)(function (data) {
+		return this.getObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
 				return this._load(data.id, data.data.value, data.data.stamp);
 			}, this));
@@ -551,7 +551,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		}
 		return this.__getRaw(cat, ns, path);
 	}),
-	_getDirectObject: d(function (ownerId, keyPaths) {
+	_getObject: d(function (ownerId, keyPaths) {
 		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		if (this._transient.direct[ownerId]) {
 			forEach(this._transient.direct[ownerId], function (data, path) {
@@ -568,7 +568,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}, this._uncertain.direct[ownerId]);
 		}
 		return this._safeGet(function () {
-			var promise = (uncertainPromise || resolved)(this.__getDirectObject(ownerId, keyPaths));
+			var promise = (uncertainPromise || resolved)(this.__getObject(ownerId, keyPaths));
 			return promise(function (data) {
 				return toArray(assign(data, transientData, uncertainData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
@@ -1184,7 +1184,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 
 	__getRaw: d(notImplemented),
-	__getDirectObject: d(notImplemented),
+	__getObject: d(notImplemented),
 	__getDirectAll: d(notImplemented),
 	__getAllObjectIds: d(notImplemented),
 	__getReducedObject: d(notImplemented),

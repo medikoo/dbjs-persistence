@@ -106,7 +106,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Direct data
-	__getDirectObject: d(function (ownerId, keyPaths) {
+	__getObject: d(function (ownerId, keyPaths) {
 		return this._getDirectStorage_(ownerId)(function (map) {
 			return resolveObjectMap(ownerId, map, keyPaths);
 		});
