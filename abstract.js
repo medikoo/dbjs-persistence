@@ -245,7 +245,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(events, this._storeEvent, this).finally(this._onOperationEnd);
 	}),
-	storeDirect: d(function (id, value, stamp) {
+	store: d(function (id, value, stamp) {
 		var index, ownerId, path;
 		id = ensureString(id);
 		value = ensureString(value);
