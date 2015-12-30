@@ -299,9 +299,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._handleStoreReduced(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
 
-	searchDirect: d(function (keyPath, callback) {
+	search: d(function (keyPath, callback) {
 		if (keyPath != null) keyPath = ensureString(keyPath);
-		return this._searchDirect(keyPath, ensureCallable(callback));
+		return this._search(keyPath, ensureCallable(callback));
 	}),
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
@@ -848,7 +848,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		};
 	}),
 
-	_searchDirect: d(function (keyPath, callback, certainOnly) {
+	_search: d(function (keyPath, callback, certainOnly) {
 		var done = create(null), result, transientData = [], uncertainPromise;
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, path) {
@@ -899,7 +899,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					}
 				});
 				if (result) return result;
-				return this.__searchDirect(keyPath, function (id, data) {
+				return this.__search(keyPath, function (id, data) {
 					if (done[id]) return;
 					if (callback(id, data)) {
 						result = { id: id, data: data };
@@ -1108,7 +1108,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
 		var filter = getSearchValueFilter(searchValue), result = new Set();
-		return this._searchDirect(keyPath, function (id, data) {
+		return this._search(keyPath, function (id, data) {
 			var index = id.indexOf('/'), path, sValue, ownerId;
 			if (!keyPath) {
 				sValue = data.value;
@@ -1189,7 +1189,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	__getAllObjectIds: d(notImplemented),
 	__getReducedObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
-	__searchDirect: d(notImplemented),
+	__search: d(notImplemented),
 	__searchComputed: d(notImplemented),
 	__exportAll: d(notImplemented),
 	__clear: d(notImplemented),

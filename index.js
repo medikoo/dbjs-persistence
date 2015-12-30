@@ -152,7 +152,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 	}),
 
 	// Size tracking
-	__searchDirect: d(function (keyPath, callback) {
+	__search: d(function (keyPath, callback) {
 		return this.getAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
 				if (!keyPath) {
