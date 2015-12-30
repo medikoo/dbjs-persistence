@@ -145,7 +145,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._getObject(ownerId)(function (data) {
-			return this.storeDirectMany(data.reverse().map(function (data) {
+			return this.storeMany(data.reverse().map(function (data) {
 				return { id: data.id, data: { value: '' } };
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
@@ -157,7 +157,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return deferred.map(ownerIds, function (ownerId) {
 			return this._getObject(ownerId);
 		}, this)(function (data) {
-			return this.storeDirectMany(flatten.call(data).sort(dataByStampRev).map(function (data) {
+			return this.storeMany(flatten.call(data).sort(dataByStampRev).map(function (data) {
 				return { id: data.id, data: { value: '' } };
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
@@ -257,7 +257,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		++this._runningOperations;
 		return this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
-	storeDirectMany: d(function (data) {
+	storeMany: d(function (data) {
 		var isStampGenerated, records = [];
 		iterableForEach(data, function (data) {
 			var record = {};
