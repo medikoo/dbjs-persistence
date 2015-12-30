@@ -58,7 +58,8 @@ var aFrom                 = require('es5-ext/array/from')
   , dataByStampRev = function (a, b) { return b.data.stamp - a.data.stamp; };
 
 var byStamp = function (a, b) {
-	return (this[a].stamp - this[b].stamp) || a.toLowerCase().localeCompare(b.toLowerCase());
+	var aStamp = this[a] ? this[a].stamp : 0, bStamp = this[b] ? this[b].stamp : 0;
+	return (aStamp - bStamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
 var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
@@ -185,14 +186,22 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		this._ensureOpen();
 		++this._runningOperations;
 		forEach(this._transient.direct, function (ownerData, ownerId) {
-			if (ownerData['']) transientData[ownerId] = ownerData[''];
+			transientData[ownerId] = ownerData[''] || null;
 		});
 		uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
-			if (!this[ownerId]['']) return;
-			return this[ownerId][''](function (data) { uncertainData[ownerId] = data; });
+			if (this[ownerId]['']) {
+				return this[ownerId][''](function (data) { uncertainData[ownerId] = data; });
+			}
+			uncertainData[ownerId] = null;
 		}, this._uncertain.direct);
 		return this._safeGet(function () {
 			return uncertainPromise(this.__getAllObjectIds())(function (data) {
+				forEach(transientData, function (record, ownerId) {
+					if (!record && data[ownerId]) delete transientData[ownerId];
+				});
+				forEach(uncertainData, function (record, ownerId) {
+					if (!record && (data[ownerId] || transientData[ownerId])) delete uncertainData[ownerId];
+				});
 				return toArray(assign(data, transientData, uncertainData),
 					function (el, id) { return id; }, null, byStamp);
 			});

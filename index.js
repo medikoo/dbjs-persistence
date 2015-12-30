@@ -117,9 +117,7 @@ TextFileDriver.prototype = Object.create(PersistenceDriver.prototype, assign({
 			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
 				return deferred.map(names, function (id) {
 					if (!isId(id)) return;
-					return this._getDirectStorage_(id)(function (map) {
-						if (map['.']) data[id] = map['.'];
-					});
+					return this._getDirectStorage_(id)(function (map) { data[id] = map['.'] || null; });
 				}, this);
 			}.bind(this), function (e) {
 				if (e.code !== 'ENOENT') throw e;
