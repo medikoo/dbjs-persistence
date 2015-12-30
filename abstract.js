@@ -315,7 +315,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		return this._trackSize(name, {
-			eventName: 'direct:' + (keyPath || '&'),
+			eventName: 'key:' + (keyPath || '&'),
 			meta: {
 				type: 'size',
 				sizeType: 'direct',
@@ -391,7 +391,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			eventNames: uniq.call(flatten.call(sizeIndexes.map(function self(name) {
 				var meta = this._indexes[name];
 				if (meta.sizeType === 'multiple') return meta.sizeIndexes.map(self, this);
-				if (meta.sizeType === 'direct') return 'direct:' + (meta.keyPath || '&');
+				if (meta.sizeType === 'direct') return 'key:' + (meta.keyPath || '&');
 				return 'computed:' + meta.keyPath;
 			}, this))),
 			meta: {
@@ -733,7 +733,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			};
 			if (value) this.emit('update', driverEvent);
 			else this.emit('delete', driverEvent);
-			this.emit('direct:' + (keyPath || '&'), driverEvent);
+			this.emit('key:' + (keyPath || '&'), driverEvent);
 			this.emit('object:' + ownerId, driverEvent);
 			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
 			resolvedDef.resolve(nu);
