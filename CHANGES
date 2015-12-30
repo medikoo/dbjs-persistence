@@ -1,3 +1,8 @@
+v0.0.14  --  2015.12.30
+* Unify event name prefixes to `key`, `owner` and `keyid`
+* Cut 'Direct' token from public API names
+* Remove `storeReduced`, as reduction operations should be done by dedicated high level methods
+
 v0.0.13  --  2015.12.29
 * Introduce:
   - deleteDirectObject method
