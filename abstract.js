@@ -336,7 +336,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		name = ensureString(name);
 		keyPath = ensureString(keyPath);
 		return this._trackSize(name, {
-			eventName: 'computed:' + keyPath,
+			eventName: 'key:' + keyPath,
 			meta: {
 				type: 'size',
 				sizeType: 'computed',
@@ -392,7 +392,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				var meta = this._indexes[name];
 				if (meta.sizeType === 'multiple') return meta.sizeIndexes.map(self, this);
 				if (meta.sizeType === 'direct') return 'key:' + (meta.keyPath || '&');
-				return 'computed:' + meta.keyPath;
+				return 'key:' + meta.keyPath;
 			}, this))),
 			meta: {
 				type: 'size',
@@ -788,7 +788,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 					data: nu,
 					old: old
 				};
-				this.emit('computed:' + ns, driverEvent);
+				this.emit('key:' + ns, driverEvent);
 				this.emit('owner:' + path, driverEvent);
 				this.emit('keyid:' + path  + '/' + ns, driverEvent);
 				resolvedDef.resolve(nu);
