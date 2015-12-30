@@ -735,7 +735,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			else this.emit('delete', driverEvent);
 			this.emit('key:' + (keyPath || '&'), driverEvent);
 			this.emit('owner:' + ownerId, driverEvent);
-			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
+			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
 			resolvedDef.resolve(nu);
 		}.bind(this), function (err) {
 			storedDef.resolve(resolvedDef.promise);
@@ -790,7 +790,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				};
 				this.emit('computed:' + ns, driverEvent);
 				this.emit('owner:' + path, driverEvent);
-				this.emit('record:' + path  + '/' + ns, driverEvent);
+				this.emit('keyid:' + path  + '/' + ns, driverEvent);
 				resolvedDef.resolve(nu);
 			}.bind(this), function (err) {
 				storedDef.resolve(resolvedDef.promise);
@@ -836,7 +836,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			};
 			this.emit('reduced:' + (keyPath || '&'), driverEvent);
 			this.emit('owner:' + ownerId, driverEvent);
-			this.emit('record:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
+			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
 			resolvedDef.resolve(nu);
 		}.bind(this), function (err) {
 			storedDef.resolve(resolvedDef.promise);
