@@ -91,7 +91,7 @@ var ensureOwnerId = function (ownerId) {
 };
 
 ee(Object.defineProperties(PersistenceDriver.prototype, assign({
-	getDirect: d(function (id) {
+	get: d(function (id) {
 		var index, ownerId, path, uncertain;
 		id = ensureString(id);
 		if (!isDbId(id)) throw new TypeError(id + " is not a database value id");
@@ -208,7 +208,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	}),
 
 	load: d(function (id) {
-		return this.getDirect(id)(function (data) {
+		return this.get(id)(function (data) {
 			if (!data) return null;
 			return this._load(id, data.value, data.stamp);
 		}.bind(this));
