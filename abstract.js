@@ -295,6 +295,19 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			return this._handleStoreDirect(ownerId, path, record.data.value, record.data.stamp);
 		}, this).finally(this._onOperationEnd);
 	}),
+	storeReduced: d(function (id, value, stamp, directEvent) {
+		var index, ownerId, path;
+		id = ensureString(id);
+		value = ensureString(value);
+		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : genStamp();
+		this._ensureOpen();
+		index = id.indexOf('/');
+		ownerId = (index !== -1) ? id.slice(0, index) : id;
+		path = (index !== -1) ? id.slice(index + 1) : null;
+		++this._runningOperations;
+		return this._handleStoreReduced(ownerId, path, value, stamp, directEvent)
+			.finally(this._onOperationEnd);
+	}),
 
 	search: d(function (keyPath, callback) {
 		if (keyPath != null) keyPath = ensureString(keyPath);
