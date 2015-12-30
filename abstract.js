@@ -140,7 +140,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
 		return this._getObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
-	deleteDirectObject: d(function (ownerId) {
+	deleteObject: d(function (ownerId) {
 		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
 		++this._runningOperations;
