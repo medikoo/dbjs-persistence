@@ -162,7 +162,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	getDirectObjectKeyPath: d(function (id) {
+	getObjectKeyPath: d(function (id) {
 		var index, ownerId, keyPath, uncertain;
 		id = ensureString(id);
 		this._ensureOpen();
