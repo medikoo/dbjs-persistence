@@ -720,7 +720,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 				resolvedDef.resolve(old);
 				return;
 			}
-			debug("direct update %s %s", id, stamp);
+			debug("update %s %s", id, stamp);
 			storedDef.resolve(this._storeRaw('direct', ownerId, path, nu)(nu));
 			driverEvent = {
 				type: 'direct',
