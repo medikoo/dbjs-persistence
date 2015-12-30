@@ -310,7 +310,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 	indexKeyPath: d(function (keyPath, set) { return this._trackComputed(keyPath, set, keyPath); }),
 	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
 
-	trackDirectSize: d(function (name, keyPath/*, searchValue*/) {
+	trackSize: d(function (name, keyPath/*, searchValue*/) {
 		var searchValue = arguments[2];
 		name = ensureString(name);
 		if (keyPath != null) keyPath = ensureString(keyPath);

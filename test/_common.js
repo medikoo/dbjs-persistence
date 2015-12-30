@@ -71,11 +71,11 @@ module.exports = function (opts, copyOpts) {
 					a(typeof data.stamp, 'number');
 				}));
 			}),
-			driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
+			driver.trackSize('miszkaAll', 'miszka')(function (size) {
 				a(size, 0);
 				return driver.getReduced('miszkaAll')(function (data) { a(data.value, '20'); });
 			}),
-			driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
+			driver.trackSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
 			driver.trackComputedSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
 				a(size, 0);
 			}),
@@ -106,7 +106,7 @@ module.exports = function (opts, copyOpts) {
 			driver.storeReduced('typeTest/object', '7Object')
 		)(function () {
 			a.throws(function () {
-				driver.trackDirectSize('miszkaAll', 'miszka').done();
+				driver.trackSize('miszkaAll', 'miszka').done();
 			}, 'DUPLICATE_INDEX');
 			return driver.storeEvents([
 				new Event(aaa.getOwnDescriptor('sdfds'), 'sdfs'),
@@ -155,7 +155,7 @@ module.exports = function (opts, copyOpts) {
 			})(function () {
 				return deferred(
 					driver.indexKeyPath('someBoolComputed2', db.SomeType.instances),
-					driver.trackDirectSize('someBoolSize2', 'someBool2', '11')(function (size) {
+					driver.trackSize('someBoolSize2', 'someBool2', '11')(function (size) {
 						a(size, 3);
 					}),
 					driver.trackComputedSize('someBoolComputedSize2', 'someBoolComputed2',
@@ -185,7 +185,7 @@ module.exports = function (opts, copyOpts) {
 				});
 			})(function () {
 				return deferred(
-					driver.trackDirectSize('miszkaAll', 'miszka')(function (size) {
+					driver.trackSize('miszkaAll', 'miszka')(function (size) {
 						a(size, 3);
 						return driver.getReduced('miszkaAll')(function (data) { a(data.value, '23'); });
 					}),
@@ -193,7 +193,7 @@ module.exports = function (opts, copyOpts) {
 						a(size, 7);
 						return driver.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
 					}),
-					driver.trackDirectSize('someBoolSize', 'someBool', '11')(function (size) {
+					driver.trackSize('someBoolSize', 'someBool', '11')(function (size) {
 						a(size, 3);
 					}),
 					driver.trackComputedSize('someBoolComputedSize', 'someBoolComputed',
