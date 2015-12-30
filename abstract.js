@@ -150,7 +150,7 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	deleteDirectManyObjects: d(function (ownerIds) {
+	deleteManyObjects: d(function (ownerIds) {
 		ownerIds = aFrom(ensureIterable(ownerIds), ensureString);
 		this._ensureOpen();
 		++this._runningOperations;
