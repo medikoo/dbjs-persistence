@@ -24,11 +24,11 @@ setPrototypeOf(RecomputeDriver, PersistenceDriver);
 RecomputeDriver.prototype = Object.create(PersistenceDriver.prototype, {
 	constructor: d(RecomputeDriver),
 	loadRawEvents: d(function (events) {
-		this.db._postponed_ += 1;
+		this.database._postponed_ += 1;
 		toArray(ensureIterable(events)).forEach(function (data) {
 			this._load(data.id, data.data.value, data.data.stamp);
 		}, this);
-		this.db._postponed_ -= 1;
+		this.database._postponed_ -= 1;
 	}),
 
 	_handleStoreComputed: d(function (ns, path, value, stamp) {

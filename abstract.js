@@ -66,7 +66,7 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 	var autoSaveFilter, options, listener;
 	if (!(this instanceof PersistenceDriver)) return new PersistenceDriver(dbjs, arguments[1]);
 	options = Object(arguments[1]);
-	this.db = ensureDatabase(dbjs);
+	this.database = ensureDatabase(dbjs);
 	autoSaveFilter = (options.autoSaveFilter != null)
 		? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
 	dbjs.objects.on('update', listener = function (event) {
@@ -76,7 +76,8 @@ var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/
 		++this._runningOperations;
 		this._storeEvent(event).finally(this._onOperationEnd).done();
 	}.bind(this));
-	this._cleanupCalls.push(this.db.objects.off.bind(this.db.objects, 'update', listener));
+	this._cleanupCalls.push(this.database.objects.off.bind(this.database.objects,
+		'update', listener));
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
@@ -634,9 +635,9 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		var proto;
 		if (this._loadedEventsMap[id + '.' + stamp]) return;
 		this._loadedEventsMap[id + '.' + stamp] = true;
-		value = unserializeValue(value, this.db.objects);
+		value = unserializeValue(value, this.database.objects);
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
-		return new Event(this.db.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
+		return new Event(this.database.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
 
 	_storeRaw: d(function (cat, ns, path, data) {

@@ -23,11 +23,11 @@ var EmitterDriver = module.exports = function (dbjs) {
 	if (!(this instanceof EmitterDriver)) return new EmitterDriver(dbjs);
 	PersistenceDriver.call(this, dbjs);
 	receiver('dbAccessData', function (data) {
-		this.db._postponed_ += 1;
+		this.database._postponed_ += 1;
 		toArray(ensureIterable(data)).forEach(function (data) {
 			this._load(data.id, data.data.value, data.data.stamp);
 		}, this);
-		this.db._postponed_ -= 1;
+		this.database._postponed_ -= 1;
 		if (this.hasOwnProperty('_waitingRecords')) return this._storeDeferred.promise;
 	}.bind(this));
 	receiver('dbStampData', function (id) {
