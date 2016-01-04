@@ -62,29 +62,16 @@ var byStamp = function (a, b) {
 	return (aStamp - bStamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
-var PersistenceDriver = module.exports = Object.defineProperties(function (dbjs/*, options*/) {
-	var autoSaveFilter, options, listener;
-	if (!(this instanceof PersistenceDriver)) return new PersistenceDriver(dbjs, arguments[1]);
-	options = Object(arguments[1]);
-	this.database = ensureDatabase(dbjs);
-	autoSaveFilter = (options.autoSaveFilter != null)
-		? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
-	dbjs.objects.on('update', listener = function (event) {
-		if (event.sourceId === 'persistentLayer') return;
-		if (!autoSaveFilter(event)) return;
-		this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
-		++this._runningOperations;
-		this._storeEvent(event).finally(this._onOperationEnd).done();
-	}.bind(this));
-	this._cleanupCalls.push(this.database.objects.off.bind(this.database.objects,
-		'update', listener));
+var PersistenceDriver = module.exports = Object.defineProperties(function (/*options*/) {
+	var options;
+	if (!(this instanceof PersistenceDriver)) return new PersistenceDriver(arguments[0]);
+	options = Object(arguments[0]);
+	if (options.database != null) this.registerDatabase(options.database, options);
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
 
-var notImplemented = function () {
-	throw customError("Not implemented", 'NOT_IMPLEMENTED');
-};
+var notImplemented = function () { throw customError("Not implemented", 'NOT_IMPLEMENTED'); };
 
 var ensureOwnerId = function (ownerId) {
 	ownerId = ensureString(ownerId);
@@ -217,6 +204,22 @@ ee(Object.defineProperties(PersistenceDriver.prototype, assign({
 		return this._getReducedObject(ns, keyPaths).finally(this._onOperationEnd);
 	}),
 
+	registerDatabase: d(function (database/*, options*/) {
+		var options = Object(arguments[1]), listener;
+		if (this.database) throw new Error("Database is already registered");
+		this.database = ensureDatabase(database);
+		var autoSaveFilter = (options.autoSaveFilter != null)
+			? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
+		database.objects.on('update', listener = function (event) {
+			if (event.sourceId === 'persistentLayer') return;
+			if (!autoSaveFilter(event)) return;
+			this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
+			++this._runningOperations;
+			this._storeEvent(event).finally(this._onOperationEnd).done();
+		}.bind(this));
+		this._cleanupCalls.push(this.database.objects.off.bind(this.database.objects,
+			'update', listener));
+	}),
 	load: d(function (id) {
 		return this.get(id)(function (data) {
 			if (!data) return null;

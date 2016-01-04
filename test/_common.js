@@ -1,6 +1,7 @@
 'use strict';
 
-var Set              = require('es6-set')
+var assign           = require('es5-ext/object/assign')
+  , Set              = require('es6-set')
   , deferred         = require('deferred')
   , Database         = require('dbjs')
   , Event            = require('dbjs/_setup/event')
@@ -32,7 +33,7 @@ module.exports = function (opts, copyOpts) {
 	};
 	return function (t, a, d) {
 		var db = getDatabase()
-		  , driver = t(db, opts)
+		  , driver = t(assign({ database: db }, opts))
 		  , aaa = db.SomeType.newNamed('aaa')
 		  , bbb = db.SomeType.newNamed('bbb')
 		  , ccc = db.SomeType.newNamed('ccc')
@@ -168,7 +169,7 @@ module.exports = function (opts, copyOpts) {
 			return driver.close();
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(db, opts);
+			  , driver = t(assign({ database: db }, opts));
 			return driver.indexKeyPath('computed', db.SomeType.instances)(function () {
 				return deferred(driver.getComputed('fooBar/computed')(function (data) {
 					a(data.value, '3fooelo', "Computed: initial #1");
@@ -255,7 +256,7 @@ module.exports = function (opts, copyOpts) {
 			});
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(db, opts);
+			  , driver = t(assign({ database: db }, opts));
 			return driver.loadAll()(function () {
 				a(db.fooBar.constructor, db.SomeType);
 				a(db.fooBar.raz, 'marko');
@@ -269,8 +270,8 @@ module.exports = function (opts, copyOpts) {
 			});
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(getDatabase(), opts)
-			  , driverCopy = t(db, copyOpts);
+			  , driver = t(opts)
+			  , driverCopy = t(assign({ database: db }, copyOpts));
 			return driver.export(driverCopy)(function () {
 				return driverCopy.loadAll()(function () {
 					a(db.fooBar.constructor, db.SomeType);

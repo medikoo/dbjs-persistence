@@ -62,11 +62,11 @@ var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 	return result;
 };
 
-var TextFileDriver = module.exports = function (dbjs, data) {
-	if (!(this instanceof TextFileDriver)) return new TextFileDriver(dbjs, data);
+var TextFileDriver = module.exports = function (data) {
+	if (!(this instanceof TextFileDriver)) return new TextFileDriver(data);
 	ensureObject(data);
 	this.dirPath = resolve(ensureString(data.path));
-	PersistenceDriver.call(this, dbjs, data);
+	PersistenceDriver.call(this, data);
 	this.dbDir = mkdir(this.dirPath, { intermediate: true }).aside(null, function (err) {
 		this.isClosed = true;
 		this.emitError(err);

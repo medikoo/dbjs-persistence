@@ -12,6 +12,7 @@ var toArray           = require('es5-ext/array/to-array')
   , lazy              = require('d/lazy')
   , deferred          = require('deferred')
   , once              = require('timers-ext/once')
+  , ensureDatabase    = require('dbjs/valid-dbjs')
   , PersistenceDriver = require('./abstract')
   , emitter           = require('./lib/emitter')
   , receiver          = require('./lib/receiver')
@@ -19,9 +20,10 @@ var toArray           = require('es5-ext/array/to-array')
   , stringify = JSON.stringify
   , resolved = deferred(undefined);
 
-var EmitterDriver = module.exports = function (dbjs) {
-	if (!(this instanceof EmitterDriver)) return new EmitterDriver(dbjs);
-	PersistenceDriver.call(this, dbjs);
+var EmitterDriver = module.exports = function (database) {
+	if (!(this instanceof EmitterDriver)) return new EmitterDriver(database);
+	ensureDatabase(database);
+	PersistenceDriver.call(this, { database: database });
 	receiver('dbAccessData', function (data) {
 		this.database._postponed_ += 1;
 		toArray(ensureIterable(data)).forEach(function (data) {

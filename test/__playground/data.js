@@ -8,7 +8,7 @@ var Event   = require('dbjs/_setup/event')
   , dbPath = resolve(__dirname, 'storage');
 
 module.exports = function () {
-	var db = getDb(), driver = new Driver(db, { path: dbPath });
+	var db = getDb(), driver = new Driver({ database: db, path: dbPath });
 
 	db.SomeType.newNamed('aaa');
 	db.SomeType.newNamed('bbb');

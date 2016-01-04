@@ -8,14 +8,16 @@ var toArray           = require('es5-ext/array/to-array')
   , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
   , d                 = require('d')
   , deferred          = require('deferred')
+  , ensureDatabase    = require('dbjs/valid-dbjs')
   , PersistenceDriver = require('../../abstract')
 
   , stringify = JSON.stringify
   , resolved = deferred(undefined);
 
-var RecomputeDriver = module.exports = Object.defineProperties(function (dbjs) {
-	if (!(this instanceof RecomputeDriver)) return new RecomputeDriver(dbjs);
-	PersistenceDriver.call(this, dbjs);
+var RecomputeDriver = module.exports = Object.defineProperties(function (database) {
+	if (!(this instanceof RecomputeDriver)) return new RecomputeDriver(database);
+	ensureDatabase(database);
+	PersistenceDriver.call(this, { database: database });
 }, {
 	defaultAutoSaveFilter: d(function (event) { return false; })
 });
