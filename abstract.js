@@ -62,9 +62,9 @@ var byStamp = function (a, b) {
 	return (aStamp - bStamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
-var PersistenceDriver = module.exports = Object.defineProperties(function (/*options*/) {
+var PersistenceStorage = module.exports = Object.defineProperties(function (/*options*/) {
 	var options;
-	if (!(this instanceof PersistenceDriver)) return new PersistenceDriver(arguments[0]);
+	if (!(this instanceof PersistenceStorage)) return new PersistenceStorage(arguments[0]);
 	options = Object(arguments[0]);
 	if (options.database != null) this.registerDatabase(options.database, options);
 }, {
@@ -79,7 +79,7 @@ var ensureOwnerId = function (ownerId) {
 	return ownerId;
 };
 
-ee(Object.defineProperties(PersistenceDriver.prototype, assign({
+ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 	get: d(function (id) {
 		var index, ownerId, path, uncertain;
 		id = ensureString(id);
