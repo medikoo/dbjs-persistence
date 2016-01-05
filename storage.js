@@ -1,4 +1,4 @@
-// Abstract Persistence driver
+// Abstract Storage Persistence driver
 
 'use strict';
 

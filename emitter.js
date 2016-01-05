@@ -13,7 +13,7 @@ var toArray           = require('es5-ext/array/to-array')
   , deferred          = require('deferred')
   , once              = require('timers-ext/once')
   , ensureDatabase    = require('dbjs/valid-dbjs')
-  , PersistenceDriver = require('./abstract')
+  , PersistenceDriver = require('./storage')
   , emitter           = require('./lib/emitter')
   , receiver          = require('./lib/receiver')
 

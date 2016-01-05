@@ -20,7 +20,7 @@ var assign            = require('es5-ext/object/assign')
   , readdir           = require('fs2/readdir')
   , rmdir             = require('fs2/rmdir')
   , writeFile         = require('fs2/write-file')
-  , PersistenceDriver = require('./abstract')
+  , PersistenceDriver = require('./storage')
 
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , isArray = Array.isArray, keys = Object.keys, create = Object.create

@@ -9,7 +9,7 @@ var toArray           = require('es5-ext/array/to-array')
   , d                 = require('d')
   , deferred          = require('deferred')
   , ensureDatabase    = require('dbjs/valid-dbjs')
-  , PersistenceDriver = require('../../abstract')
+  , PersistenceDriver = require('../../storage')
 
   , stringify = JSON.stringify
   , resolved = deferred(undefined);

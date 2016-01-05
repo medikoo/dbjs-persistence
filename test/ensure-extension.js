@@ -1,7 +1,7 @@
 'use strict';
 
 var Database = require('dbjs')
-  , Driver   = require('../abstract');
+  , Driver   = require('../storage');
 
 module.exports = function (t, a) {
 	var driver = new Driver(new Database());
