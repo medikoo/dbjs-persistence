@@ -14,7 +14,7 @@ var aFrom           = require('es5-ext/array/from')
   , genStamp        = require('time-uuid/time')
   , fork            = require('child_process').fork
   , cpus            = require('os').cpus
-  , ensureDriver    = require('../ensure')
+  , ensureDriver    = require('../ensure-storage')
   , registerEmitter = require('../lib/emitter')
 
   , ceil = Math.ceil, min = Math.min

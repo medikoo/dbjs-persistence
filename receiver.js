@@ -4,7 +4,7 @@
 
 var ensureObject    = require('es5-ext/object/valid-object')
   , deferred        = require('deferred')
-  , ensureDriver    = require('./ensure')
+  , ensureDriver    = require('./ensure-storage')
   , receiver        = require('./lib/receiver')
   , registerEmitter = require('./lib/emitter')
 
