@@ -5,7 +5,7 @@ var Database = require('dbjs');
 module.exports = function (t, a) {
 	var db = new Database()
 	  , aaa = db.Object.newNamed('aaa')
-	  , driver = t(db);
+	  , driver = t({ database: db });
 
 	a.throws(function () {
 		driver.storeEvent(aaa._lastOwnEvent_);
