@@ -1,13 +1,15 @@
 'use strict';
 
-var Database = require('dbjs');
+var Database           = require('dbjs')
+  , PersistentDatabase = require('../database');
 
 module.exports = function (t, a) {
 	var db = new Database()
 	  , aaa = db.Object.newNamed('aaa')
-	  , driver = t({ database: db });
+	  , pDb = new PersistentDatabase({ database: db })
+	  , storage = pDb.getStorage('base');
 
 	a.throws(function () {
-		driver.storeEvent(aaa._lastOwnEvent_);
+		storage.storeEvent(aaa._lastOwnEvent_);
 	}, "Not implemented");
 };

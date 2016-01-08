@@ -9,6 +9,6 @@ module.exports = function (t, a) {
 	a.throws(function () { t(true); }, TypeError);
 	a.throws(function () { t('sdfss'); }, TypeError);
 	a.throws(function () { t({}); }, TypeError);
-	a.throws(function () { t(db); }, TypeError);
-	a(t(storage), storage);
+	a.throws(function () { t(storage); }, TypeError);
+	a(t(db), db);
 };

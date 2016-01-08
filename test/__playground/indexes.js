@@ -3,10 +3,10 @@
 var deferred = require('deferred');
 
 module.exports = function (driver) {
-	var db = driver.database;
+	var db = driver.database, storage = driver.getStorage('base');
 
 	return deferred(
-		driver.indexKeyPath('computed', db.SomeType.instances),
-		driver.indexKeyPath('computedSet', db.SomeType.instances)
+		storage.indexKeyPath('computed', db.SomeType.instances),
+		storage.indexKeyPath('computedSet', db.SomeType.instances)
 	);
 };

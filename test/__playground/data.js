@@ -8,13 +8,14 @@ var Event   = require('dbjs/_setup/event')
   , dbPath = resolve(__dirname, 'storage');
 
 module.exports = function () {
-	var db = getDb(), driver = new Driver({ database: db, path: dbPath });
+	var db = getDb(), driver = new Driver({ database: db, path: dbPath })
+	  , storage = driver.getStorage('base');
 
 	db.SomeType.newNamed('aaa');
 	db.SomeType.newNamed('bbb');
 	db.SomeType.newNamed('ccc');
 
-	driver.storeEvents([
+	storage.storeEvents([
 		new Event(db.bbb.getOwnDescriptor('bar'), 'marko'),
 		new Event(db.ccc.getOwnDescriptor('bar'), 'miszka')
 	]);

@@ -33,7 +33,7 @@ module.exports = function (opts, copyOpts) {
 	};
 	return function (t, a, d) {
 		var db = getDatabase()
-		  , driver = t(assign({ database: db }, opts))
+		  , storage = t(assign({ database: db }, opts)).getStorage('base')
 		  , aaa = db.SomeType.newNamed('aaa')
 		  , bbb = db.SomeType.newNamed('bbb')
 		  , ccc = db.SomeType.newNamed('ccc')
@@ -46,70 +46,70 @@ module.exports = function (opts, copyOpts) {
 		zzz.delete('bar');
 		aaa.bar = null;
 		return deferred(
-			driver.indexKeyPath('computed', db.SomeType.instances)(function () {
-				return deferred(driver.getComputed('fooBar/computed')(function (data) {
+			storage.indexKeyPath('computed', db.SomeType.instances)(function () {
+				return deferred(storage.getComputed('fooBar/computed')(function (data) {
 					a(data.value, '3fooelo', "Computed: initial #1");
-				}), driver.getComputed('aaa/computed')(function (data) {
+				}), storage.getComputed('aaa/computed')(function (data) {
 					a(data.value, '3foo', "Computed: initial #2");
-				}), driver.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+				}), storage.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 					a(size, 7);
-					return driver.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
+					return storage.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
 				}));
 			}),
-			driver.indexKeyPath('computedSet', db.SomeType.instances)(function () {
-				return deferred(driver.getComputed('fooBar/computedSet')(function (data) {
+			storage.indexKeyPath('computedSet', db.SomeType.instances)(function () {
+				return deferred(storage.getComputed('fooBar/computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
-				}), driver.getComputed('aaa/computedSet')(function (data) {
+				}), storage.getComputed('aaa/computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 				}));
 			}),
-			driver.indexKeyPath('someBoolComputed', db.SomeType.instances),
-			driver.indexCollection('barByCol', db.SomeType.find('bar', 'elo'))(function () {
-				return deferred(driver.getComputed('aaa/barByCol')(function (data) {
+			storage.indexKeyPath('someBoolComputed', db.SomeType.instances),
+			storage.indexCollection('barByCol', db.SomeType.find('bar', 'elo'))(function () {
+				return deferred(storage.getComputed('aaa/barByCol')(function (data) {
 					a(data, null);
-				}), driver.getComputed('bar/barByCol')(function (data) {
+				}), storage.getComputed('bar/barByCol')(function (data) {
 					a(data.value, '11');
 					a(typeof data.stamp, 'number');
 				}));
 			}),
-			driver.trackSize('miszkaAll', 'miszka')(function (size) {
+			storage.trackSize('miszkaAll', 'miszka')(function (size) {
 				a(size, 0);
-				return driver.getReduced('miszkaAll')(function (data) { a(data.value, '20'); });
+				return storage.getReduced('miszkaAll')(function (data) { a(data.value, '20'); });
 			}),
-			driver.trackSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
-			driver.trackComputedSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
+			storage.trackSize('someBoolSize', 'someBool', '11')(function (size) { a(size, 0); }),
+			storage.trackComputedSize('someBoolComputedSize', 'someBoolComputed', '11')(function (size) {
 				a(size, 0);
 			}),
-			driver.trackMultipleSize('someBoolAll',
+			storage.trackMultipleSize('someBoolAll',
 				['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 0); }),
-			driver.trackCollectionSize('colSize1', db.SomeType.instances)(function () {
-				return driver.getReduced('colSize1')(function (data) {
+			storage.trackCollectionSize('colSize1', db.SomeType.instances)(function () {
+				return storage.getReduced('colSize1')(function (data) {
 					a(data.value, '2' + db.SomeType.instances.size);
 				});
 			}),
-			driver.trackCollectionSize('colSize2', db.SomeType.instances)(function () {
-				return driver.getReduced('colSize2')(function (data) {
+			storage.trackCollectionSize('colSize2', db.SomeType.instances)(function () {
+				return storage.getReduced('colSize2')(function (data) {
 					a(data.value, '2' + db.SomeType.instances.size);
 				});
 			}),
-			driver.storeEvent(zzz._lastOwnEvent_),
-			driver.storeEvent(bar._lastOwnEvent_),
-			driver.storeEvent(fooBar._lastOwnEvent_),
-			driver.storeEvent(aaa._lastOwnEvent_),
-			driver.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
-			driver.store('elo/faa', '3marko'),
-			driver.store('typeTest/boolean', '11'),
-			driver.store('typeTest/number', '222'),
-			driver.store('typeTest/string', '3foo'),
-			driver.store('typeTest/date', '41447794621442'),
-			driver.store('typeTest/regexp', '5/foo/'),
-			driver.store('typeTest/function', '6function (foo) { return \'bar\'; }'),
-			driver.store('typeTest/object', '7Object')
+			storage.storeEvent(zzz._lastOwnEvent_),
+			storage.storeEvent(bar._lastOwnEvent_),
+			storage.storeEvent(fooBar._lastOwnEvent_),
+			storage.storeEvent(aaa._lastOwnEvent_),
+			storage.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_),
+			storage.store('elo/faa', '3marko'),
+			storage.store('typeTest/boolean', '11'),
+			storage.store('typeTest/number', '222'),
+			storage.store('typeTest/string', '3foo'),
+			storage.store('typeTest/date', '41447794621442'),
+			storage.store('typeTest/regexp', '5/foo/'),
+			storage.store('typeTest/function', '6function (foo) { return \'bar\'; }'),
+			storage.store('typeTest/object', '7Object')
 		)(function () {
 			a.throws(function () {
-				driver.trackSize('miszkaAll', 'miszka').done();
+				storage.trackSize('miszkaAll', 'miszka').done();
 			}, 'DUPLICATE_INDEX');
-			return driver.storeEvents([
+			return storage.storeEvents([
 				new Event(aaa.getOwnDescriptor('sdfds'), 'sdfs'),
 				new Event(zzz.getOwnDescriptor('sdfffds'), 'sdfs'),
 				new Event(zzz.getOwnDescriptor('miszka'), 'ejo'),
@@ -133,81 +133,81 @@ module.exports = function (opts, copyOpts) {
 				new Event(ddd.getOwnDescriptor('someBoolStatic2'), false),
 				new Event(eee.getOwnDescriptor('someBoolStatic2'), true)
 			])(function () {
-				return driver.onDrain;
+				return storage.onDrain;
 			})(function () {
-				return driver._getRaw('direct', 'fooBar')(function (data) {
+				return storage._getRaw('direct', 'fooBar')(function (data) {
 					a(data.value, '7SomeType#');
 				});
 			})(function () {
-				return driver.getObject('fooBar', { keyPaths: new Set(['miszka']) })(function (data) {
+				return storage.getObject('fooBar', { keyPaths: new Set(['miszka']) })(function (data) {
 					a.deep(data.map(function (data) { return data.id; }), ['fooBar', 'fooBar/miszka']);
 				});
 			})(function () {
-				return driver.getReducedObject('miszkaAll')(function (result) {
+				return storage.getReducedObject('miszkaAll')(function (result) {
 					a.deep(result, [{ id: 'miszkaAll', data: result[0].data }]);
 					a.deep(result[0].data.value, '23');
 				});
 			})(function () {
 				return deferred(
-					driver.getReduced('someBoolSize')(function (data) { a(data.value, '23'); }),
-					driver.getReduced('someBoolComputedSize')(function (data) { a(data.value, '23'); }),
-					driver.getReduced('someBoolAll')(function (data) { a(data.value, '22'); })
+					storage.getReduced('someBoolSize')(function (data) { a(data.value, '23'); }),
+					storage.getReduced('someBoolComputedSize')(function (data) { a(data.value, '23'); }),
+					storage.getReduced('someBoolAll')(function (data) { a(data.value, '22'); })
 				);
 			})(function () {
 				return deferred(
-					driver.indexKeyPath('someBoolComputed2', db.SomeType.instances),
-					driver.trackSize('someBoolSize2', 'someBool2', '11')(function (size) {
+					storage.indexKeyPath('someBoolComputed2', db.SomeType.instances),
+					storage.trackSize('someBoolSize2', 'someBool2', '11')(function (size) {
 						a(size, 3);
 					}),
-					driver.trackComputedSize('someBoolComputedSize2', 'someBoolComputed2',
+					storage.trackComputedSize('someBoolComputedSize2', 'someBoolComputed2',
 						'11')(function (size) { a(size, 3); }),
-					driver.trackMultipleSize('someBoolAll2',
+					storage.trackMultipleSize('someBoolAll2',
 						['someBoolSize2', 'someBoolComputedSize2'])(function (size) { a(size, 2); })
 				);
 			});
 		})(function () {
-			return driver.close();
+			return storage.close();
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(assign({ database: db }, opts));
-			return driver.indexKeyPath('computed', db.SomeType.instances)(function () {
-				return deferred(driver.getComputed('fooBar/computed')(function (data) {
+			  , storage = t(assign({ database: db }, opts)).getStorage('base');
+			return storage.indexKeyPath('computed', db.SomeType.instances)(function () {
+				return deferred(storage.getComputed('fooBar/computed')(function (data) {
 					a(data.value, '3fooelo', "Computed: initial #1");
-				}), driver.getComputed('aaa/computed')(function (data) {
+				}), storage.getComputed('aaa/computed')(function (data) {
 					a(data.value, '3foo', "Computed: initial #2");
 				}));
 			})(function () {
-				return driver.indexKeyPath('computedSet', db.SomeType.instances)(function (map) {
-					return deferred(driver.getComputed('fooBar/computedSet')(function (data) {
+				return storage.indexKeyPath('computedSet', db.SomeType.instances)(function (map) {
+					return deferred(storage.getComputed('fooBar/computedSet')(function (data) {
 						a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
-					}), driver.getComputed('aaa/computedSet')(function (data) {
+					}), storage.getComputed('aaa/computedSet')(function (data) {
 						a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
 					}));
 				});
 			})(function () {
 				return deferred(
-					driver.trackSize('miszkaAll', 'miszka')(function (size) {
+					storage.trackSize('miszkaAll', 'miszka')(function (size) {
 						a(size, 3);
-						return driver.getReduced('miszkaAll')(function (data) { a(data.value, '23'); });
+						return storage.getReduced('miszkaAll')(function (data) { a(data.value, '23'); });
 					}),
-					driver.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
+					storage.trackComputedSize('computedFooelo', 'computed', '3fooelo')(function (size) {
 						a(size, 7);
-						return driver.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
+						return storage.getReduced('computedFooelo')(function (data) { a(data.value, '27'); });
 					}),
-					driver.trackSize('someBoolSize', 'someBool', '11')(function (size) {
+					storage.trackSize('someBoolSize', 'someBool', '11')(function (size) {
 						a(size, 3);
 					}),
-					driver.trackComputedSize('someBoolComputedSize', 'someBoolComputed',
+					storage.trackComputedSize('someBoolComputedSize', 'someBoolComputed',
 						'11')(function (size) { a(size, 3); }),
-					driver.trackMultipleSize('someBoolAll',
+					storage.trackMultipleSize('someBoolAll',
 						['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 2); })
 				);
 			})(function () {
-				return driver._getRaw('computed', 'computed', 'fooBar')(function (data) {
+				return storage._getRaw('computed', 'computed', 'fooBar')(function (data) {
 					a(data.value, '3fooelo');
 				});
 			})(function () {
-				return driver.loadObject('fooBar')(function () {
+				return storage.loadObject('fooBar')(function () {
 					a(db.fooBar.constructor, db.SomeType);
 					a(db.aaa, undefined);
 					a(db.bar, undefined);
@@ -216,48 +216,48 @@ module.exports = function (opts, copyOpts) {
 					a(db.fooBar.bal, false);
 					a(db.fooBar.miszka, 767);
 					a(db.fooBar.computed, 'fooelo');
-					return driver.load('bar')(function (event) {
+					return storage.load('bar')(function (event) {
 						a(event.object, db.bar);
 						a(event.value, db.SomeType.prototype);
 						a(db.bar.constructor, db.SomeType);
 						a(db.bar.miszka, undefined);
 					});
 				})(function () {
-					return driver._getRaw('computed', 'computed', 'fooBar')(function (data) {
+					return storage._getRaw('computed', 'computed', 'fooBar')(function (data) {
 						a(data.value, '3fooelo');
 					});
 				})(function () {
-					return driver.load('bar/miszka')(function (event) {
+					return storage.load('bar/miszka')(function (event) {
 						a(db.bar.miszka, 343);
 					});
 				})(function () {
 					return deferred(
-						driver.get('elo/faa')(function (data) { a(data.value, '3marko'); }),
-						driver.get('typeTest/boolean')(function (data) { a(data.value, '11'); }),
-						driver.get('typeTest/number')(function (data) { a(data.value, '222'); }),
-						driver.get('typeTest/string')(function (data) { a(data.value, '3foo'); }),
-						driver.get('typeTest/date')(function (data) { a(data.value, '41447794621442'); }),
-						driver.get('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
-						driver.get('typeTest/function')(function (data) {
+						storage.get('elo/faa')(function (data) { a(data.value, '3marko'); }),
+						storage.get('typeTest/boolean')(function (data) { a(data.value, '11'); }),
+						storage.get('typeTest/number')(function (data) { a(data.value, '222'); }),
+						storage.get('typeTest/string')(function (data) { a(data.value, '3foo'); }),
+						storage.get('typeTest/date')(function (data) { a(data.value, '41447794621442'); }),
+						storage.get('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
+						storage.get('typeTest/function')(function (data) {
 							a(data.value, '6function (foo) { return \'bar\'; }');
 						}),
-						driver.get('typeTest/object')(function (data) { a(data.value, '7Object'); })
+						storage.get('typeTest/object')(function (data) { a(data.value, '7Object'); })
 					);
 				})(function () {
 					db.fooBar.bar = 'miszka';
-					return driver.onDrain()(function () {
-						driver._getRaw('computed', 'computed', 'fooBar')(function (data) {
+					return storage.onDrain()(function () {
+						storage._getRaw('computed', 'computed', 'fooBar')(function (data) {
 							a(data.value, '3foomiszka');
 						});
 					});
 				});
 			})(function () {
-				return driver.close();
+				return storage.close();
 			});
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(assign({ database: db }, opts));
-			return driver.loadAll()(function () {
+			  , storage = t(assign({ database: db }, opts)).getStorage('base');
+			return storage.loadAll()(function () {
 				a(db.fooBar.constructor, db.SomeType);
 				a(db.fooBar.raz, 'marko');
 				a(db.fooBar.bal, false);
@@ -266,14 +266,14 @@ module.exports = function (opts, copyOpts) {
 				a(db.zzz.constructor, db.SomeType);
 				a(db.bar.miszka, 343);
 			})(function () {
-				return driver.close();
+				return storage.close();
 			});
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(opts)
-			  , driverCopy = t(assign({ database: db }, copyOpts));
-			return driver.export(driverCopy)(function () {
-				return driverCopy.loadAll()(function () {
+			  , storage = t(opts).getStorage('base')
+			  , storageCopy = t(assign({ database: db }, copyOpts)).getStorage('base');
+			return storage.export(storageCopy)(function () {
+				return storageCopy.loadAll()(function () {
 					a(db.fooBar.constructor, db.SomeType);
 					a(db.fooBar.raz, 'marko');
 					a(db.fooBar.bal, false);
@@ -282,27 +282,27 @@ module.exports = function (opts, copyOpts) {
 					a(db.zzz.constructor, db.SomeType);
 					a(db.bar.miszka, 343);
 					return deferred(
-						driverCopy._getRaw('computed', 'computed', 'fooBar')(function (data) {
+						storageCopy._getRaw('computed', 'computed', 'fooBar')(function (data) {
 							a(data.value, '3foomiszka');
 						}),
-						driverCopy._getRaw('direct', 'elo', 'faa')(function (data) {
+						storageCopy._getRaw('direct', 'elo', 'faa')(function (data) {
 							a(data.value, '3marko');
 						}),
-						driverCopy.get('typeTest/boolean')(function (data) { a(data.value, '11'); }),
-						driverCopy.get('typeTest/number')(function (data) { a(data.value, '222'); }),
-						driverCopy.get('typeTest/string')(function (data) { a(data.value, '3foo'); }),
-						driverCopy.get('typeTest/date')(function (data) { a(data.value, '41447794621442'); }),
-						driverCopy.get('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
-						driverCopy.get('typeTest/function')(function (data) {
+						storageCopy.get('typeTest/boolean')(function (data) { a(data.value, '11'); }),
+						storageCopy.get('typeTest/number')(function (data) { a(data.value, '222'); }),
+						storageCopy.get('typeTest/string')(function (data) { a(data.value, '3foo'); }),
+						storageCopy.get('typeTest/date')(function (data) { a(data.value, '41447794621442'); }),
+						storageCopy.get('typeTest/regexp')(function (data) { a(data.value, '5/foo/'); }),
+						storageCopy.get('typeTest/function')(function (data) {
 							a(data.value, '6function (foo) { return \'bar\'; }');
 						}),
-						driverCopy.get('typeTest/object')(function (data) { a(data.value, '7Object'); })
+						storageCopy.get('typeTest/object')(function (data) { a(data.value, '7Object'); })
 					);
 				});
 			})(function () {
-				return driver.clear();
+				return storage.clear();
 			})(function () {
-				return deferred(driver.close(), driverCopy.close());
+				return deferred(storage.close(), storageCopy.close());
 			});
 		});
 	};

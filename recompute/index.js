@@ -1,21 +1,22 @@
 'use strict';
 
-var aFrom           = require('es5-ext/array/from')
-  , toArray         = require('es5-ext/array/to-array')
-  , flatten         = require('es5-ext/array/#/flatten')
-  , ensureIterable  = require('es5-ext/iterable/validate-object')
-  , ensureCallable  = require('es5-ext/object/valid-callable')
-  , ensureObject    = require('es5-ext/object/valid-object')
-  , ensureString    = require('es5-ext/object/validate-stringifiable-value')
-  , Map             = require('es6-map')
-  , Set             = require('es6-set')
-  , memoize         = require('memoizee/plain')
-  , deferred        = require('deferred')
-  , genStamp        = require('time-uuid/time')
-  , fork            = require('child_process').fork
-  , cpus            = require('os').cpus
-  , ensureDriver    = require('../ensure-storage')
-  , registerEmitter = require('../lib/emitter')
+var aFrom                    = require('es5-ext/array/from')
+  , toArray                  = require('es5-ext/array/to-array')
+  , flatten                  = require('es5-ext/array/#/flatten')
+  , ensureIterable           = require('es5-ext/iterable/validate-object')
+  , forEach                  = require('es5-ext/object/for-each')
+  , ensureCallable           = require('es5-ext/object/valid-callable')
+  , ensureObject             = require('es5-ext/object/valid-object')
+  , ensureString             = require('es5-ext/object/validate-stringifiable-value')
+  , Map                      = require('es6-map')
+  , Set                      = require('es6-set')
+  , memoize                  = require('memoizee/plain')
+  , deferred                 = require('deferred')
+  , genStamp                 = require('time-uuid/time')
+  , fork                     = require('child_process').fork
+  , cpus                     = require('os').cpus
+  , ensurePersistentDatabase = require('../ensure-database')
+  , registerEmitter          = require('../lib/emitter')
 
   , ceil = Math.ceil, min = Math.min
   , create = Object.create, keys = Object.keys
@@ -23,7 +24,7 @@ var aFrom           = require('es5-ext/array/from')
 
 module.exports = function (driver, data) {
 	var promise, slaveScriptPath, ids, getData;
-	ensureDriver(driver);
+	ensurePersistentDatabase(driver);
 	ensureObject(data);
 	ids = ensureObject(data.ids);
 	getData = ensureCallable(data.getData);
@@ -34,19 +35,29 @@ module.exports = function (driver, data) {
 		if (!ids.length) return;
 		var resolveOwners = memoize(function () {
 			var owners = new Map();
-			return deferred.map(indexes, function (name) {
-				var ownerIds = new Set();
-				owners.set(name, ownerIds);
-				// Get all owner ids for saved records
-				return driver.searchComputed(name, function (ownerId) { ownerIds.add(ownerId); });
+			return deferred.map(keys(indexes), function (storageName) {
+				var storageOwners = new Map()
+				  , storage = driver.getStorage(storageName);
+				owners.set(storageName, storageOwners);
+				return deferred.map(indexes[storageName], function (name) {
+					var ownerIds = new Set();
+					storageOwners.set(name, ownerIds);
+					// Get all owner ids for saved records
+					return storage.searchComputed(name, function (ownerId) {
+						ownerIds.add(ownerId);
+					});
+				});
 			})(owners);
 		});
 		var cleanup = function () {
 			return resolveOwners()(function (owners) {
-				return deferred.map(indexes, function (name) {
-					// Delete not used ownerids
-					return deferred.map(aFrom(owners.get(name)), function (ownerId) {
-						return driver._handleStoreComputed(name, ownerId, '', genStamp());
+				return deferred.map(keys(indexes), function (storageName) {
+					return deferred.map(indexes[storageName], function (name) {
+						var storage = driver.getStorage(storageName);
+						// Delete not used ownerids
+						return deferred.map(aFrom(owners.get(storageName).get(name)), function (ownerId) {
+							return storage._handleStoreComputed(name, ownerId, '', genStamp());
+						});
 					});
 				});
 			});
@@ -56,19 +67,22 @@ module.exports = function (driver, data) {
 			var pool, reinitializePool, indexesData, emitData, getStamp;
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
-					return deferred.map(indexes, function (name) {
-						var ownerIds = owners.get(name);
-						// Apply calculations
-						return deferred.map(keys(indexesData[name]), function (ownerId) {
-							var data = indexesData[name][ownerId], stamp;
-							ownerIds.delete(ownerId);
-							delete indexesData[name][ownerId];
-							if (data.stamp === 'async') {
-								stamp = function () { return getStamp(ownerId + '/' + name); };
-							} else {
-								stamp = data.stamp;
-							}
-							return driver._handleStoreComputed(name, ownerId, data.value, stamp);
+					return deferred.map(keys(indexes), function (storageName) {
+						var storage = driver.getStorage(storageName);
+						return deferred.map(indexes[storageName], function (name) {
+							var ownerIds = owners.get(storageName).get(name);
+							// Apply calculations
+							return deferred.map(keys(indexesData[storageName][name]), function (ownerId) {
+								var data = this[ownerId], stamp;
+								ownerIds.delete(ownerId);
+								delete this[ownerId];
+								if (data.stamp === 'async') {
+									stamp = function () { return getStamp(ownerId + '/' + name); };
+								} else {
+									stamp = data.stamp;
+								}
+								return storage._handleStoreComputed(name, ownerId, data.value, stamp);
+							}, indexesData[storageName][name]);
 						});
 					});
 				})(function () { pool.kill(); });
@@ -82,7 +96,9 @@ module.exports = function (driver, data) {
 					})(function (data) {
 						return flatten.call(data).sort(byStamp);
 					})(emitData)(function (data) {
-						data.events.forEach(function (data) { indexesData[data.ns][data.path] = data; });
+						data.events.forEach(function (data) {
+							indexesData[data.name][data.ns][data.path] = data;
+						});
 						return sendData(data.health);
 					});
 				}
@@ -102,7 +118,10 @@ module.exports = function (driver, data) {
 					if (!indexes) indexes = message.indexes;
 					if (!indexesData) {
 						indexesData = create(null);
-						indexes.forEach(function (name) { indexesData[name] = create(null); });
+						forEach(indexes, function (storageIndexes, name) {
+							var storageIndexesData = indexesData[name] = create(null);
+							storageIndexes.forEach(function (name) { storageIndexesData[name] = create(null); });
+						});
 					}
 					def.resolve(sendData());
 				});

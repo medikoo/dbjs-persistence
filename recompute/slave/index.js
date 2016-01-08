@@ -1,8 +1,9 @@
 'use strict';
 
-var Map              = require('es6-map')
+var map              = require('es5-ext/object/map')
+  , Map              = require('es6-map')
   , ensureDatabase   = require('dbjs/valid-dbjs')
-  , Driver           = require('./driver')
+  , Driver           = require('./database')
   , registerReceiver = require('../../lib/receiver')
 
   , keys = Object.keys;
@@ -42,8 +43,10 @@ module.exports = function (db) {
 			// empty at current stage)
 			process.send({
 				type: 'init',
-				indexes: keys(driver._indexes).filter(function (name) {
-					return driver._indexes[name].type === 'computed';
+				indexes: map(driver._storages, function (storage) {
+					return keys(storage._indexes).filter(function (name) {
+						return storage._indexes[name].type === 'computed';
+					});
 				})
 			});
 		}

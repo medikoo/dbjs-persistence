@@ -9,6 +9,6 @@ module.exports = function (t, a) {
 	a(t(true), false);
 	a(t('sdfss'), false);
 	a(t('sdfss'), false);
-	a(t(db), false);
-	a(t(storage), true);
+	a(t(db), true);
+	a(t(storage), false);
 };

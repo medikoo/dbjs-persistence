@@ -4,14 +4,14 @@
 
 var ensureObject    = require('es5-ext/object/valid-object')
   , deferred        = require('deferred')
-  , ensureDriver    = require('./ensure-storage')
+  , ensureDriver    = require('./ensure-database')
   , receiver        = require('./lib/receiver')
   , registerEmitter = require('./lib/emitter')
 
   , stringify = JSON.stringify;
 
-module.exports = function (dbDriver, slaveProcess) {
-	ensureDriver(dbDriver);
+module.exports = function (persistentDatabase, slaveProcess) {
+	ensureDriver(persistentDatabase);
 	ensureObject(slaveProcess);
 
 	var getStamp = registerEmitter('dbStampData', slaveProcess);
@@ -19,7 +19,8 @@ module.exports = function (dbDriver, slaveProcess) {
 		return deferred.map(records, function (data) {
 			var stamp;
 			if (data.type === 'direct') {
-				return dbDriver._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
+				return persistentDatabase.getStorage(data.name)
+					._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
 			}
 			if (data.type === 'computed') {
 				if (data.stamp === 'async') {
@@ -27,7 +28,8 @@ module.exports = function (dbDriver, slaveProcess) {
 				} else {
 					stamp = data.stamp;
 				}
-				return dbDriver._handleStoreComputed(data.ns, data.path, data.value, stamp);
+				return persistentDatabase.getStorage(data.name)
+					._handleStoreComputed(data.ns, data.path, data.value, stamp);
 			}
 			throw new Error("Unrecognized request: ", stringify(data));
 		});

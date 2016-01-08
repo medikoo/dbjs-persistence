@@ -32,14 +32,12 @@ var aFrom                 = require('es5-ext/array/from')
   , ee                    = require('event-emitter')
   , genStamp              = require('time-uuid/time')
   , ensureObservableSet   = require('observable-set/valid-observable-set')
-  , ensureDatabase        = require('dbjs/valid-dbjs')
-  , Event                 = require('dbjs/_setup/event')
   , unserializeValue      = require('dbjs/_setup/unserialize/value')
   , serializeValue        = require('dbjs/_setup/serialize/value')
   , serializeKey          = require('dbjs/_setup/serialize/key')
   , resolveKeyPath        = require('dbjs/_setup/utils/resolve-key-path')
   , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
-  , ensureDriver          = require('./ensure-storage')
+  , ensureStorage         = require('./ensure-storage')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
   , resolveFilter         = require('./lib/resolve-filter')
   , resolveDirectFilter   = require('./lib/resolve-direct-filter')
@@ -62,14 +60,23 @@ var byStamp = function (a, b) {
 	return (aStamp - bStamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
-var PersistenceStorage = module.exports = Object.defineProperties(function (/*options*/) {
-	var options;
-	if (!(this instanceof PersistenceStorage)) return new PersistenceStorage(arguments[0]);
-	options = Object(arguments[0]);
-	if (options.database != null) this.registerDatabase(options.database, options);
+var PersistenceStorage = Object.defineProperties(function (persistentDatabase, name/*, options*/) {
+	var options, autoSaveFilter;
+	if (!(this instanceof PersistenceStorage)) {
+		return new PersistenceStorage(persistentDatabase, name, arguments[2]);
+	}
+	this.persistentDatabase = persistentDatabase;
+	this.name = name;
+	if (this.persistentDatabase.database) {
+		options = Object(arguments[2]);
+		autoSaveFilter = (options.autoSaveFilter != null)
+			? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
+		this._registerDatabase(autoSaveFilter);
+	}
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
+module.exports = PersistenceStorage;
 
 var notImplemented = function () { throw customError("Not implemented", 'NOT_IMPLEMENTED'); };
 
@@ -204,32 +211,16 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 		return this._getReducedObject(ns, keyPaths).finally(this._onOperationEnd);
 	}),
 
-	registerDatabase: d(function (database/*, options*/) {
-		var options = Object(arguments[1]), listener;
-		if (this.database) throw new Error("Database is already registered");
-		this.database = ensureDatabase(database);
-		var autoSaveFilter = (options.autoSaveFilter != null)
-			? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
-		database.objects.on('update', listener = function (event) {
-			if (event.sourceId === 'persistentLayer') return;
-			if (!autoSaveFilter(event)) return;
-			this._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
-			++this._runningOperations;
-			this._storeEvent(event).finally(this._onOperationEnd).done();
-		}.bind(this));
-		this._cleanupCalls.push(this.database.objects.off.bind(this.database.objects,
-			'update', listener));
-	}),
 	load: d(function (id) {
 		return this.get(id)(function (data) {
 			if (!data) return null;
-			return this._load(id, data.value, data.stamp);
+			return this.persistentDatabase._load(id, data.value, data.stamp);
 		}.bind(this));
 	}),
 	loadObject: d(function (ownerId) {
 		return this.getObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
-				return this._load(data.id, data.data.value, data.data.stamp);
+				return this.persistentDatabase._load(data.id, data.data.value, data.data.stamp);
 			}, this));
 		}.bind(this));
 	}),
@@ -240,7 +231,7 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 		promise = this._getAll()(function (data) {
 			return compact.call(data.map(function (data) {
 				if (!(++progress % 1000)) promise.emit('progress');
-				return this._load(data.id, data.data.value, data.data.stamp);
+				return this.persistentDatabase._load(data.id, data.data.value, data.data.stamp);
 			}, this));
 		}.bind(this)).finally(this._onOperationEnd);
 		return promise;
@@ -502,7 +493,7 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 	}),
 
 	export: d(function (externalStore) {
-		ensureDriver(externalStore);
+		ensureStorage(externalStore);
 		this._ensureOpen();
 		++this._runningOperations;
 		return this._safeGet(function () {
@@ -634,13 +625,16 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 		});
 	}),
 
-	_load: d(function (id, value, stamp) {
-		var proto;
-		if (this._loadedEventsMap[id + '.' + stamp]) return;
-		this._loadedEventsMap[id + '.' + stamp] = true;
-		value = unserializeValue(value, this.database.objects);
-		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
-		return new Event(this.database.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
+	_registerDatabase: d(function (autoSaveFilter) {
+		var listener, database = this.persistentDatabase.database;
+		database.objects.on('update', listener = function (event) {
+			if (event.sourceId === 'persistentLayer') return;
+			if (!autoSaveFilter(event)) return;
+			this.persistentDatabase._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
+			++this._runningOperations;
+			this._storeEvent(event).finally(this._onOperationEnd).done();
+		}.bind(this));
+		this._cleanupCalls.push(database.objects.off.bind(database.objects, 'update', listener));
 	}),
 
 	_storeRaw: d(function (cat, ns, path, data) {
@@ -1222,7 +1216,6 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 	})
 }), lazy({
 	_cleanupCalls: d(function () { return []; }),
-	_loadedEventsMap: d(function () { return create(null); }),
 	_indexes: d(function () { return create(null); }),
 	_transient: d(function () {
 		return defineProperties({}, lazy({

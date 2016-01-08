@@ -13,7 +13,7 @@ var deferred         = require('deferred')
   , storagePath = resolve(__dirname, '__playground/receiver-storage');
 
 module.exports = function (t, a, d) {
-	var driver = getDriver(), slave = fork(slavePath);
+	var driver = getDriver(), slave = fork(slavePath), storage = driver.getStorage('base');
 	t(driver, slave);
 	slave.once('message', function (data) {
 		a.deep(data, { type: 'init' });
@@ -24,18 +24,18 @@ module.exports = function (t, a, d) {
 			{ id: 'bbb/bar', data: { value: '3marko', stamp: getStamp() } },
 			{ id: 'ccc/bar', data: { value: '3miszka', stamp: getStamp() } }
 		])(function () {
-			return driver.onDrain(function () {
+			return storage.onDrain(function () {
 				return deferred(
-					driver.getComputed('aaa/computed')(function (data) { a(data.value, '3fooelo'); }),
-					driver.getComputed('bbb/computed')(function (data) { a(data.value, '3foomarko'); }),
-					driver.getComputed('ccc/computed')(function (data) { a(data.value, '3foomiszka'); }),
-					driver.getComputed('aaa/computedSet')(function (data) {
+					storage.getComputed('aaa/computed')(function (data) { a(data.value, '3fooelo'); }),
+					storage.getComputed('bbb/computed')(function (data) { a(data.value, '3foomarko'); }),
+					storage.getComputed('ccc/computed')(function (data) { a(data.value, '3foomiszka'); }),
+					storage.getComputed('aaa/computedSet')(function (data) {
 						a.deep(resolveEventKeys(data.value), ['elo', 'fooelo']);
 					}),
-					driver.getComputed('bbb/computedSet')(function (data) {
+					storage.getComputed('bbb/computedSet')(function (data) {
 						a.deep(resolveEventKeys(data.value), ['marko', 'foomarko']);
 					}),
-					driver.getComputed('ccc/computedSet')(function (data) {
+					storage.getComputed('ccc/computedSet')(function (data) {
 						a.deep(resolveEventKeys(data.value), ['miszka', 'foomiszka']);
 					})
 				);

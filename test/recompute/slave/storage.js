@@ -1,4 +1,4 @@
-// Tested in scope of ./text-file/database.js
+// Tested in scope of ../index.js
 
 'use strict';
 
