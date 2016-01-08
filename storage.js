@@ -60,14 +60,12 @@ var byStamp = function (a, b) {
 	return (aStamp - bStamp) || a.toLowerCase().localeCompare(b.toLowerCase());
 };
 
-var PersistenceStorage = Object.defineProperties(function (persistentDatabase, name/*, options*/) {
+var Storage = Object.defineProperties(function (driver, name/*, options*/) {
 	var options, autoSaveFilter;
-	if (!(this instanceof PersistenceStorage)) {
-		return new PersistenceStorage(persistentDatabase, name, arguments[2]);
-	}
-	this.persistentDatabase = persistentDatabase;
+	if (!(this instanceof Storage)) return new Storage(driver, name, arguments[2]);
+	this.driver = driver;
 	this.name = name;
-	if (this.persistentDatabase.database) {
+	if (this.driver.database) {
 		options = Object(arguments[2]);
 		autoSaveFilter = (options.autoSaveFilter != null)
 			? ensureCallable(options.autoSaveFilter) : this.constructor.defaultAutoSaveFilter;
@@ -76,7 +74,7 @@ var PersistenceStorage = Object.defineProperties(function (persistentDatabase, n
 }, {
 	defaultAutoSaveFilter: d(function (event) { return !isModelId(event.object.master.__id__); })
 });
-module.exports = PersistenceStorage;
+module.exports = Storage;
 
 var notImplemented = function () { throw customError("Not implemented", 'NOT_IMPLEMENTED'); };
 
@@ -86,7 +84,7 @@ var ensureOwnerId = function (ownerId) {
 	return ownerId;
 };
 
-ee(Object.defineProperties(PersistenceStorage.prototype, assign({
+ee(Object.defineProperties(Storage.prototype, assign({
 	get: d(function (id) {
 		var index, ownerId, path, uncertain;
 		id = ensureString(id);
@@ -214,13 +212,13 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 	load: d(function (id) {
 		return this.get(id)(function (data) {
 			if (!data) return null;
-			return this.persistentDatabase._load(id, data.value, data.stamp);
+			return this.driver._load(id, data.value, data.stamp);
 		}.bind(this));
 	}),
 	loadObject: d(function (ownerId) {
 		return this.getObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
-				return this.persistentDatabase._load(data.id, data.data.value, data.data.stamp);
+				return this.driver._load(data.id, data.data.value, data.data.stamp);
 			}, this));
 		}.bind(this));
 	}),
@@ -231,7 +229,7 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 		promise = this._getAll()(function (data) {
 			return compact.call(data.map(function (data) {
 				if (!(++progress % 1000)) promise.emit('progress');
-				return this.persistentDatabase._load(data.id, data.data.value, data.data.stamp);
+				return this.driver._load(data.id, data.data.value, data.data.stamp);
 			}, this));
 		}.bind(this)).finally(this._onOperationEnd);
 		return promise;
@@ -626,11 +624,11 @@ ee(Object.defineProperties(PersistenceStorage.prototype, assign({
 	}),
 
 	_registerDatabase: d(function (autoSaveFilter) {
-		var listener, database = this.persistentDatabase.database;
+		var listener, database = this.driver.database;
 		database.objects.on('update', listener = function (event) {
 			if (event.sourceId === 'persistentLayer') return;
 			if (!autoSaveFilter(event)) return;
-			this.persistentDatabase._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
+			this.driver._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
 			++this._runningOperations;
 			this._storeEvent(event).finally(this._onOperationEnd).done();
 		}.bind(this));

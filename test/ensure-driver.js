@@ -1,9 +1,9 @@
 'use strict';
 
-var PersistentDatabase = require('../database');
+var Driver = require('../driver');
 
 module.exports = function (t, a) {
-	var db = new PersistentDatabase(), storage = db.getStorage('base');
+	var db = new Driver(), storage = db.getStorage('base');
 	a.throws(function () { t(); }, TypeError);
 	a.throws(function () { t(null); }, TypeError);
 	a.throws(function () { t(true); }, TypeError);

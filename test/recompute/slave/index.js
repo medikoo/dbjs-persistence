@@ -1,7 +1,7 @@
 'use strict';
 
 var Database = require('dbjs')
-  , isDriver = require('../../../is-database');
+  , isDriver = require('../../../is-driver');
 
 module.exports = function (T, a) {
 	var slave = new T(new Database());

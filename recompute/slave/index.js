@@ -3,7 +3,7 @@
 var map              = require('es5-ext/object/map')
   , Map              = require('es6-map')
   , ensureDatabase   = require('dbjs/valid-dbjs')
-  , Driver           = require('./database')
+  , Driver           = require('./driver')
   , registerReceiver = require('../../lib/receiver')
 
   , keys = Object.keys;

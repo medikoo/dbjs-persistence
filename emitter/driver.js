@@ -2,25 +2,25 @@
 
 'use strict';
 
-var toArray            = require('es5-ext/array/to-array')
-  , ensureIterable     = require('es5-ext/iterable/validate-object')
-  , assign             = require('es5-ext/object/assign')
-  , setPrototypeOf     = require('es5-ext/object/set-prototype-of')
-  , Map                = require('es6-map')
-  , d                  = require('d')
-  , lazy               = require('d/lazy')
-  , deferred           = require('deferred')
-  , once               = require('timers-ext/once')
-  , ensureDatabase     = require('dbjs/valid-dbjs')
-  , PersistentDatabase = require('../database')
-  , emitter            = require('../lib/emitter')
-  , receiver           = require('../lib/receiver')
-  , Storage            = require('./storage');
+var toArray        = require('es5-ext/array/to-array')
+  , ensureIterable = require('es5-ext/iterable/validate-object')
+  , assign         = require('es5-ext/object/assign')
+  , setPrototypeOf = require('es5-ext/object/set-prototype-of')
+  , Map            = require('es6-map')
+  , d              = require('d')
+  , lazy           = require('d/lazy')
+  , deferred       = require('deferred')
+  , once           = require('timers-ext/once')
+  , ensureDatabase = require('dbjs/valid-dbjs')
+  , Driver         = require('../driver')
+  , emitter        = require('../lib/emitter')
+  , receiver       = require('../lib/receiver')
+  , Storage        = require('./storage');
 
 var EmitterDatabase = module.exports = Object.defineProperties(function (database) {
 	if (!(this instanceof EmitterDatabase)) return new EmitterDatabase(database);
 	ensureDatabase(database);
-	PersistentDatabase.call(this, { database: database });
+	Driver.call(this, { database: database });
 	receiver('dbAccessData', function (data) {
 		this.database._postponed_ += 1;
 		toArray(ensureIterable(data)).forEach(function (data) {
@@ -35,9 +35,9 @@ var EmitterDatabase = module.exports = Object.defineProperties(function (databas
 		return resolver();
 	}.bind(this));
 }, { storageClass: d(Storage) });
-setPrototypeOf(EmitterDatabase, PersistentDatabase);
+setPrototypeOf(EmitterDatabase, Driver);
 
-EmitterDatabase.prototype = Object.create(PersistentDatabase.prototype, assign({
+EmitterDatabase.prototype = Object.create(Driver.prototype, assign({
 	constructor: d(EmitterDatabase),
 
 	_storeRecord: d(function (record) {

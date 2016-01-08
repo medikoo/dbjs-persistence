@@ -18,14 +18,14 @@ var resolveAutoSaveFilter = function (name) {
 	return function (event) { return event.master.constructor.__id__ === className; };
 };
 
-var PersistentDatabase = module.exports = Object.defineProperties(function (/*options*/) {
+var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 	var options;
-	if (!(this instanceof PersistentDatabase)) return new PersistentDatabase(arguments[0]);
+	if (!(this instanceof Driver)) return new Driver(arguments[0]);
 	options = Object(arguments[0]);
 	if (options.database != null) this.database = ensureDatabase(options.database);
 }, { storageClass: d(Storage) });
 
-Object.defineProperties(PersistentDatabase.prototype, assign({
+Object.defineProperties(Driver.prototype, assign({
 	getStorage: d(function (name) {
 		var storageOptions;
 		name = ensureString(name);

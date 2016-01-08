@@ -1,22 +1,22 @@
 'use strict';
 
-var aFrom                    = require('es5-ext/array/from')
-  , toArray                  = require('es5-ext/array/to-array')
-  , flatten                  = require('es5-ext/array/#/flatten')
-  , ensureIterable           = require('es5-ext/iterable/validate-object')
-  , forEach                  = require('es5-ext/object/for-each')
-  , ensureCallable           = require('es5-ext/object/valid-callable')
-  , ensureObject             = require('es5-ext/object/valid-object')
-  , ensureString             = require('es5-ext/object/validate-stringifiable-value')
-  , Map                      = require('es6-map')
-  , Set                      = require('es6-set')
-  , memoize                  = require('memoizee/plain')
-  , deferred                 = require('deferred')
-  , genStamp                 = require('time-uuid/time')
-  , fork                     = require('child_process').fork
-  , cpus                     = require('os').cpus
-  , ensurePersistentDatabase = require('../ensure-database')
-  , registerEmitter          = require('../lib/emitter')
+var aFrom           = require('es5-ext/array/from')
+  , toArray         = require('es5-ext/array/to-array')
+  , flatten         = require('es5-ext/array/#/flatten')
+  , ensureIterable  = require('es5-ext/iterable/validate-object')
+  , forEach         = require('es5-ext/object/for-each')
+  , ensureCallable  = require('es5-ext/object/valid-callable')
+  , ensureObject    = require('es5-ext/object/valid-object')
+  , ensureString    = require('es5-ext/object/validate-stringifiable-value')
+  , Map             = require('es6-map')
+  , Set             = require('es6-set')
+  , memoize         = require('memoizee/plain')
+  , deferred        = require('deferred')
+  , genStamp        = require('time-uuid/time')
+  , fork            = require('child_process').fork
+  , cpus            = require('os').cpus
+  , ensureDriver    = require('../ensure-driver')
+  , registerEmitter = require('../lib/emitter')
 
   , ceil = Math.ceil, min = Math.min
   , create = Object.create, keys = Object.keys
@@ -24,7 +24,7 @@ var aFrom                    = require('es5-ext/array/from')
 
 module.exports = function (driver, data) {
 	var promise, slaveScriptPath, ids, getData;
-	ensurePersistentDatabase(driver);
+	ensureDriver(driver);
 	ensureObject(data);
 	ids = ensureObject(data.ids);
 	getData = ensureCallable(data.getData);

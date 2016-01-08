@@ -2,23 +2,23 @@
 
 'use strict';
 
-var assign            = require('es5-ext/object/assign')
-  , forEach           = require('es5-ext/object/for-each')
-  , setPrototypeOf    = require('es5-ext/object/set-prototype-of')
-  , some              = require('es5-ext/object/some')
-  , toArray           = require('es5-ext/object/to-array')
-  , startsWith        = require('es5-ext/string/#/starts-with')
-  , d                 = require('d')
-  , memoizeMethods    = require('memoizee/methods')
-  , deferred          = require('deferred')
-  , resolveKeyPath    = require('dbjs/_setup/utils/resolve-key-path')
-  , resolve           = require('path').resolve
-  , mkdir             = require('fs2/mkdir')
-  , readFile          = require('fs2/read-file')
-  , readdir           = require('fs2/readdir')
-  , rmdir             = require('fs2/rmdir')
-  , writeFile         = require('fs2/write-file')
-  , PersistentStorage = require('../storage')
+var assign         = require('es5-ext/object/assign')
+  , forEach        = require('es5-ext/object/for-each')
+  , setPrototypeOf = require('es5-ext/object/set-prototype-of')
+  , some           = require('es5-ext/object/some')
+  , toArray        = require('es5-ext/object/to-array')
+  , startsWith     = require('es5-ext/string/#/starts-with')
+  , d              = require('d')
+  , memoizeMethods = require('memoizee/methods')
+  , deferred       = require('deferred')
+  , resolveKeyPath = require('dbjs/_setup/utils/resolve-key-path')
+  , resolve        = require('path').resolve
+  , mkdir          = require('fs2/mkdir')
+  , readFile       = require('fs2/read-file')
+  , readdir        = require('fs2/readdir')
+  , rmdir          = require('fs2/rmdir')
+  , writeFile      = require('fs2/write-file')
+  , Storage        = require('../storage')
 
   , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , isArray = Array.isArray, keys = Object.keys, create = Object.create
@@ -60,21 +60,21 @@ var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 	return result;
 };
 
-var TextFileStorage = module.exports = function (persistentStorage, name/*, options*/) {
+var TextFileStorage = module.exports = function (driver, name/*, options*/) {
 	if (!(this instanceof TextFileStorage)) {
-		return new TextFileStorage(persistentStorage, name, arguments[2]);
+		return new TextFileStorage(driver, name, arguments[2]);
 	}
-	PersistentStorage.call(this, persistentStorage, name, arguments[2]);
-	this.dirPath = resolve(persistentStorage.dirPath, name);
+	Storage.call(this, driver, name, arguments[2]);
+	this.dirPath = resolve(driver.dirPath, name);
 	this.dbDir = mkdir(this.dirPath, { intermediate: true })
 		.aside(null, function (err) {
 			this.isClosed = true;
 			this.emitError(err);
 		}.bind(this));
 };
-setPrototypeOf(TextFileStorage, PersistentStorage);
+setPrototypeOf(TextFileStorage, Storage);
 
-TextFileStorage.prototype = Object.create(PersistentStorage.prototype, assign({
+TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 	constructor: d(TextFileStorage),
 	// Any data
 	__getRaw: d(function (cat, ns, path) {

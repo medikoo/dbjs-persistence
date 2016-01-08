@@ -2,28 +2,28 @@
 
 'use strict';
 
-var toArray            = require('es5-ext/array/to-array')
-  , ensureIterable     = require('es5-ext/iterable/validate-object')
-  , setPrototypeOf     = require('es5-ext/object/set-prototype-of')
-  , d                  = require('d')
-  , ee                 = require('event-emitter')
-  , deferred           = require('deferred')
-  , ensureDatabase     = require('dbjs/valid-dbjs')
-  , PersistentDatabase = require('../../database')
-  , Storage            = require('./storage')
+var toArray        = require('es5-ext/array/to-array')
+  , ensureIterable = require('es5-ext/iterable/validate-object')
+  , setPrototypeOf = require('es5-ext/object/set-prototype-of')
+  , d              = require('d')
+  , ee             = require('event-emitter')
+  , deferred       = require('deferred')
+  , ensureDatabase = require('dbjs/valid-dbjs')
+  , Driver         = require('../../driver')
+  , Storage        = require('./storage')
 
   , resolved = deferred(undefined);
 
 var RecomputeDatabase = module.exports = Object.defineProperties(function (database) {
 	if (!(this instanceof RecomputeDatabase)) return new RecomputeDatabase(database);
 	ensureDatabase(database);
-	PersistentDatabase.call(this, { database: database });
+	Driver.call(this, { database: database });
 }, {
 	storageClass: d(Storage)
 });
-setPrototypeOf(RecomputeDatabase, PersistentDatabase);
+setPrototypeOf(RecomputeDatabase, Driver);
 
-RecomputeDatabase.prototype = ee(Object.create(PersistentDatabase.prototype, {
+RecomputeDatabase.prototype = ee(Object.create(Driver.prototype, {
 	constructor: d(RecomputeDatabase),
 	loadRawEvents: d(function (events) {
 		this.database._postponed_ += 1;

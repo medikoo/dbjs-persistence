@@ -1,12 +1,12 @@
 'use strict';
 
 var Database           = require('dbjs')
-  , PersistentDatabase = require('../database');
+  , Driver = require('../driver');
 
 module.exports = function (t, a) {
 	var db = new Database()
 	  , aaa = db.Object.newNamed('aaa')
-	  , pDb = new PersistentDatabase({ database: db })
+	  , pDb = new Driver({ database: db })
 	  , storage = pDb.getStorage('base');
 
 	a.throws(function () {
