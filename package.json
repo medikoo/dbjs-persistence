@@ -9,6 +9,7 @@
     "persistence",
     "persistent"
   ],
+  "main": "./text-file/driver",
   "repository": {
     "type": "git",
     "url": "git://github.com/medikoo/dbjs-persistence.git"
