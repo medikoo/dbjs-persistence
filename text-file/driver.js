@@ -5,8 +5,11 @@ var setPrototypeOf = require('es5-ext/object/set-prototype-of')
   , ensureString   = require('es5-ext/object/validate-stringifiable-value')
   , d              = require('d')
   , resolve        = require('path').resolve
+  , readdir        = require('fs2/readdir')
   , Driver         = require('../driver')
-  , Storage        = require('./storage');
+  , Storage        = require('./storage')
+
+  , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
 var TextFileDriver = Object.defineProperties(function (data) {
 	if (!(this instanceof TextFileDriver)) return new TextFileDriver(data);
@@ -19,5 +22,12 @@ setPrototypeOf(TextFileDriver, Driver);
 module.exports = TextFileDriver;
 
 TextFileDriver.prototype = Object.create(Driver.prototype, {
-	constructor: d(TextFileDriver)
+	constructor: d(TextFileDriver),
+
+	__resolveAllStorages: d(function () {
+		return readdir(this.dirPath, { type: { directory: true } }).map(function (name) {
+			if (!isIdent(name)) return;
+			this.getStorage(name);
+		})(Function.prototype);
+	})
 });
