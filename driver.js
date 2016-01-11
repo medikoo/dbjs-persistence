@@ -5,12 +5,13 @@ var assign           = require('es5-ext/object/assign')
   , capitalize       = require('es5-ext/string/#/capitalize')
   , d                = require('d')
   , lazy             = require('d/lazy')
+  , deferred         = require('deferred')
   , ensureDatabase   = require('dbjs/valid-dbjs')
   , Event            = require('dbjs/_setup/event')
   , unserializeValue = require('dbjs/_setup/unserialize/value')
   , Storage          = require('./storage')
 
-  , create = Object.create, stringify = JSON.stringify
+  , create = Object.create, keys = Object.keys, stringify = JSON.stringify
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
 var resolveAutoSaveFilter = function (name) {
@@ -35,6 +36,11 @@ Object.defineProperties(Driver.prototype, assign({
 			storageOptions = { autoSaveFilter: resolveAutoSaveFilter(name) };
 		}
 		return (this._storages[name] = new this.constructor.storageClass(this, name, storageOptions));
+	}),
+	loadAll: d(function () {
+		if (!this.database) throw new Error("No database registered to load data in");
+		return deferred.map(keys(this._storages),
+			function (name) { return this[name].loadAll(); }, this._storages);
 	}),
 	_load: d(function (id, value, stamp) {
 		var proto;
