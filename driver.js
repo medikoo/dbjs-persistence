@@ -10,6 +10,7 @@ var assign           = require('es5-ext/object/assign')
   , Event            = require('dbjs/_setup/event')
   , unserializeValue = require('dbjs/_setup/unserialize/value')
   , Storage          = require('./storage')
+  , ensureDriver     = require('./ensure-driver')
 
   , create = Object.create, keys = Object.keys, stringify = JSON.stringify
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
@@ -41,6 +42,12 @@ Object.defineProperties(Driver.prototype, assign({
 		if (!this.database) throw new Error("No database registered to load data in");
 		return deferred.map(keys(this._storages),
 			function (name) { return this[name].loadAll(); }, this._storages);
+	}),
+	export: d(function (externalDriver) {
+		ensureDriver(externalDriver);
+		return deferred.map(keys(this._storages), function (name) {
+			return this[name].export(externalDriver.getStorage(name));
+		}, this._storages);
 	}),
 
 	_load: d(function (id, value, stamp) {
