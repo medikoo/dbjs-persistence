@@ -210,12 +210,14 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	}),
 
 	load: d(function (id) {
+		if (!this.driver.database) throw new Error("No database registered to load data in");
 		return this.get(id)(function (data) {
 			if (!data) return null;
 			return this.driver._load(id, data.value, data.stamp);
 		}.bind(this));
 	}),
 	loadObject: d(function (ownerId) {
+		if (!this.driver.database) throw new Error("No database registered to load data in");
 		return this.getObject(ownerId)(function (data) {
 			return compact.call(data.map(function (data) {
 				return this.driver._load(data.id, data.data.value, data.data.stamp);
@@ -224,6 +226,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	}),
 	loadAll: d(function () {
 		var promise, progress = 0;
+		if (!this.driver.database) throw new Error("No database registered to load data in");
 		this._ensureOpen();
 		++this._runningOperations;
 		promise = this._getAll()(function (data) {
