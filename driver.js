@@ -42,6 +42,7 @@ Object.defineProperties(Driver.prototype, assign({
 		return deferred.map(keys(this._storages),
 			function (name) { return this[name].loadAll(); }, this._storages);
 	}),
+
 	_load: d(function (id, value, stamp) {
 		var proto;
 		if (this._loadedEventsMap[id + '.' + stamp]) return;
