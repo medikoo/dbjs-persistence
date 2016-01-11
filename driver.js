@@ -49,6 +49,10 @@ Object.defineProperties(Driver.prototype, assign({
 			return this[name].export(externalDriver.getStorage(name));
 		}, this._storages);
 	}),
+	clear: d(function () {
+		return deferred.map(keys(this._storages),
+			function (name) { return this[name].clear(); }, this._storages);
+	}),
 
 	_load: d(function (id, value, stamp) {
 		var proto;
