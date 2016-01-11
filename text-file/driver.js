@@ -4,6 +4,7 @@ var setPrototypeOf = require('es5-ext/object/set-prototype-of')
   , ensureObject   = require('es5-ext/object/valid-object')
   , ensureString   = require('es5-ext/object/validate-stringifiable-value')
   , d              = require('d')
+  , deferred       = require('deferred')
   , resolve        = require('path').resolve
   , readdir        = require('fs2/readdir')
   , Driver         = require('../driver')
@@ -29,5 +30,6 @@ TextFileDriver.prototype = Object.create(Driver.prototype, {
 			if (!isIdent(name)) return;
 			this.getStorage(name);
 		})(Function.prototype);
-	})
+	}),
+	__close: d(function () { return deferred(undefined); })
 });

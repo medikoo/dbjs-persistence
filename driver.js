@@ -62,6 +62,13 @@ Object.defineProperties(Driver.prototype, assign({
 				function (name) { return this[name].clear(); }, this._storages);
 		}.bind(this));
 	}),
+	close: d(function () {
+		return deferred.map(keys(this._storages), function (name) {
+			return this[name].close();
+		}, this._storages)(function () {
+			return this.__close();
+		}.bind(this));
+	}),
 
 	_load: d(function (id, value, stamp) {
 		var proto;
@@ -72,7 +79,8 @@ Object.defineProperties(Driver.prototype, assign({
 		return new Event(this.database.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
 	}),
 
-	__resolveAllStorages: d(notImplemented)
+	__resolveAllStorages: d(notImplemented),
+	__close: d(notImplemented)
 }, lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_storages: d(function () { return create(null); }),
