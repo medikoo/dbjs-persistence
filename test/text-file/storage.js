@@ -1,4 +1,4 @@
-// Tested in scope of ./database.js
+// Tested in scope of ./driver.js
 
 'use strict';
 
