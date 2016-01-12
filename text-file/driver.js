@@ -12,15 +12,13 @@ var setPrototypeOf = require('es5-ext/object/set-prototype-of')
 
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
-var TextFileDriver = Object.defineProperties(function (data) {
+var TextFileDriver = module.exports = Object.defineProperties(function (data) {
 	if (!(this instanceof TextFileDriver)) return new TextFileDriver(data);
 	ensureObject(data);
 	this.dirPath = resolve(ensureString(data.path));
 	Driver.call(this, data);
 }, { storageClass: d(Storage) });
 setPrototypeOf(TextFileDriver, Driver);
-
-module.exports = TextFileDriver;
 
 TextFileDriver.prototype = Object.create(Driver.prototype, {
 	constructor: d(TextFileDriver),
