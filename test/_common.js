@@ -166,7 +166,7 @@ module.exports = function (opts, copyOpts) {
 				);
 			});
 		})(function () {
-			return storage.close();
+			return storage.driver.close();
 		})(function () {
 			var db = getDatabase()
 			  , storage = t(assign({ database: db }, opts)).getStorage('base');
@@ -252,7 +252,7 @@ module.exports = function (opts, copyOpts) {
 					});
 				});
 			})(function () {
-				return storage.close();
+				return storage.driver.close();
 			});
 		})(function () {
 			var db = getDatabase()
@@ -266,7 +266,7 @@ module.exports = function (opts, copyOpts) {
 				a(db.zzz.constructor, db.SomeType);
 				a(db.bar.miszka, 343);
 			})(function () {
-				return storage.close();
+				return storage.driver.close();
 			});
 		})(function () {
 			var db = getDatabase()
@@ -300,9 +300,9 @@ module.exports = function (opts, copyOpts) {
 					);
 				});
 			})(function () {
-				return storage.clear();
+				return storage.driver.clear();
 			})(function () {
-				return deferred(storage.close(), storageCopy.close());
+				return deferred(storage.driver.close(), storageCopy.driver.close());
 			});
 		});
 	};
