@@ -61,9 +61,7 @@ var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 };
 
 var TextFileStorage = module.exports = function (driver, name/*, options*/) {
-	if (!(this instanceof TextFileStorage)) {
-		return new TextFileStorage(driver, name, arguments[2]);
-	}
+	if (!(this instanceof TextFileStorage)) return new TextFileStorage(driver, name, arguments[2]);
 	Storage.call(this, driver, name, arguments[2]);
 	this.dirPath = resolve(driver.dirPath, name);
 	this.dbDir = mkdir(this.dirPath, { intermediate: true })
