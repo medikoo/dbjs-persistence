@@ -42,6 +42,10 @@ Object.defineProperties(Driver.prototype, assign({
 		}
 		return (this._storages[name] = new this.constructor.storageClass(this, name, storageOptions));
 	}),
+	getStorages: d(function () {
+		return this._resolveAllStorages()(function () { return copy(this._storages); }.bind(this));
+	}),
+
 	loadAll: d(function () {
 		if (!this.database) throw new Error("No database registered to load data in");
 		return this._resolveAllStorages()(function () {
@@ -69,9 +73,6 @@ Object.defineProperties(Driver.prototype, assign({
 		}, this._storages)(function () {
 			return this.__close();
 		}.bind(this));
-	}),
-	storages: d(function () {
-		return this._resolveAllStorages()(function () { return copy(this._storages); }.bind(this));
 	}),
 
 	_load: d(function (id, value, stamp) {
