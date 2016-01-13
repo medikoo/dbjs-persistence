@@ -748,6 +748,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			debug("update %s %s", id, stamp);
 			storedDef.resolve(this._storeRaw('direct', ownerId, path, nu)(nu));
 			driverEvent = {
+				storage: this,
 				type: 'direct',
 				id: id,
 				ownerId: ownerId,
@@ -806,6 +807,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				debug("computed update %s %s %s", path, ns, stamp);
 				storedDef.resolve(this._storeRaw('computed', ns, path, nu)(nu));
 				driverEvent = {
+					storage: this,
 					type: 'computed',
 					id: id,
 					ownerId: path,
@@ -851,6 +853,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			debug("reduced update %s", key, stamp);
 			storedDef.resolve(this._storeRaw('reduced', ownerId, keyPath, nu)(nu));
 			driverEvent = {
+				storage: this,
 				type: 'reduced',
 				id: key,
 				ownerId: ownerId,
