@@ -7,6 +7,7 @@ var customError      = require('es5-ext/error/custom')
   , capitalize       = require('es5-ext/string/#/capitalize')
   , d                = require('d')
   , lazy             = require('d/lazy')
+  , ee               = require('event-emitter')
   , deferred         = require('deferred')
   , ensureDatabase   = require('dbjs/valid-dbjs')
   , Event            = require('dbjs/_setup/event')
@@ -31,7 +32,7 @@ var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 	if (options.database != null) this.database = ensureDatabase(options.database);
 }, { storageClass: d(Storage) });
 
-Object.defineProperties(Driver.prototype, assign({
+ee(Object.defineProperties(Driver.prototype, assign({
 	getStorage: d(function (name) {
 		var storageOptions;
 		name = ensureString(name);
@@ -90,4 +91,4 @@ Object.defineProperties(Driver.prototype, assign({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_storages: d(function () { return create(null); }),
 	_resolveAllStorages: d(function () { return this.__resolveAllStorages(); })
-})));
+}))));
