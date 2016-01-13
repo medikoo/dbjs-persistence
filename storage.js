@@ -520,6 +520,22 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			}
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
+	drop: d(function () {
+		var transient = this._transient;
+		keys(transient.direct).forEach(function (key) { delete transient.direct[key]; });
+		keys(transient.computed).forEach(function (key) { delete transient.computed[key]; });
+		keys(transient.reduced).forEach(function (key) { delete transient.reduced[key]; });
+		if (this.isClosed) {
+			return deferred(this._closeDeferred.promise)(function () {
+				return this.__drop();
+			}.bind(this));
+		}
+		return this.close()(function () {
+			return this.__drop()(function () {
+				delete this.driver._storages[this.name];
+			}.bind(this));
+		}.bind(this));
+	}),
 	isClosed: d(false),
 	close: d(function () {
 		this._ensureOpen();
@@ -1202,6 +1218,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	__searchComputed: d(notImplemented),
 	__exportAll: d(notImplemented),
 	__clear: d(notImplemented),
+	__drop: d(notImplemented),
 	__close: d(notImplemented)
 
 }, autoBind({

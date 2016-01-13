@@ -217,11 +217,15 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		return promise;
 	}),
 	__clear: d(function () {
+		return this.__drop()(function () {
+			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
+		}.bind(this));
+	}),
+	__drop: d(function () {
 		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
 			this._getDirectStorage_.clear();
 			this._getComputedStorage_.clear();
 			this._getReducedStorage_.clear();
-			return (this.dbDir = mkdir(this.dirPath, { intermediate: true }));
 		}.bind(this));
 	}),
 
