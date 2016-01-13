@@ -2,6 +2,7 @@
 
 var customError      = require('es5-ext/error/custom')
   , assign           = require('es5-ext/object/assign')
+  , copy             = require('es5-ext/object/copy')
   , ensureString     = require('es5-ext/object/validate-stringifiable-value')
   , capitalize       = require('es5-ext/string/#/capitalize')
   , d                = require('d')
@@ -68,6 +69,9 @@ Object.defineProperties(Driver.prototype, assign({
 		}, this._storages)(function () {
 			return this.__close();
 		}.bind(this));
+	}),
+	storages: d(function () {
+		return this._resolveAllStorages()(function () { return copy(this._storages); }.bind(this));
 	}),
 
 	_load: d(function (id, value, stamp) {
