@@ -1,7 +1,7 @@
 'use strict';
 
 var getDb         = require('./db')
-  , EmitterDriver = require('../../emitter/driver')
+  , EmitterDriver = require('../../emitter/index')
 
   , slave = new EmitterDriver(getDb());
 
