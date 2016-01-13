@@ -30,7 +30,7 @@ module.exports = function (db) {
 				};
 			});
 			registerReceiver('stamp', function (id) { return stampResolvers.get(id)(); });
-			driver.on('update', function (data) {
+			driver.on('computedUpdate', function (data) {
 				if (typeof data.stamp === 'function') {
 					stampResolvers.set(data.path + '/' + data.ns, data.stamp);
 					data.stamp = 'async';
