@@ -757,8 +757,13 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				data: nu,
 				old: old
 			};
-			if (value) this.emit('update', driverEvent);
-			else this.emit('delete', driverEvent);
+			if (value) {
+				this.emit('update', driverEvent);
+				this.driver.emit('update', driverEvent);
+			} else {
+				this.emit('delete', driverEvent);
+				this.driver.emit('delete', driverEvent);
+			}
 			this.emit('key:' + (keyPath || '&'), driverEvent);
 			this.emit('owner:' + ownerId, driverEvent);
 			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
