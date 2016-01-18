@@ -80,6 +80,12 @@ ee(Object.defineProperties(Driver.prototype, assign({
 			return this[name].onDrain;
 		}, this._storages);
 	}),
+	recalculateAllSizes: d(function () {
+		return this._resolveAllStorages()(function () {
+			return deferred.map(keys(this._storages),
+				function (name) { return this[name].recalculateAllSizes(); }, this._storages);
+		}.bind(this));
+	}),
 
 	_load: d(function (id, value, stamp) {
 		var proto;
