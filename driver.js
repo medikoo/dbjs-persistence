@@ -75,6 +75,11 @@ ee(Object.defineProperties(Driver.prototype, assign({
 			return this.__close();
 		}.bind(this));
 	}),
+	onDrain: d.gs(function () {
+		return deferred.map(keys(this._storages), function (name) {
+			return this[name].onDrain;
+		}, this._storages);
+	}),
 
 	_load: d(function (id, value, stamp) {
 		var proto;
