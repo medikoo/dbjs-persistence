@@ -745,7 +745,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				resolvedDef.resolve(old);
 				return;
 			}
-			debug("update %s %s", id, stamp);
+			debug("%s update %s %s", this.name, id, stamp);
 			storedDef.resolve(this._storeRaw('direct', ownerId, path, nu)(nu));
 			driverEvent = {
 				storage: this,
@@ -804,7 +804,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
 					stamp: stamp
 				};
-				debug("computed update %s %s %s", path, ns, stamp);
+				debug("%s computed update %s %s %s", this.name, path, ns, stamp);
 				storedDef.resolve(this._storeRaw('computed', ns, path, nu)(nu));
 				driverEvent = {
 					storage: this,
@@ -850,7 +850,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				stamp = genStamp();
 			}
 			nu = { value: value, stamp: stamp };
-			debug("reduced update %s", key, stamp);
+			debug("%s reduced update %s", this.name, key, stamp);
 			storedDef.resolve(this._storeRaw('reduced', ownerId, keyPath, nu)(nu));
 			driverEvent = {
 				storage: this,
