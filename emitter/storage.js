@@ -11,9 +11,9 @@ var customError    = require('es5-ext/error/custom')
   , stringify = JSON.stringify
   , resolved = deferred(undefined);
 
-var EmitterStorage = module.exports = function (driver, name) {
-	if (!(this instanceof EmitterStorage)) return new EmitterStorage(driver, name);
-	Storage.call(this, driver, name);
+var EmitterStorage = module.exports = function (driver, name/*, options*/) {
+	if (!(this instanceof EmitterStorage)) return new EmitterStorage(driver, name, arguments[2]);
+	Storage.call(this, driver, name, arguments[2]);
 };
 setPrototypeOf(EmitterStorage, Storage);
 
