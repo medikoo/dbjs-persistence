@@ -20,7 +20,7 @@ var customError      = require('es5-ext/error/custom')
 
 var resolveAutoSaveFilter = function (name) {
 	var className = capitalize.call(name);
-	return function (event) { return event.master.constructor.__id__ === className; };
+	return function (event) { return event.object.master.constructor.__id__ === className; };
 };
 
 var notImplemented = function () { throw customError("Not implemented", 'NOT_IMPLEMENTED'); };
