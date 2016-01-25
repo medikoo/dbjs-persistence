@@ -334,6 +334,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	trackMultipleSize: d(function (name, sizeIndexes) {
 		name = ensureString(name);
 		sizeIndexes = aFrom(ensureIterable(sizeIndexes));
+		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
 		return this._trackMultipleSize(name, sizeIndexes);
 	}),
 
@@ -995,7 +996,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	}),
 	_trackMultipleSize: d(function (name, sizeIndexes) {
 		var dependencyPromises = [], metas = create(null);
-		if (sizeIndexes.length < 2) throw new Error("At least two size indexes should be provided");
 		sizeIndexes.forEach(function self(name) {
 			var meta = this._indexes[ensureString(name)], keyPath;
 			if (!meta) {
