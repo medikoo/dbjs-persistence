@@ -989,10 +989,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	}),
 	_trackCollectionSize: d(function (name, set) {
 		var indexName = 'sizeIndex/' + name;
-		return deferred(
-			this.indexCollection(indexName, set),
-			this.trackComputedSize(name, indexName, '11')
-		);
+		return this.indexCollection(indexName, set)(this.trackComputedSize(name, indexName, '11'));
 	}),
 	_trackMultipleSize: d(function (name, sizeIndexes) {
 		var dependencyPromises = [], metas = create(null);
