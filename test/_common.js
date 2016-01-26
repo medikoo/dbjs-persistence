@@ -1,6 +1,8 @@
 'use strict';
 
 var assign           = require('es5-ext/object/assign')
+  , capitalize       = require('es5-ext/string/#/capitalize')
+  , Map              = require('es6-map')
   , Set              = require('es6-set')
   , deferred         = require('deferred')
   , Database         = require('dbjs')
@@ -29,6 +31,7 @@ module.exports = function (opts, copyOpts) {
 				return this.someBoolStatic2;
 			} }
 		});
+		db.SomeType.extend('SomeTypeExt');
 		return db;
 	};
 	return function (t, a, d) {
@@ -303,6 +306,97 @@ module.exports = function (opts, copyOpts) {
 				return storage.driver.clear();
 			})(function () {
 				return deferred(storage.driver.close(), storageCopy.driver.close());
+			});
+		})(function () {
+			var db = getDatabase()
+			  , driver = t(assign({ database: db }, opts));
+
+			var getInstances = function (type) {
+				return type.instances.filter(function (obj) { return obj.constructor === type; });
+			};
+			var setupStorage = function (name) {
+				var storage = driver.getStorage(name)
+				  , typeName = capitalize.call(name)
+				  , type = db[typeName]
+				  , aaa = new db[typeName]()
+				  , bbb = new db[typeName]()
+				  , ccc = new db[typeName]()
+				  , ddd = new db[typeName]()
+				  , eee = new db[typeName]()
+				  , bar = new db[typeName]()
+				  , fooBar = new db[typeName]()
+				  , zzz = new db[typeName]()
+				  , instances = getInstances(type);
+
+				zzz.delete('bar');
+				aaa.bar = null;
+				return deferred(
+					storage.indexKeyPath('computed', instances),
+					storage.indexKeyPath('computedSet', instances),
+					storage.indexKeyPath('someBoolComputed', instances),
+					storage.indexCollection('barByCol', instances.filterByKey('bar', 'elo')),
+					storage.storeEvent(zzz._lastOwnEvent_),
+					storage.storeEvent(bar._lastOwnEvent_),
+					storage.storeEvent(fooBar._lastOwnEvent_),
+					storage.storeEvent(aaa._lastOwnEvent_),
+					storage.storeEvent(zzz.getDescriptor('bar')._lastOwnEvent_)
+				)(function () {
+					return storage.storeEvents([
+						new Event(aaa.getOwnDescriptor('sdfds'), 'sdfs'),
+						new Event(zzz.getOwnDescriptor('sdfffds'), 'sdfs'),
+						new Event(zzz.getOwnDescriptor('miszka'), 'ejo'),
+						new Event(fooBar.getOwnDescriptor('raz'), 'marko'),
+						new Event(bar.getOwnDescriptor('miszka'), 343),
+						new Event(fooBar.getOwnDescriptor('bal'), false),
+						new Event(fooBar.getOwnDescriptor('miszka'), 767),
+						new Event(bar.getOwnDescriptor('ssss'), 343),
+						new Event(aaa.getOwnDescriptor('someBool'), true),
+						new Event(bbb.getOwnDescriptor('someBool'), true),
+						new Event(ccc.getOwnDescriptor('someBool'), true),
+						new Event(bbb.getOwnDescriptor('someBoolStatic'), true),
+						new Event(ccc.getOwnDescriptor('someBoolStatic'), true),
+						new Event(ddd.getOwnDescriptor('someBoolStatic'), false),
+						new Event(eee.getOwnDescriptor('someBoolStatic'), true),
+						new Event(aaa.getOwnDescriptor('someBool2'), true),
+						new Event(bbb.getOwnDescriptor('someBool2'), true),
+						new Event(ccc.getOwnDescriptor('someBool2'), true),
+						new Event(bbb.getOwnDescriptor('someBoolStatic2'), true),
+						new Event(ccc.getOwnDescriptor('someBoolStatic2'), true),
+						new Event(ddd.getOwnDescriptor('someBoolStatic2'), false),
+						new Event(eee.getOwnDescriptor('someBoolStatic2'), true)
+					]);
+				});
+			};
+			return deferred(
+				setupStorage('someType'),
+				setupStorage('someTypeExt')
+			)(function () {
+				return driver.onDrain;
+			})(function () {
+				var storage = driver.getReducedStorage()
+				  , storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')];
+				return deferred(
+					storage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
+						a(size, 6);
+					}),
+					storage.trackSize('someBoolSize', storages,  'someBool', '11')(function (size) {
+						a(size, 6);
+					}),
+					storage.trackComputedSize('someBoolComputedSize', storages, 'someBoolComputed',
+						'11')(function (size) { a(size, 6); }),
+					storage.trackMultipleSize('someBoolAll', storages,
+						['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 4); }),
+					storage.trackCollectionSize('colSize1', new Map([
+						[driver.getStorage('someType'), getInstances(db.SomeType)],
+						[driver.getStorage('someTypeExt'), getInstances(db.SomeTypeExt)]
+					]))(function (size) {
+						a(size, getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
+					})
+				);
+			})(function () {
+				return driver.clear();
+			})(function () {
+				return driver.close();
 			});
 		});
 	};

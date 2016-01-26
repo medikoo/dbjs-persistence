@@ -9,6 +9,7 @@ var setPrototypeOf = require('es5-ext/object/set-prototype-of')
   , readdir        = require('fs2/readdir')
   , Driver         = require('../driver')
   , Storage        = require('./storage')
+  , ReducedStorage = require('./reduced-storage')
 
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
@@ -17,7 +18,10 @@ var TextFileDriver = module.exports = Object.defineProperties(function (data) {
 	ensureObject(data);
 	this.dirPath = resolve(ensureString(data.path));
 	Driver.call(this, data);
-}, { storageClass: d(Storage) });
+}, {
+	storageClass: d(Storage),
+	reducedStorageClass: d(ReducedStorage)
+});
 setPrototypeOf(TextFileDriver, Driver);
 
 TextFileDriver.prototype = Object.create(Driver.prototype, {

@@ -13,6 +13,7 @@ var customError      = require('es5-ext/error/custom')
   , Event            = require('dbjs/_setup/event')
   , unserializeValue = require('dbjs/_setup/unserialize/value')
   , Storage          = require('./storage')
+  , ReducedStorage   = require('./reduced-storage')
   , ensureDriver     = require('./ensure-driver')
 
   , create = Object.create, keys = Object.keys, stringify = JSON.stringify
@@ -30,7 +31,10 @@ var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 	if (!(this instanceof Driver)) return new Driver(arguments[0]);
 	options = Object(arguments[0]);
 	if (options.database != null) this.database = ensureDatabase(options.database);
-}, { storageClass: d(Storage) });
+}, {
+	storageClass: d(Storage),
+	reducedStorageClass: d(ReducedStorage)
+});
 
 ee(Object.defineProperties(Driver.prototype, assign({
 	getStorage: d(function (name) {
@@ -46,6 +50,7 @@ ee(Object.defineProperties(Driver.prototype, assign({
 	getStorages: d(function () {
 		return this._resolveAllStorages()(function () { return copy(this._storages); }.bind(this));
 	}),
+	getReducedStorage: d(function () { return this._reducedStorage; }),
 
 	loadAll: d(function () {
 		if (!this.database) throw new Error("No database registered to load data in");
@@ -56,29 +61,47 @@ ee(Object.defineProperties(Driver.prototype, assign({
 	}),
 	export: d(function (externalDriver) {
 		ensureDriver(externalDriver);
-		return this._resolveAllStorages()(function () {
-			return deferred.map(keys(this._storages), function (name) {
-				return this[name].export(externalDriver.getStorage(name));
-			}, this._storages);
-		}.bind(this));
+		return deferred(
+			this._resolveAllStorages()(function () {
+				return deferred.map(keys(this._storages), function (name) {
+					return this[name].export(externalDriver.getStorage(name));
+				}, this._storages);
+			}.bind(this)),
+			this._reducedStorage.export(externalDriver._reducedStorage)
+		)(Function.prototype);
 	}),
 	clear: d(function () {
-		return this._resolveAllStorages()(function () {
-			return deferred.map(keys(this._storages),
-				function (name) { return this[name].clear(); }, this._storages);
-		}.bind(this));
+		return deferred(
+			this._resolveAllStorages()(function () {
+				return deferred.map(keys(this._storages),
+					function (name) {
+						return this[name].drop().aside(function () {
+							delete this[name];
+						}.bind(this));
+					}, this._storages);
+			}.bind(this)),
+			this._reducedStorage.drop().aside(function () {
+				delete this._reducedStorage;
+			}.bind(this))
+		)(Function.prototype);
 	}),
 	close: d(function () {
-		return deferred.map(keys(this._storages), function (name) {
-			return this[name].close();
-		}, this._storages)(function () {
-			return this.__close();
-		}.bind(this));
+		return deferred(
+			deferred.map(keys(this._storages), function (name) {
+				return this[name].close();
+			}, this._storages)(function () {
+				return this.__close();
+			}.bind(this)),
+			this.hasOwnProperty('_reducedStorage') && this._reducedStorage.close()
+		);
 	}),
 	onDrain: d.gs(function () {
-		return deferred.map(keys(this._storages), function (name) {
-			return this[name].onDrain;
-		}, this._storages);
+		return deferred(
+			deferred.map(keys(this._storages), function (name) {
+				return this[name].onDrain;
+			}, this._storages),
+			this.hasOwnProperty('_reducedStorage') && this._reducedStorage.onDrain
+		);
 	}),
 	recalculateAllSizes: d(function () {
 		return this._resolveAllStorages()(function () {
@@ -101,5 +124,6 @@ ee(Object.defineProperties(Driver.prototype, assign({
 }, lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_storages: d(function () { return create(null); }),
-	_resolveAllStorages: d(function () { return this.__resolveAllStorages(); })
+	_resolveAllStorages: d(function () { return this.__resolveAllStorages(); }),
+	_reducedStorage: d(function () { return new this.constructor.reducedStorageClass(this); })
 }))));
