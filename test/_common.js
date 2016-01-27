@@ -7,6 +7,7 @@ var assign           = require('es5-ext/object/assign')
   , deferred         = require('deferred')
   , Database         = require('dbjs')
   , Event            = require('dbjs/_setup/event')
+  , unserializeValue = require('dbjs/_setup/unserialize/value')
   , resolveEventKeys = require('../lib/resolve-event-keys');
 
 module.exports = function (opts, copyOpts) {
@@ -309,7 +310,8 @@ module.exports = function (opts, copyOpts) {
 			});
 		})(function () {
 			var db = getDatabase()
-			  , driver = t(assign({ database: db }, opts));
+			  , driver = t(assign({ database: db }, opts))
+			  , objects, extObjects, storage = driver.getReducedStorage();
 
 			var getInstances = function (type) {
 				return type.instances.filter(function (obj) { return obj.constructor === type; });
@@ -365,16 +367,19 @@ module.exports = function (opts, copyOpts) {
 						new Event(ddd.getOwnDescriptor('someBoolStatic2'), false),
 						new Event(eee.getOwnDescriptor('someBoolStatic2'), true)
 					]);
+				})({
+					zzz: zzz,
+					bbb: bbb,
+					ccc: ccc
 				});
 			};
 			return deferred(
-				setupStorage('someType'),
-				setupStorage('someTypeExt')
+				setupStorage('someType').aside(function (objs) { objects = objs; }),
+				setupStorage('someTypeExt').aside(function (objs) { extObjects = objs; })
 			)(function () {
 				return driver.onDrain;
 			})(function () {
-				var storage = driver.getReducedStorage()
-				  , storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')];
+				var storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')];
 				return deferred(
 					storage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
 						a(size, 6);
@@ -391,6 +396,39 @@ module.exports = function (opts, copyOpts) {
 						[driver.getStorage('someTypeExt'), getInstances(db.SomeTypeExt)]
 					]))(function (size) {
 						a(size, getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
+					})
+				);
+			})(function () {
+				db.objects.delete(objects.zzz);
+				extObjects.bbb.delete('someBool');
+				objects.ccc.delete('someBoolStatic');
+				return driver.onDrain;
+			})(function () {
+				return deferred(
+					storage.getReduced('miszkaAll')(function (data) { a(data.value, '25'); }),
+					storage.getReduced('someBoolSize')(function (data) { a(data.value, '25'); }),
+					storage.getReduced('someBoolComputedSize')(function (data) { a(data.value, '25'); }),
+					storage.getReduced('someBoolAll')(function (data) { a(data.value, '22'); }),
+					storage.getReduced('colSize1')(function (data) {
+						a(unserializeValue(data.value),
+							getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
+					})
+				);
+			})(function () {
+				db.SomeType();
+				objects.ccc.set('miszka', true);
+				extObjects.bbb.set('someBool', true);
+				objects.ccc.set('someBoolStatic', true);
+				return driver.onDrain;
+			})(function () {
+				return deferred(
+					storage.getReduced('miszkaAll')(function (data) { a(data.value, '26'); }),
+					storage.getReduced('someBoolSize')(function (data) { a(data.value, '26'); }),
+					storage.getReduced('someBoolComputedSize')(function (data) { a(data.value, '26'); }),
+					storage.getReduced('someBoolAll')(function (data) { a(data.value, '24'); }),
+					storage.getReduced('colSize1')(function (data) {
+						a(unserializeValue(data.value),
+							getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
 					})
 				);
 			})(function () {
