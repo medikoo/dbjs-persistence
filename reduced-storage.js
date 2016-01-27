@@ -361,7 +361,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 				stamp = genStamp();
 			}
 			nu = { value: value, stamp: stamp };
-			debug("%s reduced update %s", this.name, key, stamp);
+			debug("reduced update %s", key, stamp);
 			storedDef.resolve(this._storeRaw(ownerId, keyPath, nu)(nu));
 			driverEvent = {
 				storage: this,
