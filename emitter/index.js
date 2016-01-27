@@ -15,7 +15,8 @@ var toArray        = require('es5-ext/array/to-array')
   , Driver         = require('../driver')
   , emitter        = require('../lib/emitter')
   , receiver       = require('../lib/receiver')
-  , Storage        = require('./storage');
+  , Storage        = require('./storage')
+  , ReducedStorage = require('./reduced-storage');
 
 var EmitterDatabase = module.exports = Object.defineProperties(function (database) {
 	if (!(this instanceof EmitterDatabase)) return new EmitterDatabase(database);
@@ -34,7 +35,10 @@ var EmitterDatabase = module.exports = Object.defineProperties(function (databas
 		this._unresolvedStamps.delete(id);
 		return resolver();
 	}.bind(this));
-}, { storageClass: d(Storage) });
+}, {
+	storageClass: d(Storage),
+	reducedStorageClass: d(ReducedStorage)
+});
 setPrototypeOf(EmitterDatabase, Driver);
 
 EmitterDatabase.prototype = Object.create(Driver.prototype, assign({

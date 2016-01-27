@@ -10,6 +10,7 @@ var toArray        = require('es5-ext/array/to-array')
   , ensureDatabase = require('dbjs/valid-dbjs')
   , Driver         = require('../../driver')
   , Storage        = require('./storage')
+  , ReducedStorage = require('./reduced-storage')
 
   , resolved = deferred(undefined);
 
@@ -18,7 +19,8 @@ var RecomputeDatabase = module.exports = Object.defineProperties(function (datab
 	ensureDatabase(database);
 	Driver.call(this, { database: database });
 }, {
-	storageClass: d(Storage)
+	storageClass: d(Storage),
+	reducedStorageClass: d(ReducedStorage)
 });
 setPrototypeOf(RecomputeDatabase, Driver);
 
