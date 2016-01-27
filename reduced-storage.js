@@ -91,7 +91,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		storages.forEach(ensureStorage);
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		return this._trackSize(name, new Map(storages.map(function (storage) {
-			return [storage, storage._trackDirectSize('_global/' + name, keyPath, searchValue)];
+			return [storage, storage._trackDirectSize('$' + name, keyPath, searchValue)];
 		})), {
 			sizeType: 'direct',
 			storages: storages,
@@ -106,7 +106,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		storages.forEach(ensureStorage);
 		keyPath = ensureString(keyPath);
 		return this._trackSize(name, new Map(storages.map(function (storage) {
-			return [storage, storage._trackComputedSize('_global/' + name, keyPath, searchValue)];
+			return [storage, storage._trackComputedSize('$' + name, keyPath, searchValue)];
 		})), {
 			sizeType: 'computed',
 			storages: storages,
@@ -124,7 +124,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		});
 		return this._trackSize(name, new Map(storageSetMap.map(function (data) {
 			var storage = data[0], set = data[1];
-			return [storage, storage._trackCollectionSize('_global/' + name, set)];
+			return [storage, storage._trackCollectionSize('$' + name, set)];
 		})), {
 			sizeType: 'computed',
 			straoges: storages,
@@ -140,8 +140,8 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		return this._trackSize(name, new Map(storages.map(function (storage) {
 			return [
 				storage,
-				storage._trackMultipleSize('_global/' + name, sizeIndexes.map(function (name) {
-					return '_global/' + name;
+				storage._trackMultipleSize('$' + name, sizeIndexes.map(function (name) {
+					return '$' + name;
 				}))
 			];
 		})), {
@@ -159,7 +159,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		}
 		++this._runningOperations;
 		return deferred.map(meta.storages, function (storage) {
-			storage.recalculateSize('_global/' + name);
+			storage.recalculateSize('$' + name);
 		})(Function.prototype);
 	}),
 	recalculateAllSizes: d(function () {
@@ -399,7 +399,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 			var storage = data[0], promise = data[1];
 			return promise(function (result) {
 				size += result;
-				storage.on('keyid:_global/' + name, listener);
+				storage.on('keyid:$' + name, listener);
 			});
 		})(function () {
 			isInitialised = true;
