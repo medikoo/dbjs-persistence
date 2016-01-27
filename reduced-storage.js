@@ -160,7 +160,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		++this._runningOperations;
 		return deferred.map(meta.storages, function (storage) {
 			storage.recalculateSize('$' + name);
-		})(Function.prototype);
+		})(Function.prototype).finally(this._onOperationEnd);
 	}),
 	recalculateAllSizes: d(function () {
 		return deferred.map(keys(this._indexes), function (name) {
