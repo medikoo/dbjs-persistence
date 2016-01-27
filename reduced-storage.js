@@ -3,6 +3,7 @@
 'use strict';
 
 var aFrom               = require('es5-ext/array/from')
+  , isCopy              = require('es5-ext/array/#/is-copy')
   , customError         = require('es5-ext/error/custom')
   , ensureIterable      = require('es5-ext/iterable/validate-object')
   , assign              = require('es5-ext/object/assign')
@@ -28,6 +29,7 @@ var aFrom               = require('es5-ext/array/from')
   , stringify = JSON.stringify
   , resolved = deferred(undefined)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
+  , compareNames = function (a, b) { return a.name.localeCompare(b.name); }
   , create = Object.create, keys = Object.keys;
 
 var byStamp = function (a, b) {
@@ -87,8 +89,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 	trackSize: d(function (name, storages, keyPath/*, searchValue*/) {
 		var searchValue = arguments[3];
 		name = ensureString(name);
-		storages = aFrom(ensureIterable(storages));
-		storages.forEach(ensureStorage);
+		storages = aFrom(ensureIterable(storages), ensureStorage).sort(compareNames);
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		return this._trackSize(name, new Map(storages.map(function (storage) {
 			return [storage, storage._trackDirectSize('$' + name, keyPath, searchValue)];
@@ -102,8 +103,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 	trackComputedSize: d(function (name, storages, keyPath/*, searchValue*/) {
 		var searchValue = arguments[3];
 		name = ensureString(name);
-		storages = aFrom(ensureIterable(storages));
-		storages.forEach(ensureStorage);
+		storages = aFrom(ensureIterable(storages), ensureStorage).sort(compareNames);
 		keyPath = ensureString(keyPath);
 		return this._trackSize(name, new Map(storages.map(function (storage) {
 			return [storage, storage._trackComputedSize('$' + name, keyPath, searchValue)];
@@ -122,27 +122,37 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 			storages.push(ensureStorage(data[0]));
 			ensureSet(data[1]);
 		});
+		storages.sort(compareNames);
 		return this._trackSize(name, new Map(storageSetMap.map(function (data) {
 			var storage = data[0], set = data[1];
 			return [storage, storage._trackCollectionSize('$' + name, set)];
 		})), {
 			sizeType: 'computed',
-			straoges: storages,
+			storages: storages,
 			keyPath: 'sizeIndex/' + name,
 			searchValue: '11'
 		});
 	}),
-	trackMultipleSize: d(function (name, storages, sizeIndexes) {
+	trackMultipleSize: d(function (name, sizeIndexes) {
+		var storages;
 		name = ensureString(name);
-		storages = aFrom(ensureIterable(storages));
-		storages.forEach(ensureStorage);
-		sizeIndexes = aFrom(ensureIterable(sizeIndexes), ensureString);
+		sizeIndexes = aFrom(ensureIterable(sizeIndexes), function (name, index) {
+			var meta;
+			name = ensureString(name);
+			meta =  this._indexes[name];
+			if (!meta) throw new Error("There's no index registered for " + name);
+			if (!index) {
+				storages = meta.storages;
+			} else if (!isCopy.call(storages, meta.storages)) {
+				throw new Error("Storages for provided indexes do not match");
+			}
+			return '$' + name;
+		}, this);
+		if (sizeIndexes.length < 2) throw new Error("At least 2 sizeIndexes should be provided");
 		return this._trackSize(name, new Map(storages.map(function (storage) {
 			return [
 				storage,
-				storage._trackMultipleSize('$' + name, sizeIndexes.map(function (name) {
-					return '$' + name;
-				}))
+				storage._trackMultipleSize('$' + name, sizeIndexes)
 			];
 		})), {
 			sizeType: 'multiple',

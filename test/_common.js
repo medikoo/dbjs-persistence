@@ -389,7 +389,7 @@ module.exports = function (opts, copyOpts) {
 					}),
 					storage.trackComputedSize('someBoolComputedSize', storages, 'someBoolComputed',
 						'11')(function (size) { a(size, 6); }),
-					storage.trackMultipleSize('someBoolAll', storages,
+					storage.trackMultipleSize('someBoolAll',
 						['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 4); }),
 					storage.trackCollectionSize('colSize1', new Map([
 						[driver.getStorage('someType'), getInstances(db.SomeType)],
