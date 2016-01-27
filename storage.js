@@ -388,10 +388,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			++this._runningWriteOperations;
 			return this.__clear();
 		}).finally(function () {
+			var def;
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
-				this._onWriteDrain.resolve();
+				def = this._onWriteDrain;
 				delete this._onWriteDrain;
+				def.resolve();
 			}
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
@@ -541,11 +543,13 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		}
 		++this._runningWriteOperations;
 		return this._handleStoreRaw(cat, ns, path, data).finally(function () {
+			var def;
 			if (transient[path || ''] === data) delete transient[path || ''];
 			if (--this._runningWriteOperations) return;
 			if (this._onWriteDrain) {
-				this._onWriteDrain.resolve();
+				def = this._onWriteDrain;
 				delete this._onWriteDrain;
+				def.resolve();
 			}
 		}.bind(this));
 	}),
@@ -1236,10 +1240,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 }, autoBind({
 	emitError: d(emitError),
 	_onOperationEnd: d(function () {
+		var def;
 		if (--this._runningOperations) return;
 		if (this._onDrain) {
-			this._onDrain.resolve();
+			def = this._onDrain;
 			delete this._onDrain;
+			def.resolve();
 		}
 		if (!this._closeDeferred) return;
 		this._closeDeferred.resolve(this.__close());
