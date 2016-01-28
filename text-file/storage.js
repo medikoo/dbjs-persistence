@@ -21,6 +21,8 @@ var assign         = require('es5-ext/object/assign')
   , Storage        = require('../storage')
 
   , isDirectName = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
+  , isComputedName = RegExp.prototype.test.bind(/^[a-z0-9A-Z=]+$/)
+  , isReducedName = RegExp.prototype.test.bind(/^[$_a-z0-9][a-z0-9A-Z]*$/)
   , isArray = Array.isArray, keys = Object.keys, create = Object.create
   , parse = JSON.parse, stringify = JSON.stringify;
 
@@ -179,6 +181,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 					if (e.code === 'ENOENT') return [];
 					throw e;
 				}).map(function (filename) {
+					if (!isDirectName(filename)) return;
 					var ownerId = filename;
 					return this._getDirectStorage_(ownerId)(function (map) {
 						return deferred.map(keys(map), function (path) {
@@ -193,6 +196,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 					if (e.code === 'ENOENT') return [];
 					throw e;
 				}).map(function (filename) {
+					if (!isComputedName(filename)) return;
 					var keyPath = fromComputedFilename(filename);
 					return this._getComputedStorage_(keyPath)(function (map) {
 						return deferred.map(keys(map), function (ownerId) {
@@ -205,6 +209,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 					if (e.code === 'ENOENT') return [];
 					throw e;
 				}).map(function (ns) {
+					if (!isReducedName(ns)) return;
 					return this._getReducedStorage_(ns)(function (map) {
 						return deferred.map(keys(map), function (path) {
 							if (!(++count % 1000)) promise.emit('progress');

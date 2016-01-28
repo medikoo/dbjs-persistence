@@ -17,6 +17,7 @@ var assign         = require('es5-ext/object/assign')
   , writeFile      = require('fs2/write-file')
   , ReducedStorage = require('../reduced-storage')
 
+  , isReducedName = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , isArray = Array.isArray, keys = Object.keys, create = Object.create
   , parse = JSON.parse, stringify = JSON.stringify;
 
@@ -68,6 +69,7 @@ TextFileReducedStorage.prototype = Object.create(ReducedStorage.prototype, assig
 				if (e.code === 'ENOENT') return [];
 				throw e;
 			}).map(function (ns) {
+				if (!isReducedName(ns)) return;
 				return this._getStorage_(ns)(function (map) {
 					return deferred.map(keys(map), function (path) {
 						if (!(++count % 1000)) promise.emit('progress');
