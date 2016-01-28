@@ -1,4 +1,4 @@
-// Recevier configuration for configuration where we use one master and some slave processes
+// Receiver configuration for configuration where we use one master and some slave processes
 
 'use strict';
 
