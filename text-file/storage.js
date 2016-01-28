@@ -20,7 +20,7 @@ var assign         = require('es5-ext/object/assign')
   , writeFile      = require('fs2/write-file')
   , Storage        = require('../storage')
 
-  , isId = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
+  , isDirectName = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , isArray = Array.isArray, keys = Object.keys, create = Object.create
   , parse = JSON.parse, stringify = JSON.stringify;
 
@@ -114,7 +114,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			var data = create(null);
 			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
 				return deferred.map(names, function (id) {
-					if (!isId(id)) return;
+					if (!isDirectName(id)) return;
 					return this._getDirectStorage_(id)(function (map) { data[id] = map['.'] || null; });
 				}, this);
 			}.bind(this), function (e) {
