@@ -6,13 +6,16 @@ var assign         = require('es5-ext/object/assign')
   , forEach        = require('es5-ext/object/for-each')
   , setPrototypeOf = require('es5-ext/object/set-prototype-of')
   , toArray        = require('es5-ext/object/to-array')
+  , randomUniq     = require('es5-ext/string/random-uniq')
   , d              = require('d')
+  , lazy           = require('d/lazy')
   , memoizeMethods = require('memoizee/methods')
   , deferred       = require('deferred')
   , resolve        = require('path').resolve
   , mkdir          = require('fs2/mkdir')
   , readFile       = require('fs2/read-file')
   , readdir        = require('fs2/readdir')
+  , rename         = require('fs2/rename')
   , rmdir          = require('fs2/rmdir')
   , writeFile      = require('fs2/write-file')
   , ReducedStorage = require('../reduced-storage')
@@ -95,17 +98,34 @@ TextFileReducedStorage.prototype = Object.create(ReducedStorage.prototype, assig
 	__close: d(function () { return deferred(undefined); }), // Nothing to close
 
 	// Driver specific methods
-	_writeStorage_: d(function (ns, map) {
-		return this.dbDir()(function () {
-			return writeFile(resolve(this.dirPath, ns), toArray(map, function (data, id) {
-				var value = data.value;
-				if (value === '') value = '-';
-				else if (isArray(value)) value = stringify(value);
-				return id + '\n' + data.stamp + '\n' + value;
-			}, this, byStamp).join('\n\n'), { intermediate: true });
-		}.bind(this));
+	_writeStorage_: d(function (name, map) {
+		this._writeMap_[name] = map;
+		return this._writePromise_;
 	})
-}, memoizeMethods({
+}, lazy({
+	_writeMap_: d(function () { return create(null); }),
+	_getInitializeWrite_: d(function () {
+		return deferred.delay(deferred.gate(function () {
+			var map = this._writeMap_;
+			delete this._writeMap_;
+			delete this._writePromise_;
+			return deferred.map(keys(map), function (name) {
+				var tmpFilename = resolve(this.dirPath, name + ' ' + randomUniq());
+				return writeFile(tmpFilename, toArray(map[name], function (data, id) {
+					var value = data.value;
+					if (value === '') value = '-';
+					else if (isArray(value)) value = stringify(value);
+					return id + '\n' + data.stamp + '\n' + value;
+				}, this, byStamp).join('\n\n'), { intermediate: true })(function () {
+					return rename(tmpFilename, resolve(this.dirPath, name));
+				}.bind(this));
+			}, this);
+		}.bind(this), 1));
+	}),
+	_writePromise_: d(function () {
+		return this.dbDir(function () { return this._getInitializeWrite_(); }.bind(this));
+	})
+}), memoizeMethods({
 	_getStorage_: d(function (ns) {
 		return this.dbDir()(function () {
 			var map = create(null);
