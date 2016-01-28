@@ -34,7 +34,7 @@ var byStamp = function (a, b) {
 };
 
 var toComputedFilename = (function () {
-	var isIdent   = RegExp.prototype.test.bind(/^[a-z][a-zA-Z0-9]*(?:\/[a-z][a-zA-Z0-9]*)*$/)
+	var isIdent   = RegExp.prototype.test.bind(/^[$_a-z][a-zA-Z0-9]*(?:\/[a-z][a-zA-Z0-9]*)*$/)
 	  , slashesRe = /\//g;
 
 	return function (keyPath) {
