@@ -1,3 +1,11 @@
+v0.0.17  --  2016.01.28
+* Global reduced storage with its track*Size methods
+* Fix race condition related to propagation of onDrain promises
+* Fix return value of trackCollectionSize
+* TextFile storage:
+  * Improve internal filename recognition
+  * Fail safe and more optimal file writes
+
 v0.0.16  --  2016.01.22
 * Split driver into a driver and many storages form
 * Expose dbjs database at `database` and not `db`
