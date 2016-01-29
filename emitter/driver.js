@@ -18,8 +18,8 @@ var toArray        = require('es5-ext/array/to-array')
   , Storage        = require('./storage')
   , ReducedStorage = require('./reduced-storage');
 
-var EmitterDatabase = module.exports = Object.defineProperties(function (database) {
-	if (!(this instanceof EmitterDatabase)) return new EmitterDatabase(database);
+var EmitterDriver = module.exports = Object.defineProperties(function (database) {
+	if (!(this instanceof EmitterDriver)) return new EmitterDriver(database);
 	ensureDatabase(database);
 	Driver.call(this, { database: database });
 	receiver('dbAccessData', function (data) {
@@ -39,10 +39,10 @@ var EmitterDatabase = module.exports = Object.defineProperties(function (databas
 	storageClass: d(Storage),
 	reducedStorageClass: d(ReducedStorage)
 });
-setPrototypeOf(EmitterDatabase, Driver);
+setPrototypeOf(EmitterDriver, Driver);
 
-EmitterDatabase.prototype = Object.create(Driver.prototype, assign({
-	constructor: d(EmitterDatabase),
+EmitterDriver.prototype = Object.create(Driver.prototype, assign({
+	constructor: d(EmitterDriver),
 
 	_storeRecord: d(function (record) {
 		this._waitingRecords.push(record);
