@@ -31,6 +31,7 @@ var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 	if (!(this instanceof Driver)) return new Driver(arguments[0]);
 	options = Object(arguments[0]);
 	if (options.database != null) this.database = ensureDatabase(options.database);
+	if (options.name != null) this.name = ensureString(options.name);
 }, {
 	storageClass: d(Storage),
 	reducedStorageClass: d(ReducedStorage)
