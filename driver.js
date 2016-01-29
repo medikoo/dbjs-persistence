@@ -37,6 +37,7 @@ var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 });
 
 ee(Object.defineProperties(Driver.prototype, assign({
+	name: d(null),
 	getStorage: d(function (name) {
 		var storageOptions;
 		name = ensureString(name);
@@ -108,6 +109,9 @@ ee(Object.defineProperties(Driver.prototype, assign({
 			return deferred.map(keys(this._storages),
 				function (name) { return this[name].recalculateAllSizes(); }, this._storages);
 		}.bind(this));
+	}),
+	toString: d(function () {
+		return '[dbjs-driver' + (this.name ? (' ' + this.name) : '') + ']';
 	}),
 
 	_load: d(function (id, value, stamp) {

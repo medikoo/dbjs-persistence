@@ -443,6 +443,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		if (!this._onWriteLockDrain) this._onWriteLockDrain = deferred();
 		return this._onWriteLockDrain.promise;
 	}),
+	toString: d(function () {
+		return '[dbjs-storage ' + (this.driver.name ? (this.driver.name + ':') : '') + this.name + ']';
+	}),
 
 	_getRaw: d(function (cat, ns, path) {
 		if (this._transient[cat][ns] && this._transient[cat][ns][path || '']) {

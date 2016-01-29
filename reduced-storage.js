@@ -250,6 +250,9 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		if (!this._onWriteLockDrain) this._onWriteLockDrain = deferred();
 		return this._onWriteLockDrain.promise;
 	}),
+	toString: d(function () {
+		return '[dbjs-storage ' + (this.driver.name ? (this.driver.name + ':') : '') + '_reduced_]';
+	}),
 
 	_get: d(function (ns, path) {
 		if (this._transient[ns] && this._transient[ns][path || '']) {
