@@ -44,6 +44,7 @@ Object.defineProperties(EmitterHandler.prototype, assign({
 		if (!isIdent(name)) throw new TypeError(stringify(name) + " is an invalid storage name");
 		if (this._drivers[name]) return this._drivers[name];
 		driver = this._drivers[name] = new Driver(this);
+		driver.name = name;
 		driver._loadedEventsMap = this._loadedEventsMap;
 		return driver;
 	}),
