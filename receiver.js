@@ -2,16 +2,16 @@
 
 'use strict';
 
-var ensureObject    = require('es5-ext/object/valid-object')
+var ensureCallable  = require('es5-ext/object/valid-callable')
+  , ensureObject    = require('es5-ext/object/valid-object')
   , deferred        = require('deferred')
-  , ensureDriver    = require('./ensure-driver')
   , receiver        = require('./lib/receiver')
   , registerEmitter = require('./lib/emitter')
 
   , stringify = JSON.stringify;
 
-module.exports = function (driver, slaveProcess) {
-	ensureDriver(driver);
+module.exports = function (getStorage, slaveProcess) {
+	ensureCallable(getStorage);
 	ensureObject(slaveProcess);
 
 	var getStamp = registerEmitter('dbStampData', slaveProcess);
@@ -19,8 +19,7 @@ module.exports = function (driver, slaveProcess) {
 		return deferred.map(records, function (data) {
 			var stamp;
 			if (data.type === 'direct') {
-				return driver.getStorage(data.name)
-					._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
+				return getStorage(data.name)._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
 			}
 			if (data.type === 'computed') {
 				if (data.stamp === 'async') {
@@ -28,8 +27,7 @@ module.exports = function (driver, slaveProcess) {
 				} else {
 					stamp = data.stamp;
 				}
-				return driver.getStorage(data.name)
-					._handleStoreComputed(data.ns, data.path, data.value, stamp);
+				return getStorage(data.name)._handleStoreComputed(data.ns, data.path, data.value, stamp);
 			}
 			throw new Error("Unrecognized request: ", stringify(data));
 		});
