@@ -1,8 +1,10 @@
 'use strict';
 
-var getDb         = require('./db')
-  , EmitterDriver = require('../../emitter/driver')
+var getDb   = require('./db')
+  , Emitter = require('../../emitter')
 
-  , slave = new EmitterDriver(getDb());
+  , slave = new Emitter(getDb());
 
-require('./indexes')(slave).done(function () { process.send({ type: 'init' }); });
+require('./indexes')(slave.getDriver('local')).done(function () {
+	process.send({ type: 'init' });
+});

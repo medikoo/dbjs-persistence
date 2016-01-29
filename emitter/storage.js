@@ -14,6 +14,7 @@ var customError    = require('es5-ext/error/custom')
 var EmitterStorage = module.exports = function (driver, name/*, options*/) {
 	if (!(this instanceof EmitterStorage)) return new EmitterStorage(driver, name, arguments[2]);
 	Storage.call(this, driver, name, arguments[2]);
+	this.handler = driver.handler;
 };
 setPrototypeOf(EmitterStorage, Storage);
 
@@ -21,15 +22,15 @@ EmitterStorage.prototype = Object.create(Storage.prototype, {
 	constructor: d(EmitterStorage),
 
 	_handleStoreDirect: d(function (ns, path, value, stamp) {
-		return this.driver._storeRecord({ name: this.name,
+		return this.handler._storeRecord({ name: this.name,
 			type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
 		if (typeof stamp === 'function') {
-			this.driver._unresolvedStamps.set(path + '/' + ns, stamp);
+			this.handler._unresolvedStamps.set(path + '/' + ns, stamp);
 			stamp = 'async';
 		}
-		return this.driver._storeRecord({ name: this.name, type: 'computed',
+		return this.handler._storeRecord({ name: this.name, type: 'computed',
 			ns: ns, path: path, value: value, stamp: stamp });
 	}),
 

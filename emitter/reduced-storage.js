@@ -14,6 +14,7 @@ var customError    = require('es5-ext/error/custom')
 var EmitterReducedStorage = module.exports = function (driver) {
 	if (!(this instanceof EmitterReducedStorage)) return new EmitterReducedStorage(driver);
 	ReducedStorage.call(this, driver);
+	this.handler = driver.handler;
 };
 setPrototypeOf(EmitterReducedStorage, ReducedStorage);
 
