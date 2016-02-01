@@ -84,6 +84,12 @@ var ensureOwnerId = function (ownerId) {
 	return ownerId;
 };
 
+var trimValue = function (value) {
+	if (isArray(value)) value = '[' + String(value) + ']';
+	if (value.length > 53) return value.slice(0, 80) + '…';
+	return value;
+};
+
 ee(Object.defineProperties(Storage.prototype, assign({
 	get: d(function (id) {
 		var index, ownerId, path, uncertain;
@@ -627,7 +633,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				resolvedDef.resolve(old);
 				return;
 			}
-			debug("%s update %s %s", this.name, id, stamp);
+			debug("%s update %s %s", this.name, id, stamp, trimValue(value));
 			storedDef.resolve(this._storeRaw('direct', ownerId, path, nu)(nu));
 			driverEvent = {
 				storage: this,
@@ -686,7 +692,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
 					stamp: stamp
 				};
-				debug("%s computed update %s %s %s", this.name, path, ns, stamp);
+				debug("%s computed update %s %s %s", this.name, path, ns, stamp, trimValue(value));
 				storedDef.resolve(this._storeRaw('computed', ns, path, nu)(nu));
 				driverEvent = {
 					storage: this,
@@ -732,7 +738,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				stamp = genStamp();
 			}
 			nu = { value: value, stamp: stamp };
-			debug("%s reduced update %s", this.name, key, stamp);
+			debug("%s reduced update %s", this.name, key, stamp, trimValue(value));
 			storedDef.resolve(this._storeRaw('reduced', ownerId, keyPath, nu)(nu));
 			driverEvent = {
 				storage: this,
