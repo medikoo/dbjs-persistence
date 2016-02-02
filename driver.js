@@ -1,6 +1,8 @@
 'use strict';
 
-var customError      = require('es5-ext/error/custom')
+var aFrom            = require('es5-ext/array/from')
+  , customError      = require('es5-ext/error/custom')
+  , ensureIterable   = require('es5-ext/iterable/validate-object')
   , assign           = require('es5-ext/object/assign')
   , copy             = require('es5-ext/object/copy')
   , ensureString     = require('es5-ext/object/validate-stringifiable-value')
@@ -32,6 +34,10 @@ var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 	options = Object(arguments[0]);
 	if (options.database != null) this.database = ensureDatabase(options.database);
 	if (options.name != null) this.name = ensureString(options.name);
+	if (options.storageNames != null) {
+		aFrom(ensureIterable(options.storageNames), this.getStorage, this);
+		this._isStoragesCreationLocked = true;
+	}
 }, {
 	storageClass: d(Storage),
 	reducedStorageClass: d(ReducedStorage)
@@ -44,6 +50,10 @@ ee(Object.defineProperties(Driver.prototype, assign({
 		name = ensureString(name);
 		if (!isIdent(name)) throw new TypeError(stringify(name) + " is an invalid storage name");
 		if (this._storages[name]) return this._storages[name];
+		if (this._isStoragesCreationLocked) {
+			throw new Error("Storage name " + stringify(name) + " is not recognized, and " +
+				"generation of new storages is not allowed at this point");
+		}
 		if (this.database && (name !== 'base')) {
 			storageOptions = { autoSaveFilter: resolveAutoSaveFilter(name) };
 		}
