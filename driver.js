@@ -49,6 +49,10 @@ ee(Object.defineProperties(Driver.prototype, assign({
 		}
 		return (this._storages[name] = new this.constructor.storageClass(this, name, storageOptions));
 	}),
+	hasStorage: d(function (name) {
+		name = ensureString(name);
+		return this._resolveAllStorages()(function () { Boolean(this._storages[name]); }.bind(this));
+	}),
 	getStorages: d(function () {
 		return this._resolveAllStorages()(function () { return copy(this._storages); }.bind(this));
 	}),
