@@ -2,15 +2,16 @@
 
 'use strict';
 
-var setPrototypeOf = require('es5-ext/object/set-prototype-of')
-  , d              = require('d')
-  , Driver         = require('../driver')
-  , Storage        = require('./storage')
-  , ReducedStorage = require('./reduced-storage');
+var normalizeOptions = require('es5-ext/object/normalize-options')
+  , setPrototypeOf   = require('es5-ext/object/set-prototype-of')
+  , d                = require('d')
+  , Driver           = require('../driver')
+  , Storage          = require('./storage')
+  , ReducedStorage   = require('./reduced-storage');
 
-var EmitterDriver = module.exports = Object.defineProperties(function (handler) {
-	if (!(this instanceof EmitterDriver)) return new EmitterDriver(handler);
-	Driver.call(this, { database: handler.database });
+var EmitterDriver = module.exports = Object.defineProperties(function (handler/*, options*/) {
+	if (!(this instanceof EmitterDriver)) return new EmitterDriver(handler, arguments[1]);
+	Driver.call(this, normalizeOptions(arguments[1], { database: handler.database }));
 	this.handler = handler;
 }, {
 	storageClass: d(Storage),

@@ -2,22 +2,23 @@
 
 'use strict';
 
-var toArray        = require('es5-ext/array/to-array')
-  , ensureIterable = require('es5-ext/iterable/validate-object')
-  , setPrototypeOf = require('es5-ext/object/set-prototype-of')
-  , d              = require('d')
-  , deferred       = require('deferred')
-  , ensureDatabase = require('dbjs/valid-dbjs')
-  , Driver         = require('../../driver')
-  , Storage        = require('./storage')
-  , ReducedStorage = require('./reduced-storage')
+var toArray          = require('es5-ext/array/to-array')
+  , ensureIterable   = require('es5-ext/iterable/validate-object')
+  , normalizeOptions = require('es5-ext/object/normalize-options')
+  , setPrototypeOf   = require('es5-ext/object/set-prototype-of')
+  , d                = require('d')
+  , deferred         = require('deferred')
+  , ensureDatabase   = require('dbjs/valid-dbjs')
+  , Driver           = require('../../driver')
+  , Storage          = require('./storage')
+  , ReducedStorage   = require('./reduced-storage')
 
   , resolved = deferred(undefined);
 
-var RecomputeDatabase = module.exports = Object.defineProperties(function (database) {
-	if (!(this instanceof RecomputeDatabase)) return new RecomputeDatabase(database);
+var RecomputeDatabase = module.exports = Object.defineProperties(function (database/*, options*/) {
+	if (!(this instanceof RecomputeDatabase)) return new RecomputeDatabase(database, arguments[1]);
 	ensureDatabase(database);
-	Driver.call(this, { database: database });
+	Driver.call(this, normalizeOptions(arguments[1], { database: database }));
 }, {
 	storageClass: d(Storage),
 	reducedStorageClass: d(ReducedStorage)
