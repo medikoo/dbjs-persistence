@@ -180,6 +180,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		++this._runningOperations;
 		return this._getObject(ownerId, new Set([keyPath])).finally(this._onOperationEnd);
 	}),
+
 	getAllObjectIds: d(function () {
 		var transientData = create(null), uncertainData = create(null), uncertainPromise;
 		this._ensureOpen();
@@ -205,6 +206,10 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					function (el, id) { return id; }, null, byStamp);
 			});
 		}).finally(this._onOperationEnd);
+	}),
+	getAll: d(function () {
+		++this._runningOperations;
+		return this._getAll().finally(this._onOperationEnd);
 	}),
 	getReducedObject: d(function (ns/*, options*/) {
 		var keyPaths, options = arguments[1];
