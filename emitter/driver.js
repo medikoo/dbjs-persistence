@@ -11,8 +11,8 @@ var normalizeOptions = require('es5-ext/object/normalize-options')
 
 var EmitterDriver = module.exports = Object.defineProperties(function (handler/*, options*/) {
 	if (!(this instanceof EmitterDriver)) return new EmitterDriver(handler, arguments[1]);
-	Driver.call(this, normalizeOptions(arguments[1], { database: handler.database }));
 	this.handler = handler;
+	Driver.call(this, normalizeOptions(arguments[1], { database: handler.database }));
 }, {
 	storageClass: d(Storage),
 	reducedStorageClass: d(ReducedStorage)
