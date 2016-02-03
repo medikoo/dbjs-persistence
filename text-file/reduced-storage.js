@@ -89,7 +89,7 @@ TextFileReducedStorage.prototype = Object.create(ReducedStorage.prototype, assig
 		}.bind(this));
 	}),
 	__drop: d(function () {
-		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
+		return rmdir(this.dirPath, { recursive: true, force: true, loose: true })(function () {
 			this._getStorage_.clear();
 		}.bind(this));
 	}),
