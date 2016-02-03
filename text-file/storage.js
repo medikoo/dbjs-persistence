@@ -230,7 +230,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		}.bind(this));
 	}),
 	__drop: d(function () {
-		return rmdir(this.dirPath, { recursive: true, force: true })(function () {
+		return rmdir(this.dirPath, { recursive: true, force: true, loose: true })(function () {
 			this._getDirectStorage_.clear();
 			this._getComputedStorage_.clear();
 			this._getReducedStorage_.clear();
