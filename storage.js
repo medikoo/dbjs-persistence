@@ -504,7 +504,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		}, this._uncertain.direct);
 		return this._safeGet(function () {
 			return uncertainPromise(this.__getAll())(function (data) {
-				return toArray(assign(data, transientData, uncertainPromise),
+				return toArray(assign(data, transientData, uncertainData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);
 			}.bind(this));
 		});
