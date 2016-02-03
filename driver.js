@@ -19,6 +19,7 @@ var aFrom            = require('es5-ext/array/from')
   , ensureDriver     = require('./ensure-driver')
 
   , create = Object.create, keys = Object.keys, stringify = JSON.stringify
+  , resolved = deferred(null)
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
 var resolveAutoSaveFilter = function (name) {
@@ -143,6 +144,8 @@ ee(Object.defineProperties(Driver.prototype, assign({
 }, lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_storages: d(function () { return create(null); }),
-	_resolveAllStorages: d(function () { return this.__resolveAllStorages(); }),
+	_resolveAllStorages: d(function () {
+		return this._isStoragesCreationLocked ? resolved : this.__resolveAllStorages();
+	}),
 	_reducedStorage: d(function () { return new this.constructor.reducedStorageClass(this); })
 }))));
