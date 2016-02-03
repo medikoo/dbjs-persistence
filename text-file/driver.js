@@ -28,10 +28,15 @@ TextFileDriver.prototype = Object.create(Driver.prototype, {
 	constructor: d(TextFileDriver),
 
 	__resolveAllStorages: d(function () {
-		return readdir(this.dirPath, { type: { directory: true } }).map(function (name) {
-			if (!isIdent(name)) return;
-			this.getStorage(name);
-		}.bind(this))(Function.prototype);
+		return readdir(this.dirPath, { type: { directory: true } })(function (names) {
+			return deferred.map(names, function (name) {
+				if (!isIdent(name)) return;
+				this.getStorage(name);
+			}, this)(Function.prototype);
+		}.bind(this), function (err) {
+			if (err.code === 'ENOENT') return;
+			throw err;
+		});
 	}),
 	__close: d(function () { return deferred(undefined); })
 });
