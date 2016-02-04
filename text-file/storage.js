@@ -8,6 +8,7 @@ var assign         = require('es5-ext/object/assign')
   , some           = require('es5-ext/object/some')
   , toArray        = require('es5-ext/object/to-array')
   , randomUniq     = require('es5-ext/string/random-uniq')
+  , camelToHyphen  = require('es5-ext/string/#/camel-to-hyphen')
   , startsWith     = require('es5-ext/string/#/starts-with')
   , d              = require('d')
   , lazy           = require('d/lazy')
@@ -68,7 +69,7 @@ var resolveObjectMap = function (ownerId, map, keyPaths, result) {
 var TextFileStorage = module.exports = function (driver, name/*, options*/) {
 	if (!(this instanceof TextFileStorage)) return new TextFileStorage(driver, name, arguments[2]);
 	Storage.call(this, driver, name, arguments[2]);
-	this.dirPath = resolve(driver.dirPath, name);
+	this.dirPath = resolve(driver.dirPath, camelToHyphen.call(name));
 	this.dbDir = mkdir(this.dirPath, { intermediate: true })
 		.aside(null, function (err) {
 			this.isClosed = true;
