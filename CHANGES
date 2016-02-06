@@ -1,3 +1,14 @@
+v0.0.18  --  2016.02.06
+* Fix detection of reduced storage in isStorage
+* Support for multiple drivers in receiver/emitter setup
+* Introduce `hasStorage` driver method
+* Introduce `storageNames` initialization option that comes with possibilty to work with
+  strict set of storages
+* Improve update logging to show value (at least partially)
+* TextFile driver:
+  * Fix handling of drop on newly initialized storages
+  * Name directories in hyphen separated tokens format
+
 v0.0.17  --  2016.01.28
 * Global reduced storage with its track*Size methods
 * Fix race condition related to propagation of onDrain promises
