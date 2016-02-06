@@ -18,7 +18,8 @@ var aFrom            = require('es5-ext/array/from')
   , ReducedStorage   = require('./reduced-storage')
   , ensureDriver     = require('./ensure-driver')
 
-  , create = Object.create, keys = Object.keys, stringify = JSON.stringify
+  , create = Object.create, defineProperty = Object.defineProperty, keys = Object.keys
+  , stringify = JSON.stringify
   , resolved = deferred(null)
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
@@ -51,14 +52,16 @@ ee(Object.defineProperties(Driver.prototype, assign({
 		name = ensureString(name);
 		if (!isIdent(name)) throw new TypeError(stringify(name) + " is an invalid storage name");
 		if (this._storages[name]) return this._storages[name];
-		if (this._isStoragesCreationLocked) {
+		if (this._isStoragesCreationLocked && (this._storages[name] == null)) {
 			throw new Error("Storage name " + stringify(name) + " is not recognized, and " +
 				"generation of new storages is not allowed at this point");
 		}
 		if (this.database && (name !== 'base')) {
 			storageOptions = { autoSaveFilter: resolveAutoSaveFilter(name) };
 		}
-		return (this._storages[name] = new this.constructor.storageClass(this, name, storageOptions));
+		defineProperty(this._storages, name, d('cew',
+			new this.constructor.storageClass(this, name, storageOptions)));
+		return this._storages[name];
 	}),
 	hasStorage: d(function (name) {
 		name = ensureString(name);
@@ -95,7 +98,7 @@ ee(Object.defineProperties(Driver.prototype, assign({
 				return deferred.map(keys(this._storages),
 					function (name) {
 						return this[name].drop().aside(function () {
-							delete this[name];
+							defineProperty(this, name, d(false));
 						}.bind(this));
 					}, this._storages);
 			}.bind(this)),
