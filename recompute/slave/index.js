@@ -15,10 +15,10 @@ module.exports = function (db) {
 	return {
 		driver: driver,
 		initialize: function () {
-			var records;
+			var records, receivers = [];
 			// Setup:
 			// On computed update pass data to master
-			registerReceiver('data', function (data) {
+			receivers.push(registerReceiver('data', function (data) {
 				var cumulated;
 				records = [];
 				driver.loadRawEvents(data);
@@ -28,8 +28,7 @@ module.exports = function (db) {
 					events: cumulated,
 					health: (process.memoryUsage().rss / 1048576)
 				};
-			});
-			registerReceiver('stamp', function (id) { return stampResolvers.get(id)(); });
+			}), registerReceiver('stamp', function (id) { return stampResolvers.get(id)(); }));
 			driver.on('computedUpdate', function (data) {
 				if (typeof data.stamp === 'function') {
 					stampResolvers.set(data.path + '/' + data.ns, data.stamp);
@@ -48,6 +47,11 @@ module.exports = function (db) {
 						return storage._indexes[name].type === 'computed';
 					});
 				})
+			});
+			process.on('message', function self(req) {
+				if (req.type !== 'close') return;
+				receivers.forEach(function (receiver) { receiver.destroy(); });
+				process.removeListener('message', self);
 			});
 		}
 	};

@@ -64,7 +64,7 @@ module.exports = function (driver, data) {
 		};
 
 		var initializePool = function (id) {
-			var pool, reinitializePool, indexesData, emitData, getStamp;
+			var pool, reinitializePool, indexesData, emitData, getStamp, closeDef;
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
 					return deferred.map(keys(indexes), function (storageName) {
@@ -85,7 +85,13 @@ module.exports = function (driver, data) {
 							}, indexesData[storageName][name]);
 						});
 					});
-				})(function () { pool.kill(); });
+				})(function () {
+					closeDef = deferred();
+					emitData.destroy();
+					getStamp.destroy();
+					pool.send({ type: 'close' });
+					return closeDef.promise;
+				});
 			};
 			var sendData = function (poolHealth) {
 				if (!ids.length) return clearPool();
@@ -128,7 +134,8 @@ module.exports = function (driver, data) {
 				pool.on('error', def.reject);
 				pool.on('exit', function () {
 					if (this !== pool) return;
-					def.reject(new Error("Slave process stopped working"));
+					if (!closeDef) def.reject(new Error("Slave process stopped working"));
+					else closeDef.resolve();
 				});
 				return def.promise;
 			};
