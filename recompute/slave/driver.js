@@ -27,6 +27,7 @@ setPrototypeOf(RecomputeDatabase, Driver);
 
 RecomputeDatabase.prototype = Object.create(Driver.prototype, {
 	constructor: d(RecomputeDatabase),
+	name: 'recomputeSlave',
 	loadRawEvents: d(function (events) {
 		this.database._postponed_ += 1;
 		toArray(ensureIterable(events)).forEach(function (data) {
