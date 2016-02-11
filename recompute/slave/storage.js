@@ -11,12 +11,10 @@ var customError    = require('es5-ext/error/custom')
   , stringify = JSON.stringify
   , resolved = deferred(undefined);
 
-var RecomputeStorage = Object.defineProperties(function (driver, name) {
+var RecomputeStorage = function (driver, name) {
 	if (!(this instanceof RecomputeStorage)) return new RecomputeStorage(driver, name);
 	Storage.call(this, driver, name);
-}, {
-	defaultAutoSaveFilter: d(function (event) { return false; })
-});
+};
 setPrototypeOf(RecomputeStorage, Storage);
 module.exports = RecomputeStorage;
 
