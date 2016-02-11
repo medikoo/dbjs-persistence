@@ -7,13 +7,20 @@ var map              = require('es5-ext/object/map')
   , Driver           = require('./driver')
   , registerReceiver = require('../../lib/receiver')
 
+  , resolved = deferred(null)
   , keys = Object.keys;
 
 module.exports = function (db) {
 	var driver = new Driver(ensureDatabase(db))
 	  , stampResolvers = new Map()
-	  , batchPromise;
+	  , promises;
 
+	var handlePromises = function self() {
+		var currentPromises = promises;
+		if (!currentPromises) return resolved;
+		promises = null;
+		return deferred.map(promises)(self);
+	};
 	return {
 		driver: driver,
 		initialize: function () {
@@ -24,7 +31,7 @@ module.exports = function (db) {
 				var cumulated;
 				records = [];
 				driver.loadRawEvents(data);
-				return deferred(batchPromise)(function () {
+				return handlePromises()(function () {
 					cumulated = records;
 					records = null;
 					return {
@@ -58,6 +65,9 @@ module.exports = function (db) {
 				process.removeListener('message', self);
 			});
 		},
-		setPromise: function (promise) { batchPromise = promise; }
+		registerPromise: function (promise) {
+			if (!promises) promises = [];
+			promises.push(promise);
+		}
 	};
 };
