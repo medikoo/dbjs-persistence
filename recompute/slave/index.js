@@ -41,6 +41,10 @@ module.exports = function (db) {
 				});
 			}), registerReceiver('stamp', function (id) { return stampResolvers.get(id)(); }));
 			driver.on('recordUpdate', function (data) {
+				if (!records) {
+					throw new Error("Unexpected update emitted (to prolong update acceptance " +
+						"period use registerPromise method)");
+				}
 				if ((data.type === 'computed') && (typeof data.stamp === 'function')) {
 					stampResolvers.set(data.path + '/' + data.ns, data.stamp);
 					data.stamp = 'async';
