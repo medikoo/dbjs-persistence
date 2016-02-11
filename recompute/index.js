@@ -64,7 +64,7 @@ module.exports = function (driver, data) {
 		};
 
 		var initializePool = function (id) {
-			var pool, reinitializePool, indexesData, emitData, getStamp, closeDef;
+			var pool, reinitializePool, indexesData, directData, emitData, getStamp, closeDef;
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
 					return deferred.map(keys(indexes), function (storageName) {
@@ -72,17 +72,23 @@ module.exports = function (driver, data) {
 						return deferred.map(indexes[storageName], function (name) {
 							var ownerIds = owners.get(storageName).get(name);
 							// Apply calculations
-							return deferred.map(keys(indexesData[storageName][name]), function (ownerId) {
-								var data = this[ownerId], stamp;
-								ownerIds.delete(ownerId);
-								delete this[ownerId];
-								if (data.stamp === 'async') {
-									stamp = function () { return getStamp(ownerId + '/' + name); };
-								} else {
-									stamp = data.stamp;
-								}
-								return storage._handleStoreComputed(name, ownerId, data.value, stamp);
-							}, indexesData[storageName][name]);
+							return deferred(
+								deferred.map(keys(indexesData[storageName][name]), function (ownerId) {
+									var data = this[ownerId], stamp;
+									ownerIds.delete(ownerId);
+									delete this[ownerId];
+									if (data.stamp === 'async') {
+										stamp = function () { return getStamp(ownerId + '/' + name); };
+									} else {
+										stamp = data.stamp;
+									}
+									return storage._handleStoreComputed(name, ownerId, data.value, stamp);
+								}, indexesData[storageName][name]),
+								deferred.map(directData, function (data) {
+									return driver.getStorage(data.name)
+										._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
+								})
+							);
 						});
 					});
 				})(function () {
@@ -122,6 +128,7 @@ module.exports = function (driver, data) {
 						return;
 					}
 					if (!indexes) indexes = message.indexes;
+					directData = [];
 					if (!indexesData) {
 						indexesData = create(null);
 						forEach(indexes, function (storageIndexes, name) {

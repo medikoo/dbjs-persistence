@@ -2,6 +2,7 @@
 
 var map              = require('es5-ext/object/map')
   , Map              = require('es6-map')
+  , deferred         = require('deferred')
   , ensureDatabase   = require('dbjs/valid-dbjs')
   , Driver           = require('./driver')
   , registerReceiver = require('../../lib/receiver')
@@ -10,7 +11,8 @@ var map              = require('es5-ext/object/map')
 
 module.exports = function (db) {
 	var driver = new Driver(ensureDatabase(db))
-	  , stampResolvers = new Map();
+	  , stampResolvers = new Map()
+	  , batchPromise;
 
 	return {
 		driver: driver,
@@ -22,15 +24,17 @@ module.exports = function (db) {
 				var cumulated;
 				records = [];
 				driver.loadRawEvents(data);
-				cumulated = records;
-				records = null;
-				return {
-					events: cumulated,
-					health: (process.memoryUsage().rss / 1048576)
-				};
+				return deferred(batchPromise)(function () {
+					cumulated = records;
+					records = null;
+					return {
+						events: cumulated,
+						health: (process.memoryUsage().rss / 1048576)
+					};
+				});
 			}), registerReceiver('stamp', function (id) { return stampResolvers.get(id)(); }));
-			driver.on('computedUpdate', function (data) {
-				if (typeof data.stamp === 'function') {
+			driver.on('recordUpdate', function (data) {
+				if ((data.type === 'computed') && (typeof data.stamp === 'function')) {
 					stampResolvers.set(data.path + '/' + data.ns, data.stamp);
 					data.stamp = 'async';
 				}
@@ -53,6 +57,7 @@ module.exports = function (db) {
 				receivers.forEach(function (receiver) { receiver.destroy(); });
 				process.removeListener('message', self);
 			});
-		}
+		},
+		setPromise: function (promise) { batchPromise = promise; }
 	};
 };

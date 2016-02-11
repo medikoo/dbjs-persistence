@@ -20,9 +20,14 @@ module.exports = RecomputeStorage;
 
 RecomputeStorage.prototype = Object.create(Storage.prototype, {
 	constructor: d(RecomputeStorage),
+	_handleStoreDirect: d(function (ns, path, value, stamp) {
+		this.driver.emit('recordUpdate',
+			{ type: 'direct', name: this.name, ns: ns, path: path, value: value, stamp: stamp });
+		return resolved;
+	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
-		this.driver.emit('computedUpdate',
-			{ name: this.name, ns: ns, path: path, value: value, stamp: stamp });
+		this.driver.emit('recordUpdate',
+			{ type: 'computed', name: this.name, ns: ns, path: path, value: value, stamp: stamp });
 		return resolved;
 	}),
 
