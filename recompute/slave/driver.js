@@ -15,18 +15,18 @@ var toArray          = require('es5-ext/array/to-array')
 
   , resolved = deferred(undefined);
 
-var RecomputeDatabase = module.exports = Object.defineProperties(function (database/*, options*/) {
-	if (!(this instanceof RecomputeDatabase)) return new RecomputeDatabase(database, arguments[1]);
+var RecomputeDriver = module.exports = Object.defineProperties(function (database/*, options*/) {
+	if (!(this instanceof RecomputeDriver)) return new RecomputeDriver(database, arguments[1]);
 	ensureDatabase(database);
 	Driver.call(this, normalizeOptions(arguments[1], { database: database }));
 }, {
 	storageClass: d(Storage),
 	reducedStorageClass: d(ReducedStorage)
 });
-setPrototypeOf(RecomputeDatabase, Driver);
+setPrototypeOf(RecomputeDriver, Driver);
 
-RecomputeDatabase.prototype = Object.create(Driver.prototype, {
-	constructor: d(RecomputeDatabase),
+RecomputeDriver.prototype = Object.create(Driver.prototype, {
+	constructor: d(RecomputeDriver),
 	name: d('recomputeSlave'),
 	loadRawEvents: d(function (events) {
 		this.database._postponed_ += 1;
