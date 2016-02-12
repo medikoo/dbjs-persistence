@@ -19,7 +19,7 @@ module.exports = function (db) {
 		var currentPromises = promises;
 		if (!currentPromises) return resolved;
 		promises = null;
-		return deferred.map(promises)(self);
+		return deferred.map(currentPromises)(self);
 	};
 	return {
 		driver: driver,
