@@ -64,7 +64,8 @@ module.exports = function (driver, data) {
 		};
 
 		var initializePool = function (id) {
-			var pool, reinitializePool, indexesData, directData, emitData, getStamp, closeDef;
+			var pool, reinitializePool, indexesData, directData, emitData, getStamp, closeDef
+			  , poolError;
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
 					return deferred.map(keys(indexes), function (storageName) {
@@ -92,6 +93,7 @@ module.exports = function (driver, data) {
 						});
 					});
 				})(function () {
+					if (poolError) throw poolError;
 					closeDef = deferred();
 					emitData.destroy();
 					getStamp.destroy();
@@ -100,6 +102,7 @@ module.exports = function (driver, data) {
 				});
 			};
 			var sendData = function (poolHealth) {
+				if (poolError) throw poolError;
 				if (!ids.length) return clearPool();
 				if (!poolHealth || (poolHealth < 1500)) {
 					if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
@@ -123,6 +126,10 @@ module.exports = function (driver, data) {
 				emitData = registerEmitter('data', pool);
 				getStamp = registerEmitter('stamp', pool);
 				pool.once('message', function (message) {
+					if (poolError) {
+						def.reject(poolError);
+						return;
+					}
 					if (message.type !== 'init') {
 						def.reject(new Error("Unexpected message"));
 						return;
@@ -138,11 +145,16 @@ module.exports = function (driver, data) {
 					}
 					def.resolve(sendData());
 				});
-				pool.on('error', def.reject);
+				pool.on('error', function (err) { poolError = err; });
 				pool.on('exit', function () {
 					if (this !== pool) return;
-					if (!closeDef) def.reject(new Error("Slave process stopped working"));
-					else closeDef.resolve();
+					if (!closeDef) {
+						if (!poolError) poolError = new Error("Slave process stopped working");
+					} else if (poolError) {
+						closeDef.reject(poolError);
+					} else {
+						closeDef.resolve();
+					}
 				});
 				return def.promise;
 			};
