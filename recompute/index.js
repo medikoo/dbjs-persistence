@@ -112,11 +112,8 @@ module.exports = function (driver, data) {
 						return flatten.call(data).sort(byStamp);
 					})(emitData)(function (data) {
 						data.events.forEach(function (data) {
-							if (data.type === 'direct') {
-								directData[data.ns + (data.path ? ('/' + data.path) : '')] = data;
-							} else {
-								indexesData[data.name][data.ns][data.path] = data;
-							}
+							if (data.type === 'direct') directData.push(data);
+							else indexesData[data.name][data.ns][data.path] = data;
 						});
 						return sendData(data.health);
 					});
