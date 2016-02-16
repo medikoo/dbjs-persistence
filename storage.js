@@ -324,7 +324,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
 	}),
 
-	indexKeyPath: d(function (keyPath, set) { return this._trackComputed(keyPath, set, keyPath); }),
+	indexKeyPath: d(function (name, set/*, options*/) {
+		var options = Object(arguments[2]), keyPath;
+		if (options.keyPath != null) keyPath = ensureString(options.keyPath);
+		else keyPath = name;
+		return this._trackComputed(name, set, keyPath);
+	}),
 	indexCollection: d(function (name, set) { return this._trackComputed(name, set); }),
 
 	trackSize: d(function (name, keyPath/*, searchValue*/) {
