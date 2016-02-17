@@ -23,12 +23,13 @@ var aFrom           = require('es5-ext/array/from')
   , byStamp = function (a, b) { return a.data.stamp - b.data.stamp; };
 
 module.exports = function (driver, data) {
-	var promise, slaveScriptPath, ids, getData;
+	var promise, slaveScriptPath, ids, getData, initialData;
 	ensureDriver(driver);
 	ensureObject(data);
 	ids = ensureObject(data.ids);
 	getData = ensureCallable(data.getData);
 	slaveScriptPath = ensureString(data.slaveScriptPath);
+	if (data.initialData != null) initialData = ensureObject(data.initialData);
 	promise = deferred(ids)(function (ids) {
 		var count = 0, indexes, processesCount, promises;
 		ids = toArray(ensureIterable(ids));
@@ -144,7 +145,16 @@ module.exports = function (driver, data) {
 							storageIndexes.forEach(function (name) { storageIndexesData[name] = create(null); });
 						});
 					}
-					def.resolve(sendData());
+					if (initialData) {
+						def.resolve(deferred(initialData)(emitData)(function (data) {
+							if (data.events.length) {
+								throw new Error("Unexpected events triggered by initial data");
+							}
+							return sendData();
+						}));
+					} else {
+						def.resolve(sendData());
+					}
 				});
 				pool.on('error', function (err) { poolError = err; });
 				pool.on('exit', function () {
