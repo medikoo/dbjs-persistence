@@ -382,6 +382,8 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 				old: old,
 				directEvent: directEvent
 			};
+			this.emit('update:reduced', driverEvent);
+			this.driver.emit('update:reduced', driverEvent);
 			this.emit('key:' + (keyPath || '&'), driverEvent);
 			this.emit('owner:' + ownerId, driverEvent);
 			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);

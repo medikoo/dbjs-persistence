@@ -713,6 +713,8 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					data: nu,
 					old: old
 				};
+				this.emit('update:computed', driverEvent);
+				this.driver.emit('update:computed', driverEvent);
 				this.emit('key:' + ns, driverEvent);
 				this.emit('owner:' + path, driverEvent);
 				this.emit('keyid:' + path  + '/' + ns, driverEvent);
@@ -760,6 +762,8 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				old: old,
 				directEvent: directEvent
 			};
+			this.emit('update:reduced', driverEvent);
+			this.driver.emit('update:reduced', driverEvent);
 			this.emit('key:' + (keyPath || '&'), driverEvent);
 			this.emit('owner:' + ownerId, driverEvent);
 			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
