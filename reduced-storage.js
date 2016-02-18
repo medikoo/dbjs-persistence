@@ -26,7 +26,7 @@ var aFrom               = require('es5-ext/array/from')
   , serializeValue      = require('dbjs/_setup/serialize/value')
   , ensureStorage       = require('./ensure-storage')
 
-  , stringify = JSON.stringify
+  , isArray = Array.isArray, stringify = JSON.stringify
   , resolved = deferred(undefined)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , compareNames = function (a, b) { return a.name.localeCompare(b.name); }
@@ -48,6 +48,12 @@ var ensureOwnerId = function (ownerId) {
 	ownerId = ensureString(ownerId);
 	if (!isObjectId(ownerId)) throw new TypeError(ownerId + " is not a database object id");
 	return ownerId;
+};
+
+var trimValue = function (value) {
+	if (isArray(value)) value = '[' + String(value) + ']';
+	if (value.length > 53) return value.slice(0, 80) + '…';
+	return value;
 };
 
 ee(Object.defineProperties(ReductionStorage.prototype, assign({
@@ -364,7 +370,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 				stamp = genStamp();
 			}
 			nu = { value: value, stamp: stamp };
-			debug("reduced update %s", key, stamp);
+			debug("reduced update %s", key, stamp, trimValue(value));
 			storedDef.resolve(this._storeRaw(ownerId, keyPath, nu)(nu));
 			driverEvent = {
 				storage: this,
