@@ -153,7 +153,6 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		});
 	}),
 
-	// Size tracking
 	__search: d(function (keyPath, callback) {
 		return this.getAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
