@@ -22,6 +22,7 @@ var assign         = require('es5-ext/object/assign')
   , rename         = require('fs2/rename')
   , rmdir          = require('fs2/rmdir')
   , writeFile      = require('fs2/write-file')
+  , resolveValue   = require('../lib/resolve-direct-value')
   , Storage        = require('../storage')
 
   , isDirectName = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
@@ -164,6 +165,17 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 					if (keyPath !== path) {
 						if (!startsWith.call(path, keyPath + '*')) return;
 					}
+					return callback(ownerId + '/' + path, data);
+				});
+			});
+		}, this)(Function.prototype);
+	}),
+	__searchValue: d(function (value, callback) {
+		return this.getAllObjectIds().some(function (ownerId) {
+			return this._getDirectStorage_(ownerId)(function (map) {
+				return some(map, function (data, path) {
+					var recordValue = resolveValue(ownerId, path, data.value);
+					if (value !== recordValue) return;
 					return callback(ownerId + '/' + path, data);
 				});
 			});

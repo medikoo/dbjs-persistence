@@ -379,7 +379,8 @@ module.exports = function (opts, copyOpts) {
 			)(function () {
 				return driver.onDrain;
 			})(function () {
-				var storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')];
+				var storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')]
+				  , searchResults = [];
 				return deferred(
 					storage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
 						a(size, 6);
@@ -396,6 +397,14 @@ module.exports = function (opts, copyOpts) {
 						[driver.getStorage('someTypeExt'), getInstances(db.SomeTypeExt)]
 					]))(function (size) {
 						a(size, getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
+					}),
+					driver.getStorage('someType').searchValue('3ejo', function (id, data) {
+						searchResults.push({ id: id, data: data });
+					})(function () {
+						a.deep(searchResults, [
+							{ id: objects.zzz.__id__ + '/miszka',
+								data: { value: '3ejo', stamp: searchResults[0].data.stamp } }
+						]);
 					})
 				);
 			})(function () {

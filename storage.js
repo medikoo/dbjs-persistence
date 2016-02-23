@@ -39,6 +39,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
   , ensureStorage         = require('./ensure-storage')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
+  , resolveValue          = require('./lib/resolve-direct-value')
   , resolveFilter         = require('./lib/resolve-filter')
   , resolveDirectFilter   = require('./lib/resolve-direct-filter')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
@@ -319,6 +320,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	search: d(function (keyPath, callback) {
 		if (keyPath != null) keyPath = ensureString(keyPath);
 		return this._search(keyPath, ensureCallable(callback));
+	}),
+	searchValue: d(function (value, callback) {
+		return this._searchValue(ensureString(value), ensureCallable(callback));
 	}),
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
@@ -839,6 +843,55 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			}.bind(this));
 		}.bind(this));
 	}),
+	_searchValue: d(function (value, callback, certainOnly) {
+		var done = create(null), result, transientData = [], uncertainPromise;
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (data, path) {
+				var id, recordValue = resolveValue(ownerId, path, data.value);
+				if (recordValue !== value) return;
+				id = ownerId + (path ? '/' + path : '');
+				transientData.push({ id: id, data: data });
+			});
+		});
+		if (!certainOnly) {
+			uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
+				return deferred.map(keys(this[ownerId]), function (path) {
+					var id;
+					if (result) return;
+					id = ownerId + (path ? '/' + path : '');
+					done[id] = true;
+					return this[path](function (data) {
+						var recordValue;
+						if (result) return;
+						recordValue = resolveValue(ownerId, path, data.value);
+						if (recordValue !== value) return;
+						if (callback(id, data)) result = { id: id, data: data };
+					});
+				}, this[ownerId]);
+			}, this._uncertain.direct);
+		}
+		return this._safeGet(function () {
+			return (uncertainPromise || resolved)(function () {
+				if (result) return result;
+				transientData.some(function (data) {
+					if (done[data.id]) return;
+					done[data.id] = true;
+					if (callback(data.id, data.data)) {
+						result = data;
+						return true;
+					}
+				});
+				if (result) return result;
+				return this.__searchValue(value, function (id, data) {
+					if (done[id]) return;
+					if (callback(id, data)) {
+						result = { id: id, data: data };
+						return true;
+					}
+				})(function () { return result; });
+			}.bind(this));
+		}.bind(this));
+	}),
 	_searchComputed: d(function (keyPath, callback, certainOnly) {
 		var done = create(null), uncertain = this._uncertain.computed[keyPath]
 		  , transient = this._transient.computed[keyPath], transientData = [], uncertainPromise, result;
@@ -1254,6 +1307,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	__getReducedObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
 	__search: d(notImplemented),
+	__searchValue: d(notImplemented),
 	__searchComputed: d(notImplemented),
 	__exportAll: d(notImplemented),
 	__clear: d(notImplemented),
