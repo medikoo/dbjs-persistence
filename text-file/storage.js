@@ -186,6 +186,28 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			some(map, function (data, ownerId) { return callback(ownerId, data); });
 		});
 	}),
+	__find: d(function (keyPath, value, callback) {
+		return this.getAllObjectIds().some(function (ownerId) {
+			return this._getDirectStorage_(ownerId)(function (map) {
+				if (!keyPath) {
+					if (map['.']) {
+						if (map['.'].value !== value) return;
+						return callback(ownerId, map['.']);
+					}
+				}
+				return some(map, function (data, path) {
+					var recordValue;
+					if (!path) return;
+					if (keyPath !== path) {
+						if (!startsWith.call(path, keyPath + '*')) return;
+					}
+					recordValue = resolveValue(ownerId, path, data.value);
+					if (value !== recordValue) return;
+					return callback(ownerId + '/' + path, data);
+				});
+			});
+		}, this)(Function.prototype);
+	}),
 
 	// Storage import/export
 	__exportAll: d(function (destDriver) {

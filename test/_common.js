@@ -380,7 +380,7 @@ module.exports = function (opts, copyOpts) {
 				return driver.onDrain;
 			})(function () {
 				var storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')]
-				  , searchResults = [];
+				  , searchResults = [], findSearchResults = [];
 				return deferred(
 					storage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
 						a(size, 6);
@@ -404,6 +404,14 @@ module.exports = function (opts, copyOpts) {
 						a.deep(searchResults, [
 							{ id: objects.zzz.__id__ + '/miszka',
 								data: { value: '3ejo', stamp: searchResults[0].data.stamp } }
+						]);
+					}),
+					driver.getStorage('someType').find('sdfffds', '3sdfs', function (id, data) {
+						findSearchResults.push({ id: id, data: data });
+					})(function () {
+						a.deep(findSearchResults, [
+							{ id: objects.zzz.__id__ + '/sdfffds',
+								data: { value: '3sdfs', stamp: findSearchResults[0].data.stamp } }
 						]);
 					})
 				);

@@ -327,6 +327,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
 	}),
+	find: d(function (keyPath, value, callback) {
+		return this._find(ensureString(keyPath), ensureString(value), ensureCallable(callback));
+	}),
 
 	indexKeyPath: d(function (name, set/*, options*/) {
 		var options = Object(arguments[2]), keyPath;
@@ -928,6 +931,72 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			}.bind(this));
 		}.bind(this));
 	}),
+	_find: d(function (keyPath, value, callback, certainOnly) {
+		var done = create(null), result, transientData = [], uncertainPromise;
+		forEach(this._transient.direct, function (ownerData, ownerId) {
+			forEach(ownerData, function (data, path) {
+				var id, recordValue;
+				if (!keyPath) {
+					if (path) return;
+				} else {
+					if (!path) return;
+					if (keyPath !== path) {
+						if (!startsWith.call(path, keyPath + '*')) return;
+					}
+				}
+				recordValue = resolveValue(ownerId, path, data.value);
+				if (recordValue !== value) return;
+				id = ownerId + (path ? '/' + path : '');
+				transientData.push({ id: id, data: data });
+			});
+		});
+		if (!certainOnly) {
+			uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
+				return deferred.map(keys(this[ownerId]), function (path) {
+					var id;
+					if (result) return;
+					if (!keyPath) {
+						if (path) return;
+					} else {
+						if (!path) return;
+						if (keyPath !== path) {
+							if (!startsWith.call(path, keyPath + '*')) return;
+						}
+					}
+					id = ownerId + (path ? '/' + path : '');
+					done[id] = true;
+					return this[path](function (data) {
+						var recordValue;
+						if (result) return;
+						recordValue = resolveValue(ownerId, path, data.value);
+						if (recordValue !== value) return;
+						if (callback(id, data)) result = { id: id, data: data };
+					});
+				}, this[ownerId]);
+			}, this._uncertain.direct);
+		}
+		return this._safeGet(function () {
+			return (uncertainPromise || resolved)(function () {
+				if (result) return result;
+				transientData.some(function (data) {
+					if (done[data.id]) return;
+					done[data.id] = true;
+					if (callback(data.id, data.data)) {
+						result = data;
+						return true;
+					}
+				});
+				if (result) return result;
+				return this.__find(keyPath, value, function (id, data) {
+					if (done[id]) return;
+					if (callback(id, data)) {
+						result = { id: id, data: data };
+						return true;
+					}
+				})(function () { return result; });
+			}.bind(this));
+		}.bind(this));
+	}),
 
 	_trackComputed: d(function (name, set, keyPath) {
 		var names, key, onAdd, onDelete, listener, setListener;
@@ -1309,6 +1378,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	__search: d(notImplemented),
 	__searchValue: d(notImplemented),
 	__searchComputed: d(notImplemented),
+	__find: d(notImplemented),
 	__exportAll: d(notImplemented),
 	__clear: d(notImplemented),
 	__drop: d(notImplemented),
