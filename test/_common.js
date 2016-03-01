@@ -380,7 +380,7 @@ module.exports = function (opts, copyOpts) {
 				return driver.onDrain;
 			})(function () {
 				var storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')]
-				  , searchResults = [], findSearchResults = [];
+				  , searchResults = [], findSearchResults = [], searchOneResults = [];
 				return deferred(
 					storage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
 						a(size, 6);
@@ -409,6 +409,17 @@ module.exports = function (opts, copyOpts) {
 					driver.getStorage('someType').search({ keyPath: 'sdfffds', value: '3sdfs' },
 						function (id, data) { findSearchResults.push({ id: id, data: data }); })(function () {
 						a.deep(findSearchResults, [
+							{ id: objects.zzz.__id__ + '/sdfffds',
+								data: { value: '3sdfs', stamp: findSearchResults[0].data.stamp } }
+						]);
+					}),
+					driver.getStorage('someType').searchOne({ keyPath: 'sdfffds', value: '3sdfs' },
+						function (id, data) {
+							searchOneResults.push({ id: id, data: data });
+							return 'foo';
+						})(function (data) {
+						a(data, 'foo');
+						a.deep(searchOneResults, [
 							{ id: objects.zzz.__id__ + '/sdfffds',
 								data: { value: '3sdfs', stamp: findSearchResults[0].data.stamp } }
 						]);

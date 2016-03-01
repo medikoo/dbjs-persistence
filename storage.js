@@ -331,6 +331,25 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		}
 		return this._search(keyPath, value, callback);
 	}),
+	searchOne: d(function (query, callback) {
+		var keyPath, value;
+		if (typeof query === 'function') {
+			callback = query;
+		} else {
+			ensureObject(query);
+			callback = ensureCallable(callback);
+			if (query.keyPath !== undefined) {
+				keyPath = (query.keyPath === null) ? null : ensureString(query.keyPath);
+			}
+			if (query.value != null) value = ensureString(query.value);
+		}
+		return this._search(keyPath, value, function (id, data, stream) {
+			var result = callback.apply(this, arguments);
+			if (result === undefined) return;
+			stream.destroy();
+			return result;
+		})(function (data) { return data[0]; });
+	}),
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
 	}),
