@@ -45,7 +45,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolveMultipleEvents = require('./lib/resolve-multiple-events')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
-  , isArray = Array.isArray, stringify = JSON.stringify
+  , isArray = Array.isArray, defineProperty = Object.defineProperty, stringify = JSON.stringify
   , resolved = deferred(undefined)
   , isDigit = RegExp.prototype.test.bind(/[0-9]/)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
@@ -790,7 +790,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	}),
 
 	_search: d(function (keyPath, value, callback, certainOnly) {
-		var done = create(null), result, transientData = [], uncertainPromise;
+		var done = create(null), def = deferred(), transientData = [], uncertainPromise
+		  , stream = def.promise;
+		stream.destroy = function () { defineProperty(stream, '_isDestroyed', d('', true)); };
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, path) {
 				var id, recordValue;
@@ -816,7 +818,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
 				return deferred.map(keys(this[ownerId]), function (path) {
 					var id;
-					if (result) return;
+					if (stream._isDestroyed) return;
 					if (keyPath !== undefined) {
 						if (!keyPath) {
 							if (path) return;
@@ -831,37 +833,33 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					done[id] = true;
 					return this[path](function (data) {
 						var recordValue;
-						if (result) return;
+						if (stream._isDestroyed) return;
 						if (value != null) {
 							recordValue = resolveValue(ownerId, path, data.value);
 							if (recordValue !== value) return;
 						}
-						if (callback(id, data)) result = { id: id, data: data };
+						callback(id, data, stream);
 					});
 				}, this[ownerId]);
 			}, this._uncertain.direct);
 		}
-		return this._safeGet(function () {
+		def.resolve(this._safeGet(function () {
 			return (uncertainPromise || resolved)(function () {
-				if (result) return result;
+				if (stream._isDestroyed) return;
 				transientData.some(function (data) {
 					if (done[data.id]) return;
 					done[data.id] = true;
-					if (callback(data.id, data.data)) {
-						result = data;
-						return true;
-					}
+					callback(data.id, data.data, stream);
 				});
-				if (result) return result;
+				if (stream._isDestroyed) return;
 				return this.__search(keyPath, value, function (id, data) {
 					if (done[id]) return;
-					if (callback(id, data)) {
-						result = { id: id, data: data };
-						return true;
-					}
-				})(function () { return result; });
+					callback(id, data, stream);
+					return stream._isDestroyed;
+				});
 			}.bind(this));
-		}.bind(this));
+		}.bind(this))(Function.prototype));
+		return stream;
 	}),
 	_searchComputed: d(function (keyPath, callback, certainOnly) {
 		var done = create(null), uncertain = this._uncertain.computed[keyPath]
