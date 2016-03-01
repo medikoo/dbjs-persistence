@@ -398,7 +398,7 @@ module.exports = function (opts, copyOpts) {
 					]))(function (size) {
 						a(size, getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
 					}),
-					driver.getStorage('someType').searchValue('3ejo', function (id, data) {
+					driver.getStorage('someType').search({ value: '3ejo' }, function (id, data) {
 						searchResults.push({ id: id, data: data });
 					})(function () {
 						a.deep(searchResults, [
@@ -406,9 +406,8 @@ module.exports = function (opts, copyOpts) {
 								data: { value: '3ejo', stamp: searchResults[0].data.stamp } }
 						]);
 					}),
-					driver.getStorage('someType').find('sdfffds', '3sdfs', function (id, data) {
-						findSearchResults.push({ id: id, data: data });
-					})(function () {
+					driver.getStorage('someType').search({ keyPath: 'sdfffds', value: '3sdfs' },
+						function (id, data) { findSearchResults.push({ id: id, data: data }); })(function () {
 						a.deep(findSearchResults, [
 							{ id: objects.zzz.__id__ + '/sdfffds',
 								data: { value: '3sdfs', stamp: findSearchResults[0].data.stamp } }

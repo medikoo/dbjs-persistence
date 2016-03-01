@@ -154,28 +154,31 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		});
 	}),
 
-	__search: d(function (keyPath, callback) {
+	__search: d(function (keyPath, value, callback) {
 		return this.getAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
-				if (!keyPath) {
-					if (map['.']) return callback(ownerId, map['.']);
+				if (keyPath !== undefined) {
+					if (!keyPath) {
+						if (map['.']) {
+							if (value != null) {
+								if (map['.'].value !== value) return;
+							}
+							return callback(ownerId, map['.']);
+						}
+					}
 				}
 				return some(map, function (data, path) {
+					var recordValue;
 					if (!path) return;
-					if (keyPath !== path) {
-						if (!startsWith.call(path, keyPath + '*')) return;
+					if (keyPath !== undefined) {
+						if (keyPath !== path) {
+							if (!startsWith.call(path, keyPath + '*')) return;
+						}
 					}
-					return callback(ownerId + '/' + path, data);
-				});
-			});
-		}, this)(Function.prototype);
-	}),
-	__searchValue: d(function (value, callback) {
-		return this.getAllObjectIds().some(function (ownerId) {
-			return this._getDirectStorage_(ownerId)(function (map) {
-				return some(map, function (data, path) {
-					var recordValue = resolveValue(ownerId, path, data.value);
-					if (value !== recordValue) return;
+					if (value != null) {
+						recordValue = resolveValue(ownerId, path, data.value);
+						if (value !== recordValue) return;
+					}
 					return callback(ownerId + '/' + path, data);
 				});
 			});
@@ -185,28 +188,6 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		return this._getComputedStorage_(keyPath)(function (map) {
 			some(map, function (data, ownerId) { return callback(ownerId, data); });
 		});
-	}),
-	__find: d(function (keyPath, value, callback) {
-		return this.getAllObjectIds().some(function (ownerId) {
-			return this._getDirectStorage_(ownerId)(function (map) {
-				if (!keyPath) {
-					if (map['.']) {
-						if (map['.'].value !== value) return;
-						return callback(ownerId, map['.']);
-					}
-				}
-				return some(map, function (data, path) {
-					var recordValue;
-					if (!path) return;
-					if (keyPath !== path) {
-						if (!startsWith.call(path, keyPath + '*')) return;
-					}
-					recordValue = resolveValue(ownerId, path, data.value);
-					if (value !== recordValue) return;
-					return callback(ownerId + '/' + path, data);
-				});
-			});
-		}, this)(Function.prototype);
 	}),
 
 	// Storage import/export

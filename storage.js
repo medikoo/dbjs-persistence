@@ -317,18 +317,22 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			.finally(this._onOperationEnd);
 	}),
 
-	search: d(function (keyPath, callback) {
-		if (keyPath != null) keyPath = ensureString(keyPath);
-		return this._search(keyPath, ensureCallable(callback));
-	}),
-	searchValue: d(function (value, callback) {
-		return this._searchValue(ensureString(value), ensureCallable(callback));
+	search: d(function (query, callback) {
+		var keyPath, value;
+		if (typeof query === 'function') {
+			callback = query;
+		} else {
+			ensureObject(query);
+			callback = ensureCallable(callback);
+			if (query.keyPath !== undefined) {
+				keyPath = (query.keyPath === null) ? null : ensureString(query.keyPath);
+			}
+			if (query.value != null) value = ensureString(query.value);
+		}
+		return this._search(keyPath, value, callback);
 	}),
 	searchComputed: d(function (keyPath, callback) {
 		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
-	}),
-	find: d(function (keyPath, value, callback) {
-		return this._find(ensureString(keyPath), ensureString(value), ensureCallable(callback));
 	}),
 
 	indexKeyPath: d(function (name, set/*, options*/) {
@@ -785,18 +789,24 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		};
 	}),
 
-	_search: d(function (keyPath, callback, certainOnly) {
+	_search: d(function (keyPath, value, callback, certainOnly) {
 		var done = create(null), result, transientData = [], uncertainPromise;
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, path) {
-				var id;
-				if (!keyPath) {
-					if (path) return;
-				} else {
-					if (!path) return;
-					if (keyPath !== path) {
-						if (!startsWith.call(path, keyPath + '*')) return;
+				var id, recordValue;
+				if (keyPath !== undefined) {
+					if (!keyPath) {
+						if (path) return;
+					} else {
+						if (!path) return;
+						if (keyPath !== path) {
+							if (!startsWith.call(path, keyPath + '*')) return;
+						}
 					}
+				}
+				if (value != null) {
+					recordValue = resolveValue(ownerId, path, data.value);
+					if (recordValue !== value) return;
 				}
 				id = ownerId + (path ? '/' + path : '');
 				transientData.push({ id: id, data: data });
@@ -807,67 +817,25 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				return deferred.map(keys(this[ownerId]), function (path) {
 					var id;
 					if (result) return;
-					if (!keyPath) {
-						if (path) return;
-					} else {
-						if (!path) return;
-						if (keyPath !== path) {
-							if (!startsWith.call(path, keyPath + '*')) return;
+					if (keyPath !== undefined) {
+						if (!keyPath) {
+							if (path) return;
+						} else {
+							if (!path) return;
+							if (keyPath !== path) {
+								if (!startsWith.call(path, keyPath + '*')) return;
+							}
 						}
 					}
 					id = ownerId + (path ? '/' + path : '');
 					done[id] = true;
 					return this[path](function (data) {
-						if (result) return;
-						if (callback(id, data)) result = { id: id, data: data };
-					});
-				}, this[ownerId]);
-			}, this._uncertain.direct);
-		}
-		return this._safeGet(function () {
-			return (uncertainPromise || resolved)(function () {
-				if (result) return result;
-				transientData.some(function (data) {
-					if (done[data.id]) return;
-					done[data.id] = true;
-					if (callback(data.id, data.data)) {
-						result = data;
-						return true;
-					}
-				});
-				if (result) return result;
-				return this.__search(keyPath, function (id, data) {
-					if (done[id]) return;
-					if (callback(id, data)) {
-						result = { id: id, data: data };
-						return true;
-					}
-				})(function () { return result; });
-			}.bind(this));
-		}.bind(this));
-	}),
-	_searchValue: d(function (value, callback, certainOnly) {
-		var done = create(null), result, transientData = [], uncertainPromise;
-		forEach(this._transient.direct, function (ownerData, ownerId) {
-			forEach(ownerData, function (data, path) {
-				var id, recordValue = resolveValue(ownerId, path, data.value);
-				if (recordValue !== value) return;
-				id = ownerId + (path ? '/' + path : '');
-				transientData.push({ id: id, data: data });
-			});
-		});
-		if (!certainOnly) {
-			uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
-				return deferred.map(keys(this[ownerId]), function (path) {
-					var id;
-					if (result) return;
-					id = ownerId + (path ? '/' + path : '');
-					done[id] = true;
-					return this[path](function (data) {
 						var recordValue;
 						if (result) return;
-						recordValue = resolveValue(ownerId, path, data.value);
-						if (recordValue !== value) return;
+						if (value != null) {
+							recordValue = resolveValue(ownerId, path, data.value);
+							if (recordValue !== value) return;
+						}
 						if (callback(id, data)) result = { id: id, data: data };
 					});
 				}, this[ownerId]);
@@ -885,7 +853,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					}
 				});
 				if (result) return result;
-				return this.__searchValue(value, function (id, data) {
+				return this.__search(keyPath, value, function (id, data) {
 					if (done[id]) return;
 					if (callback(id, data)) {
 						result = { id: id, data: data };
@@ -928,72 +896,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				return this.__searchComputed(keyPath, function (ownerId, data) {
 					if (!done[ownerId]) callback(ownerId, data);
 				});
-			}.bind(this));
-		}.bind(this));
-	}),
-	_find: d(function (keyPath, value, callback, certainOnly) {
-		var done = create(null), result, transientData = [], uncertainPromise;
-		forEach(this._transient.direct, function (ownerData, ownerId) {
-			forEach(ownerData, function (data, path) {
-				var id, recordValue;
-				if (!keyPath) {
-					if (path) return;
-				} else {
-					if (!path) return;
-					if (keyPath !== path) {
-						if (!startsWith.call(path, keyPath + '*')) return;
-					}
-				}
-				recordValue = resolveValue(ownerId, path, data.value);
-				if (recordValue !== value) return;
-				id = ownerId + (path ? '/' + path : '');
-				transientData.push({ id: id, data: data });
-			});
-		});
-		if (!certainOnly) {
-			uncertainPromise = deferred.map(keys(this._uncertain.direct), function (ownerId) {
-				return deferred.map(keys(this[ownerId]), function (path) {
-					var id;
-					if (result) return;
-					if (!keyPath) {
-						if (path) return;
-					} else {
-						if (!path) return;
-						if (keyPath !== path) {
-							if (!startsWith.call(path, keyPath + '*')) return;
-						}
-					}
-					id = ownerId + (path ? '/' + path : '');
-					done[id] = true;
-					return this[path](function (data) {
-						var recordValue;
-						if (result) return;
-						recordValue = resolveValue(ownerId, path, data.value);
-						if (recordValue !== value) return;
-						if (callback(id, data)) result = { id: id, data: data };
-					});
-				}, this[ownerId]);
-			}, this._uncertain.direct);
-		}
-		return this._safeGet(function () {
-			return (uncertainPromise || resolved)(function () {
-				if (result) return result;
-				transientData.some(function (data) {
-					if (done[data.id]) return;
-					done[data.id] = true;
-					if (callback(data.id, data.data)) {
-						result = data;
-						return true;
-					}
-				});
-				if (result) return result;
-				return this.__find(keyPath, value, function (id, data) {
-					if (done[id]) return;
-					if (callback(id, data)) {
-						result = { id: id, data: data };
-						return true;
-					}
-				})(function () { return result; });
 			}.bind(this));
 		}.bind(this));
 	}),
@@ -1294,7 +1196,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 
 	_recalculateDirectSet: d(function (keyPath, searchValue) {
 		var filter = getSearchValueFilter(searchValue), result = new Set();
-		return this._search(keyPath, function (id, data) {
+		return this._search(keyPath, null, function (id, data) {
 			var index = id.indexOf('/'), path, sValue, ownerId;
 			if (!keyPath) {
 				sValue = data.value;
@@ -1376,9 +1278,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	__getReducedObject: d(notImplemented),
 	__storeRaw: d(notImplemented),
 	__search: d(notImplemented),
-	__searchValue: d(notImplemented),
 	__searchComputed: d(notImplemented),
-	__find: d(notImplemented),
 	__exportAll: d(notImplemented),
 	__clear: d(notImplemented),
 	__drop: d(notImplemented),
