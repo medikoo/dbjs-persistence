@@ -791,7 +791,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 
 	_search: d(function (keyPath, value, callback, certainOnly) {
 		var done = create(null), def = deferred(), transientData = [], uncertainPromise
-		  , stream = def.promise;
+		  , stream = def.promise, extPromises = [];
 		stream.destroy = function () { defineProperty(stream, '_isDestroyed', d('', true)); };
 		forEach(this._transient.direct, function (ownerData, ownerId) {
 			forEach(ownerData, function (data, path) {
@@ -832,13 +832,14 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					id = ownerId + (path ? '/' + path : '');
 					done[id] = true;
 					return this[path](function (data) {
-						var recordValue;
+						var recordValue, result;
 						if (stream._isDestroyed) return;
 						if (value != null) {
 							recordValue = resolveValue(ownerId, path, data.value);
 							if (recordValue !== value) return;
 						}
-						callback(id, data, stream);
+						result = callback(id, data, stream);
+						if (result !== undefined) extPromises.push(result);
 					});
 				}, this[ownerId]);
 			}, this._uncertain.direct);
@@ -847,18 +848,22 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			return (uncertainPromise || resolved)(function () {
 				if (stream._isDestroyed) return;
 				transientData.some(function (data) {
+					var result;
 					if (done[data.id]) return;
 					done[data.id] = true;
-					callback(data.id, data.data, stream);
+					result = callback(data.id, data.data, stream);
+					if (result !== undefined) extPromises.push(result);
 				});
 				if (stream._isDestroyed) return;
 				return this.__search(keyPath, value, function (id, data) {
+					var result;
 					if (done[id]) return;
-					callback(id, data, stream);
+					result = callback(id, data, stream);
+					if (result !== undefined) extPromises.push(result);
 					return stream._isDestroyed;
 				});
 			}.bind(this));
-		}.bind(this))(Function.prototype));
+		}.bind(this))(function () { return deferred.map(extPromises); }));
 		return stream;
 	}),
 	_searchComputed: d(function (keyPath, callback, certainOnly) {
