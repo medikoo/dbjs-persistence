@@ -138,7 +138,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		ownerId = ensureOwnerId(ownerId);
 		this._ensureOpen();
 		++this._runningOperations;
-		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
+		if (options && (options.keyPaths != null)) {
+			keyPaths = new Set(aFrom(ensureIterable(options.keyPaths), ensureString));
+		}
 		return this._getObject(ownerId, keyPaths).finally(this._onOperationEnd);
 	}),
 	deleteObject: d(function (ownerId) {
@@ -217,7 +219,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		ns = ensureOwnerId(ns);
 		this._ensureOpen();
 		++this._runningOperations;
-		if (options && (options.keyPaths != null)) keyPaths = ensureSet(options.keyPaths);
+		if (options && (options.keyPaths != null)) {
+			keyPaths = new Set(aFrom(ensureIterable(options.keyPaths), ensureString));
+		}
 		return this._getReducedObject(ns, keyPaths).finally(this._onOperationEnd);
 	}),
 
