@@ -38,6 +38,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
   , ensureStorage         = require('./ensure-storage')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
+  , isObjectPart          = require('./lib/is-object-part')
   , resolveValue          = require('./lib/resolve-direct-value')
   , resolveFilter         = require('./lib/resolve-filter')
   , resolveDirectFilter   = require('./lib/resolve-direct-filter')
@@ -132,32 +133,32 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		++this._runningOperations;
 		return this._getRaw('reduced', ownerId, path).finally(this._onOperationEnd);
 	}),
-	getObject: d(function (ownerId/*, options*/) {
+	getObject: d(function (objectId/*, options*/) {
 		var keyPaths, options = arguments[1];
-		ownerId = ensureOwnerId(ownerId);
+		objectId = ensureString(objectId);
 		this._ensureOpen();
 		++this._runningOperations;
 		if (options && (options.keyPaths != null)) {
 			keyPaths = new Set(aFrom(ensureIterable(options.keyPaths), ensureString));
 		}
-		return this._getObject(ownerId, keyPaths).finally(this._onOperationEnd);
+		return this._getObject(objectId, keyPaths).finally(this._onOperationEnd);
 	}),
-	deleteObject: d(function (ownerId) {
-		ownerId = ensureOwnerId(ownerId);
+	deleteObject: d(function (objectId) {
+		objectId = ensureString(objectId);
 		this._ensureOpen();
 		++this._runningOperations;
-		return this._getObject(ownerId)(function (data) {
+		return this._getObject(objectId)(function (data) {
 			return this.storeMany(data.reverse().map(function (data) {
 				return { id: data.id, data: { value: '' } };
 			}));
 		}.bind(this)).finally(this._onOperationEnd);
 	}),
-	deleteManyObjects: d(function (ownerIds) {
-		ownerIds = aFrom(ensureIterable(ownerIds), ensureString);
+	deleteManyObjects: d(function (objectIds) {
+		objectIds = aFrom(ensureIterable(objectIds), ensureString);
 		this._ensureOpen();
 		++this._runningOperations;
-		return deferred.map(ownerIds, function (ownerId) {
-			return this._getObject(ownerId);
+		return deferred.map(objectIds, function (objectId) {
+			return this._getObject(objectId);
 		}, this)(function (data) {
 			return this.storeMany(flatten.call(data).sort(dataByStampRev).map(function (data) {
 				return { id: data.id, data: { value: '' } };
@@ -502,16 +503,27 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		}
 		return this.__getRaw(cat, ns, path);
 	}),
-	_getObject: d(function (ownerId, keyPaths) {
-		var transientData = create(null), uncertainData = create(null), uncertainPromise;
+	_getObject: d(function (objectId, keyPaths) {
+		var transientData = create(null), uncertainData = create(null)
+		  , ownerId = objectId.split('/', 1)[0], uncertainPromise, objectPath, tmpKeyPaths;
+		if (objectId !== ownerId) {
+			objectPath = objectId.slice(ownerId.length + 1);
+			if (keyPaths) {
+				tmpKeyPaths = new Set();
+				keyPaths.forEach(function (keyPath) { tmpKeyPaths.add(objectPath + '/' + keyPath); });
+				keyPaths = tmpKeyPaths;
+			}
+		}
 		if (this._transient.direct[ownerId]) {
 			forEach(this._transient.direct[ownerId], function (data, path) {
+				if (!isObjectPart(objectPath, path)) return;
 				if (keyPaths && path && !keyPaths.has(resolveKeyPath(ownerId + '/' + path))) return;
 				transientData[ownerId + (path && ('/' + path))] = data;
 			});
 		}
 		if (this._uncertain.direct[ownerId]) {
 			uncertainPromise = deferred.map(keys(this._uncertain.direct[ownerId]), function (path) {
+				if (!isObjectPart(objectPath, path)) return;
 				if (keyPaths && path && !keyPaths.has(resolveKeyPath(ownerId + '/' + path))) return;
 				return this[path](function (data) {
 					uncertainData[ownerId + (path && ('/' + path))] = data;
@@ -519,7 +531,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			}, this._uncertain.direct[ownerId]);
 		}
 		return this._safeGet(function () {
-			var promise = (uncertainPromise || resolved)(this.__getObject(ownerId, keyPaths));
+			var promise = (uncertainPromise || resolved)(this.__getObject(ownerId, objectPath, keyPaths));
 			return promise(function (data) {
 				return toArray(assign(data, transientData, uncertainData),
 					function (data, id) { return { id: id, data: data }; }, null, byStamp);

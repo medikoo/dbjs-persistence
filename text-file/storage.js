@@ -22,6 +22,7 @@ var assign         = require('es5-ext/object/assign')
   , rename         = require('fs2/rename')
   , rmdir          = require('fs2/rmdir')
   , writeFile      = require('fs2/write-file')
+  , isObjectPart   = require('../lib/is-object-part')
   , resolveValue   = require('../lib/resolve-direct-value')
   , Storage        = require('../storage')
 
@@ -56,9 +57,10 @@ var fromComputedFilename = (function () {
 	};
 }());
 
-var resolveObjectMap = function (ownerId, map, keyPaths, result) {
+var resolveObjectMap = function (ownerId, objectPath, map, keyPaths, result) {
 	if (!result) result = create(null);
 	forEach(map, function (data, path) {
+		if (!isObjectPart(objectPath, (path === '.') ? null : path)) return;
 		if (keyPaths && (path !== '.')) {
 			if (!keyPaths.has(resolveKeyPath(ownerId + '/' + path))) return;
 		}
@@ -111,9 +113,9 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 	}),
 
 	// Direct data
-	__getObject: d(function (ownerId, keyPaths) {
+	__getObject: d(function (ownerId, objectPath, keyPaths) {
 		return this._getDirectStorage_(ownerId)(function (map) {
-			return resolveObjectMap(ownerId, map, keyPaths);
+			return resolveObjectMap(ownerId, objectPath, map, keyPaths);
 		});
 	}),
 	__getAllObjectIds: d(function () {
@@ -136,7 +138,9 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			});
 		}, this)(function (maps) {
 			var result = create(null);
-			maps.forEach(function (data) { resolveObjectMap(data.ownerId, data.map, null, result); });
+			maps.forEach(function (data) {
+				resolveObjectMap(data.ownerId, null, data.map, null, result);
+			});
 			return result;
 		});
 	}),
