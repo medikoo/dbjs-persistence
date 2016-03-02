@@ -311,7 +311,7 @@ module.exports = function (opts, copyOpts) {
 		})(function () {
 			var db = getDatabase()
 			  , driver = t(assign({ database: db }, opts))
-			  , objects, extObjects, storage = driver.getReducedStorage();
+			  , objects, extObjects, reducedStorage = driver.getReducedStorage();
 
 			var getInstances = function (type) {
 				return type.instances.filter(function (obj) { return obj.constructor === type; });
@@ -382,17 +382,17 @@ module.exports = function (opts, copyOpts) {
 				var storages = [driver.getStorage('someType'), driver.getStorage('someTypeExt')]
 				  , searchResults = [], findSearchResults = [], searchOneResults = [];
 				return deferred(
-					storage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
+					reducedStorage.trackSize('miszkaAll', storages, 'miszka')(function (size) {
 						a(size, 6);
 					}),
-					storage.trackSize('someBoolSize', storages,  'someBool', '11')(function (size) {
+					reducedStorage.trackSize('someBoolSize', storages,  'someBool', '11')(function (size) {
 						a(size, 6);
 					}),
-					storage.trackComputedSize('someBoolComputedSize', storages, 'someBoolComputed',
+					reducedStorage.trackComputedSize('someBoolComputedSize', storages, 'someBoolComputed',
 						'11')(function (size) { a(size, 6); }),
-					storage.trackMultipleSize('someBoolAll',
+					reducedStorage.trackMultipleSize('someBoolAll',
 						['someBoolSize', 'someBoolComputedSize'])(function (size) { a(size, 4); }),
-					storage.trackCollectionSize('colSize1', new Map([
+					reducedStorage.trackCollectionSize('colSize1', new Map([
 						[driver.getStorage('someType'), getInstances(db.SomeType)],
 						[driver.getStorage('someTypeExt'), getInstances(db.SomeTypeExt)]
 					]))(function (size) {
@@ -432,11 +432,13 @@ module.exports = function (opts, copyOpts) {
 				return driver.onDrain;
 			})(function () {
 				return deferred(
-					storage.getReduced('miszkaAll')(function (data) { a(data.value, '25'); }),
-					storage.getReduced('someBoolSize')(function (data) { a(data.value, '25'); }),
-					storage.getReduced('someBoolComputedSize')(function (data) { a(data.value, '25'); }),
-					storage.getReduced('someBoolAll')(function (data) { a(data.value, '22'); }),
-					storage.getReduced('colSize1')(function (data) {
+					reducedStorage.getReduced('miszkaAll')(function (data) { a(data.value, '25'); }),
+					reducedStorage.getReduced('someBoolSize')(function (data) { a(data.value, '25'); }),
+					reducedStorage.getReduced('someBoolComputedSize')(function (data) {
+						a(data.value, '25');
+					}),
+					reducedStorage.getReduced('someBoolAll')(function (data) { a(data.value, '22'); }),
+					reducedStorage.getReduced('colSize1')(function (data) {
 						a(unserializeValue(data.value),
 							getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
 					})
@@ -449,11 +451,13 @@ module.exports = function (opts, copyOpts) {
 				return driver.onDrain;
 			})(function () {
 				return deferred(
-					storage.getReduced('miszkaAll')(function (data) { a(data.value, '26'); }),
-					storage.getReduced('someBoolSize')(function (data) { a(data.value, '26'); }),
-					storage.getReduced('someBoolComputedSize')(function (data) { a(data.value, '26'); }),
-					storage.getReduced('someBoolAll')(function (data) { a(data.value, '24'); }),
-					storage.getReduced('colSize1')(function (data) {
+					reducedStorage.getReduced('miszkaAll')(function (data) { a(data.value, '26'); }),
+					reducedStorage.getReduced('someBoolSize')(function (data) { a(data.value, '26'); }),
+					reducedStorage.getReduced('someBoolComputedSize')(function (data) {
+						a(data.value, '26');
+					}),
+					reducedStorage.getReduced('someBoolAll')(function (data) { a(data.value, '24'); }),
+					reducedStorage.getReduced('colSize1')(function (data) {
 						a(unserializeValue(data.value),
 							getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
 					})
