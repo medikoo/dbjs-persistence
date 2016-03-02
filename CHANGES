@@ -1,3 +1,22 @@
+v0.0.19  --  2016.03.02
+* Support custom `keyPath` in `indexKeyPath` method
+* Improve `search` method:
+  * Takes configuration object so user can search by both keyPath and value or none at all
+  * Provides similar API to streams and now can be stopped only by calling stream.close()
+	* Allows to postpone result promise and allow to choose resolution array of values
+	* `searchOne` introduced to provide a possiblity to resolve with single value
+* Improve handling of `keyPaths` option in `getObject` etc, it can be now any iterable or
+* Support nested object paths in `getObject` and `deleteObject`
+  array-like object
+* Improve recomputation handling:
+  * Allow slave processes to end gracefully
+	* Support propagation of direct records as well
+	* Support initial record sets
+* Allow reinitialization of cleared storages
+* Support destruction of emitter/receiver bindings
+* Emit reduced and computed events globally
+* Log value with debug logs
+
 v0.0.18  --  2016.02.06
 * Fix detection of reduced storage in isStorage
 * Support for multiple drivers in receiver/emitter setup
