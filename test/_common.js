@@ -421,7 +421,7 @@ module.exports = function (opts, copyOpts) {
 						a(data, 'foo');
 						a.deep(searchOneResults, [
 							{ id: objects.zzz.__id__ + '/sdfffds',
-								data: { value: '3sdfs', stamp: findSearchResults[0].data.stamp } }
+								data: { value: '3sdfs', stamp: searchOneResults[0].data.stamp } }
 						]);
 					})
 				);
