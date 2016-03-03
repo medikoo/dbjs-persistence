@@ -279,33 +279,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		return this._handleStoreDirect(ownerId, path, value, stamp).finally(this._onOperationEnd);
 	}),
 	storeMany: d(function (data) {
-		var isStampGenerated, records = [];
-		iterableForEach(data, function (data) {
-			var record = {};
-			ensureObject(data);
-			record.id = ensureString(data.id);
-			ensureObject(data.data);
-			record.data = {};
-			record.data.value = ensureString(data.data.value);
-			if (data.data.stamp == null) {
-				if (!isStampGenerated) {
-					record.data.stamp = genStamp();
-					isStampGenerated = true;
-				} else {
-					record.data.stamp = incrementStamp();
-				}
-			} else {
-				record.data.stamp = ensureNaturalNumber(data.data.stamp);
-			}
-			records.push(record);
-		});
-		++this._runningOperations;
-		return deferred.map(records, function (record) {
-			var index = record.id.indexOf('/');
-			var ownerId = (index !== -1) ? record.id.slice(0, index) : record.id;
-			var path = (index !== -1) ? record.id.slice(index + 1) : null;
-			return this._handleStoreDirect(ownerId, path, record.data.value, record.data.stamp);
-		}, this).finally(this._onOperationEnd);
+		return this._storeMany(data, this._handleStoreDirect);
 	}),
 	storeReduced: d(function (id, value, stamp, directEvent) {
 		var index, ownerId, path;
@@ -595,6 +569,35 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		this._cleanupCalls.push(database.objects.off.bind(database.objects, 'update', listener));
 	}),
 
+	_storeMany: d(function (data, method) {
+		var isStampGenerated, records = [];
+		iterableForEach(data, function (data) {
+			var record = {};
+			ensureObject(data);
+			record.id = ensureString(data.id);
+			ensureObject(data.data);
+			record.data = {};
+			record.data.value = ensureString(data.data.value);
+			if (data.data.stamp == null) {
+				if (!isStampGenerated) {
+					record.data.stamp = genStamp();
+					isStampGenerated = true;
+				} else {
+					record.data.stamp = incrementStamp();
+				}
+			} else {
+				record.data.stamp = ensureNaturalNumber(data.data.stamp);
+			}
+			records.push(record);
+		});
+		++this._runningOperations;
+		return deferred.map(records, function (record) {
+			var index = record.id.indexOf('/');
+			var ownerId = (index !== -1) ? record.id.slice(0, index) : record.id;
+			var path = (index !== -1) ? record.id.slice(index + 1) : null;
+			return method.call(this, ownerId, path, record.data.value, record.data.stamp);
+		}, this).finally(this._onOperationEnd);
+	}),
 	_storeRaw: d(function (cat, ns, path, data) {
 		var transient = this._transient[cat];
 		if (!transient[ns]) transient[ns] = create(null);
