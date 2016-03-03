@@ -294,6 +294,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		return this._handleStoreReduced(ownerId, path, value, stamp, directEvent)
 			.finally(this._onOperationEnd);
 	}),
+	storeManyReduced: d(function (data) {
+		return this._storeMany(data, this._handleStoreReduced);
+	}),
 
 	search: d(function (query, callback) {
 		var keyPath, value;
