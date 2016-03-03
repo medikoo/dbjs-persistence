@@ -25,11 +25,13 @@ var aFrom               = require('es5-ext/array/from')
   , unserializeValue    = require('dbjs/_setup/unserialize/value')
   , serializeValue      = require('dbjs/_setup/serialize/value')
   , ensureStorage       = require('./ensure-storage')
+  , Storage             = require('./storage')
 
   , isArray = Array.isArray, stringify = JSON.stringify
   , resolved = deferred(undefined)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , compareNames = function (a, b) { return a.name.localeCompare(b.name); }
+  , storeMany = Storage.prototype._storeMany
   , create = Object.create, keys = Object.keys;
 
 var byStamp = function (a, b) {
@@ -90,6 +92,9 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		++this._runningOperations;
 		return this._handleStore(ownerId, path, value, stamp, directEvent)
 			.finally(this._onOperationEnd);
+	}),
+	storeManyReduced: d(function (data) {
+		return storeMany.call(this, data, this._handleStore);
 	}),
 
 	trackSize: d(function (name, storages, keyPath/*, searchValue*/) {
