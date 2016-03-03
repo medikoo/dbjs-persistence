@@ -371,7 +371,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 			}
 			nu = { value: value, stamp: stamp };
 			debug("reduced update %s", key, stamp, trimValue(value));
-			storedDef.resolve(this._storeRaw(ownerId, keyPath, nu)(nu));
+			storedDef.resolve(this._storeRaw(ownerId, keyPath, nu)(resolvedDef.promise));
 			driverEvent = {
 				storage: this,
 				type: 'reduced',
