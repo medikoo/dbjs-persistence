@@ -761,6 +761,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					id: id,
 					ownerId: path,
 					keyPath: ns,
+					path: ns,
 					data: nu,
 					old: old
 				};
@@ -809,6 +810,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				id: key,
 				ownerId: ownerId,
 				keyPath: keyPath,
+				path: keyPath,
 				data: nu,
 				old: old,
 				directEvent: directEvent

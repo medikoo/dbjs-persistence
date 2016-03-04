@@ -383,6 +383,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 				id: key,
 				ownerId: ownerId,
 				keyPath: keyPath,
+				path: keyPath,
 				data: nu,
 				old: old,
 				directEvent: directEvent
