@@ -272,7 +272,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			delete this._writeMap_;
 			delete this._writePromise_;
 			return deferred.map(keys(map), function (name) {
-				var tmpFilename = resolve(this.dirPath, name + ' ' + randomUniq());
+				var tmpFilename = resolve(this.dirPath, name + ' -tmp-' + randomUniq());
 				return writeFile(tmpFilename, toArray(map[name], function (data, id) {
 					var value = data.value;
 					if (value === '') value = '-';
