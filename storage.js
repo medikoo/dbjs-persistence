@@ -87,7 +87,7 @@ var ensureOwnerId = function (ownerId) {
 
 var trimValue = function (value) {
 	if (isArray(value)) value = '[' + String(value) + ']';
-	if (value.length > 53) return value.slice(0, 80) + '…';
+	if (value.length > 200) return value.slice(0, 200) + '…';
 	return value;
 };
 
