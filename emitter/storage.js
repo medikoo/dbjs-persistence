@@ -22,7 +22,7 @@ EmitterStorage.prototype = Object.create(Storage.prototype, {
 	constructor: d(EmitterStorage),
 
 	_handleStoreDirect: d(function (ns, path, value, stamp) {
-		return this.handler._storeRecord({ name: this.name,
+		return this.handler._storeRecord({ driverName: this.driver.name, storageName: this.name,
 			type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
 	}),
 	_handleStoreComputed: d(function (ns, path, value, stamp) {
@@ -30,8 +30,8 @@ EmitterStorage.prototype = Object.create(Storage.prototype, {
 			this.handler._unresolvedStamps.set(path + '/' + ns, stamp);
 			stamp = 'async';
 		}
-		return this.handler._storeRecord({ name: this.name, type: 'computed',
-			ns: ns, path: path, value: value, stamp: stamp });
+		return this.handler._storeRecord({ driverName: this.driver.name, storageName: this.name,
+			type: 'computed', ns: ns, path: path, value: value, stamp: stamp });
 	}),
 
 	_trackSize: d(function (name, conf) {

@@ -14,7 +14,7 @@ var deferred         = require('deferred')
 
 module.exports = function (t, a, d) {
 	var driver = getDriver(), slave = fork(slavePath), storage = driver.getStorage('base');
-	t(driver.getStorage.bind(driver), slave);
+	t(function (driverName, storageName) { return driver.getStorage(storageName); }, slave);
 	slave.once('message', function (data) {
 		a.deep(data, { type: 'init' });
 		emitter('dbAccessData', slave)([

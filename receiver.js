@@ -19,7 +19,8 @@ module.exports = function (getStorage, slaveProcess) {
 		return deferred.map(records, function (data) {
 			var stamp;
 			if (data.type === 'direct') {
-				return getStorage(data.name)._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
+				return getStorage(data.driverName, data.storageName)
+					._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
 			}
 			if (data.type === 'computed') {
 				if (data.stamp === 'async') {
@@ -27,7 +28,8 @@ module.exports = function (getStorage, slaveProcess) {
 				} else {
 					stamp = data.stamp;
 				}
-				return getStorage(data.name)._handleStoreComputed(data.ns, data.path, data.value, stamp);
+				return getStorage(data.driverName, data.storageName)
+					._handleStoreComputed(data.ns, data.path, data.value, stamp);
 			}
 			throw new Error("Unrecognized request: ", stringify(data));
 		});
