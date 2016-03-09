@@ -5,6 +5,7 @@ var aFrom            = require('es5-ext/array/from')
   , ensureIterable   = require('es5-ext/iterable/validate-object')
   , assign           = require('es5-ext/object/assign')
   , copy             = require('es5-ext/object/copy')
+  , ensureCallable   = require('es5-ext/object/valid-callable')
   , ensureString     = require('es5-ext/object/validate-stringifiable-value')
   , capitalize       = require('es5-ext/string/#/capitalize')
   , d                = require('d')
@@ -31,6 +32,10 @@ var Driver = module.exports = Object.defineProperties(function (/*options*/) {
 	options = Object(arguments[0]);
 	if (options.database != null) this.database = ensureDatabase(options.database);
 	if (options.name != null) this.name = ensureString(options.name);
+	if (options.resolveAutoSaveFilter != null) {
+		defineProperty(this, '_resolveAutoSaveFilter',
+			d(ensureCallable(options.resolveAutoSaveFilter)));
+	}
 	if (options.storageNames != null) {
 		aFrom(ensureIterable(options.storageNames), this.getStorage, this);
 		this._isStoragesCreationLocked = true;
