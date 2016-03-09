@@ -23,11 +23,6 @@ var aFrom            = require('es5-ext/array/from')
   , resolved = deferred(null)
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/);
 
-var resolveAutoSaveFilter = function (name) {
-	var className = capitalize.call(name);
-	return function (event) { return event.object.master.constructor.__id__ === className; };
-};
-
 var notImplemented = function () { throw customError("Not implemented", 'NOT_IMPLEMENTED'); };
 
 var Driver = module.exports = Object.defineProperties(function (/*options*/) {
@@ -57,7 +52,7 @@ ee(Object.defineProperties(Driver.prototype, assign({
 				"generation of new storages is not allowed at this point");
 		}
 		if (this.database && (name !== 'base')) {
-			storageOptions = { autoSaveFilter: resolveAutoSaveFilter(name) };
+			storageOptions = { autoSaveFilter: this._resolveAutoSaveFilter(name) };
 		}
 		defineProperty(this._storages, name, d('cew',
 			new this.constructor.storageClass(this, name, storageOptions)));
@@ -142,6 +137,10 @@ ee(Object.defineProperties(Driver.prototype, assign({
 		value = unserializeValue(value, this.database.objects);
 		if (value && value.__id__ && (value.constructor.prototype === value)) proto = value.constructor;
 		return new Event(this.database.objects.unserialize(id, proto), value, stamp, 'persistentLayer');
+	}),
+	_resolveAutoSaveFilter: d(function (name) {
+		var className = capitalize.call(name);
+		return function (event) { return event.object.master.constructor.__id__ === className; };
 	}),
 
 	__resolveAllStorages: d(notImplemented),
