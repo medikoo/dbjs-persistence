@@ -44,8 +44,8 @@ module.exports = function (driver, data) {
 					var ownerIds = new Set();
 					storageOwners.set(name, ownerIds);
 					// Get all owner ids for saved records
-					return storage.searchComputed(name, function (ownerId) {
-						ownerIds.add(ownerId);
+					return storage.searchComputed(name, function (id) {
+						ownerIds.add(id.split('/', 1)[0]);
 					});
 				});
 			})(owners);

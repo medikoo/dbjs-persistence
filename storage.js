@@ -332,7 +332,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		})(function (data) { return data[0]; });
 	}),
 	searchComputed: d(function (keyPath, callback) {
-		return this._searchComputed(ensureString(keyPath), ensureCallable(callback));
+		return this._searchComputed(ensureString(keyPath), null, ensureCallable(callback));
 	}),
 
 	indexKeyPath: d(function (name, set/*, options*/) {
@@ -908,38 +908,68 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		}.bind(this))(function () { return deferred.map(extPromises); }));
 		return stream;
 	}),
-	_searchComputed: d(function (keyPath, callback, certainOnly) {
-		var done = create(null), uncertain = this._uncertain.computed[keyPath]
-		  , transient = this._transient.computed[keyPath], transientData = [], uncertainPromise, result;
-		if (transient) {
-			forEach(transient, function (data, ownerId) {
-				transientData.push({ ownerId: ownerId, data: data });
+	_searchComputed: d(function (keyPath, value, callback, certainOnly) {
+		var done = create(null), uncertain = this._uncertain.computed
+		  , transient = this._transient.computed, transientData = [], uncertainPromise, result;
+		if (keyPath) {
+			transient = transient[keyPath];
+			if (transient) {
+				forEach(transient, function (data, ownerId) {
+					if ((value != null) && (data.value !== value)) return;
+					transientData.push({ id: ownerId + '/' + keyPath, data: data });
+				});
+			}
+		} else {
+			forEach(transient, function (data, keyPath) {
+				forEach(data, function (data, ownerId) {
+					if ((value != null) && (data.value !== value)) return;
+					transientData.push({ id: ownerId + '/' + keyPath, data: data });
+				});
 			});
 		}
-		if (!certainOnly && uncertain) {
-			uncertainPromise = deferred.map(keys(uncertain), function (ownerId) {
-				return this[ownerId](function (data) {
-					if (result) return;
-					done[ownerId] = true;
-					if (callback(ownerId, data)) result = { id: ownerId + '/' + keyPath, data: data };
-				});
-			}, uncertain);
+		if (!certainOnly) {
+			if (keyPath) {
+				uncertain = uncertain[keyPath];
+				if (uncertain) {
+					uncertainPromise = deferred.map(keys(uncertain), function (ownerId) {
+						var id = ownerId + '/' + keyPath;
+						done[id] = true;
+						return this[ownerId](function (data) {
+							if (result) return;
+							if ((value != null) && (data.value !== value)) return;
+							if (callback(id, data)) result = { id: id, data: data };
+						});
+					}, uncertain);
+				}
+			} else {
+				uncertainPromise = deferred.map(keys(uncertain), function (keyPath) {
+					return deferred.map(keys(this[keyPath]), function (ownerId) {
+						var id = ownerId + '/' + keyPath;
+						done[id] = true;
+						return this[ownerId](function (data) {
+							if (result) return;
+							if ((value != null) && (data.value !== value)) return;
+							if (callback(id, data)) result = { id: id, data: data };
+						});
+					}, this[keyPath]);
+				}, this);
+			}
 		}
 		return this._safeGet(function () {
 			return (uncertainPromise || resolved)(function () {
 				if (result) return result;
 				transientData.some(function (data) {
-					if (done[data.ownerId]) return;
-					done[data.ownerId] = true;
-					if (callback(data.ownerId, data.data)) {
-						data.id = data.ownerId + '/' + keyPath;
+					if (done[data.id]) return;
+					done[data.id] = true;
+					if ((value != null) && (data.value !== value)) return;
+					if (callback(data.id, data.data)) {
 						result = data;
 						return true;
 					}
 				});
 				if (result) return result;
-				return this.__searchComputed(keyPath, function (ownerId, data) {
-					if (!done[ownerId]) callback(ownerId, data);
+				return this.__searchComputed(keyPath, value, function (id, data) {
+					if (!done[id]) return callback(id, data);
 				});
 			}.bind(this));
 		}.bind(this));
@@ -1266,8 +1296,8 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	}),
 	_recalculateComputedSet: d(function (keyPath, searchValue) {
 		var result = new Set();
-		return this._searchComputed(keyPath, function (ownerId, data) {
-			if (resolveFilter(searchValue, data.value)) result.add(ownerId);
+		return this._searchComputed(keyPath, null, function (id, data) {
+			if (resolveFilter(searchValue, data.value)) result.add(id.split('/', 1)[0]);
 		}, true)(result);
 	}),
 	_recalculateMultipleSet: d(function (sizeIndexes) {

@@ -188,9 +188,22 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			});
 		}, this)(Function.prototype);
 	}),
-	__searchComputed: d(function (keyPath, callback) {
-		return this._getComputedStorage_(keyPath)(function (map) {
-			some(map, function (data, ownerId) { return callback(ownerId, data); });
+	__searchComputed: d(function (keyPath, value, callback) {
+		if (keyPath) {
+			return this._getComputedStorage_(keyPath)(function (map) {
+				some(map, function (data, ownerId) {
+					if ((value != null) && (value !== data.value)) return;
+					return callback(ownerId + '/' + keyPath, data);
+				});
+			});
+		}
+		return this._getAllComputedKeyPaths_.some(function (keyPath) {
+			return this._getComputedStorage_(keyPath)(function (map) {
+				return some(map, function (data, ownerId) {
+					if ((value != null) && (value !== data.value)) return;
+					return callback(ownerId + '/' + keyPath, data);
+				});
+			});
 		});
 	}),
 
@@ -263,6 +276,14 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 	_writeStorage_: d(function (name, map) {
 		this._writeMap_[name] = map;
 		return this._writePromise_;
+	}),
+	_getAllComputedKeyPaths_: d(function () {
+		return readdir(resolve(this.dirPath, 'computed'), { type: { file: true } }).catch(function (e) {
+			if (e.code === 'ENOENT') return [];
+			throw e;
+		})(function (filenames) {
+			return filenames.filter(isComputedName).map(fromComputedFilename);
+		});
 	})
 }, lazy({
 	_writeMap_: d(function () { return create(null); }),
