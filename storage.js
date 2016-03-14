@@ -906,6 +906,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					done[data.id] = true;
 					result = callback(data.id, data.data, stream);
 					if (result !== undefined) extPromises.push(result);
+					return stream._isDestroyed;
 				});
 				if (stream._isDestroyed) return;
 				return this.__search(keyPath, value, function (id, data) {
@@ -920,8 +921,10 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		return stream;
 	}),
 	_searchComputed: d(function (keyPath, value, callback, certainOnly) {
-		var done = create(null), uncertain = this._uncertain.computed
-		  , transient = this._transient.computed, transientData = [], uncertainPromise, result;
+		var done = create(null), def = deferred(), uncertain = this._uncertain.computed
+		  , transient = this._transient.computed, transientData = [], uncertainPromise
+		  , stream = def.promise, extPromises = [];
+		stream.destroy = function () { defineProperty(stream, '_isDestroyed', d('', true)); };
 		if (keyPath) {
 			transient = transient[keyPath];
 			if (transient) {
@@ -946,9 +949,11 @@ ee(Object.defineProperties(Storage.prototype, assign({
 						var id = ownerId + '/' + keyPath;
 						done[id] = true;
 						return this[ownerId](function (data) {
-							if (result) return;
+							var result;
+							if (stream._isDestroyed) return;
 							if ((value != null) && (data.value !== value)) return;
-							if (callback(id, data)) result = { id: id, data: data };
+							result = callback(id, data, stream);
+							if (result !== undefined) extPromises.push(result);
 						});
 					}, uncertain);
 				}
@@ -958,32 +963,39 @@ ee(Object.defineProperties(Storage.prototype, assign({
 						var id = ownerId + '/' + keyPath;
 						done[id] = true;
 						return this[ownerId](function (data) {
-							if (result) return;
+							var result;
+							if (stream._isDestroyed) return;
 							if ((value != null) && (data.value !== value)) return;
-							if (callback(id, data)) result = { id: id, data: data };
+							result = callback(id, data, stream);
+							if (result !== undefined) extPromises.push(result);
 						});
 					}, this[keyPath]);
 				}, this);
 			}
 		}
-		return this._safeGet(function () {
+		def.resolve(this._safeGet(function () {
 			return (uncertainPromise || resolved)(function () {
-				if (result) return result;
+				if (stream._isDestroyed) return;
 				transientData.some(function (data) {
+					var result;
 					if (done[data.id]) return;
 					done[data.id] = true;
 					if ((value != null) && (data.value !== value)) return;
-					if (callback(data.id, data.data)) {
-						result = data;
-						return true;
-					}
+					result = callback(data.id, data.data, stream);
+					if (result !== undefined) extPromises.push(result);
+					return stream._isDestroyed;
 				});
-				if (result) return result;
+				if (stream._isDestroyed) return;
 				return this.__searchComputed(keyPath, value, function (id, data) {
-					if (!done[id]) return callback(id, data);
+					var result;
+					if (done[id]) return;
+					result = callback(id, data, stream);
+					if (result !== undefined) extPromises.push(result);
+					return stream._isDestroyed;
 				});
 			}.bind(this));
-		}.bind(this));
+		}.bind(this))(function () { return deferred.map(extPromises); }));
+		return stream;
 	}),
 
 	_trackComputed: d(function (name, set, keyPath) {
