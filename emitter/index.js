@@ -41,7 +41,7 @@ var EmitterHandler = module.exports = function (database) {
 		this._unresolvedStamps.forEach(function (data, key, map) {
 			if (data.time < limit) map.delete(key);
 		});
-	}, 120 * 1000)));
+	}.bind(this), 120 * 1000)));
 };
 
 Object.defineProperties(EmitterHandler.prototype, assign({
