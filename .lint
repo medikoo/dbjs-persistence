@@ -16,7 +16,7 @@ regexp
 stupid
 vars
 
-predef+ setTimeout
+predef+ setTimeout, setInterval
 
 ./text-file/storage.js
 predef+ Buffer

@@ -18,7 +18,8 @@ var toArray          = require('es5-ext/array/to-array')
   , Driver           = require('./driver')
 
   , isIdent = RegExp.prototype.test.bind(/^[a-z][a-z0-9A-Z]*$/)
-  , create = Object.create, stringify = JSON.stringify;
+  , create = Object.create, defineProperty = Object.defineProperty
+  , now = Date.now, stringify = JSON.stringify;
 
 var EmitterHandler = module.exports = function (database) {
 	if (!(this instanceof EmitterHandler)) return new EmitterHandler(database);
@@ -32,10 +33,15 @@ var EmitterHandler = module.exports = function (database) {
 		if (this.hasOwnProperty('_waitingRecords')) return this._storeDeferred.promise;
 	}.bind(this));
 	receiver('dbStampData', function (id) {
-		var resolver = this._unresolvedStamps.get(id);
-		this._unresolvedStamps.delete(id);
-		return resolver();
+		return this._unresolvedStamps.get(id).resolver();
 	}.bind(this));
+	defineProperty(this, '_stampsCleanupInterval', d(setInterval(function () {
+		var limit = now() - (60 * 1000);
+		// Cleanup stale (at least 1 minute old) stamp resolvers from unresolvedStamps map periodically
+		this._unresolvedStamps.forEach(function (data, key, map) {
+			if (data.time < limit) map.delete(key);
+		});
+	}, 120 * 1000)));
 };
 
 Object.defineProperties(EmitterHandler.prototype, assign({
