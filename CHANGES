@@ -1,3 +1,18 @@
+v0.0.20  --  2016.03.18
+Changes:
+  * Update `searchComputed` to use same API as `search`, it also now supports just value or both
+    keyPath and value search.
+  * In receiver & emitter setup allow fine grain storage resolution (also per driver)
+  * In debug logs expose larger part of a value
+  * Improve names of temporary files
+New API:
+  * Introduced `storeManyReduced` method
+  * Make resolveAutoSaveFilter an internal method on driver, and accept custom
+    resolveAutoSaveFilter as an option
+  * `path` on all events
+Bug fixes:
+  * Fix store related race condition issue
+
 v0.0.19  --  2016.03.02
 * Support custom `keyPath` in `indexKeyPath` method
 * Improve `search` method:
