@@ -2,29 +2,30 @@
 
 'use strict';
 
-var assign         = require('es5-ext/object/assign')
-  , forEach        = require('es5-ext/object/for-each')
-  , setPrototypeOf = require('es5-ext/object/set-prototype-of')
-  , some           = require('es5-ext/object/some')
-  , toArray        = require('es5-ext/object/to-array')
-  , randomUniq     = require('es5-ext/string/random-uniq')
-  , camelToHyphen  = require('es5-ext/string/#/camel-to-hyphen')
-  , startsWith     = require('es5-ext/string/#/starts-with')
-  , d              = require('d')
-  , lazy           = require('d/lazy')
-  , memoizeMethods = require('memoizee/methods')
-  , deferred       = require('deferred')
-  , resolveKeyPath = require('dbjs/_setup/utils/resolve-key-path')
-  , resolve        = require('path').resolve
-  , mkdir          = require('fs2/mkdir')
-  , readFile       = require('fs2/read-file')
-  , readdir        = require('fs2/readdir')
-  , rename         = require('fs2/rename')
-  , rmdir          = require('fs2/rmdir')
-  , writeFile      = require('fs2/write-file')
-  , isObjectPart   = require('../lib/is-object-part')
-  , resolveValue   = require('../lib/resolve-direct-value')
-  , Storage        = require('../storage')
+var assign              = require('es5-ext/object/assign')
+  , forEach             = require('es5-ext/object/for-each')
+  , setPrototypeOf      = require('es5-ext/object/set-prototype-of')
+  , some                = require('es5-ext/object/some')
+  , toArray             = require('es5-ext/object/to-array')
+  , randomUniq          = require('es5-ext/string/random-uniq')
+  , camelToHyphen       = require('es5-ext/string/#/camel-to-hyphen')
+  , startsWith          = require('es5-ext/string/#/starts-with')
+  , d                   = require('d')
+  , lazy                = require('d/lazy')
+  , memoizeMethods      = require('memoizee/methods')
+  , deferred            = require('deferred')
+  , resolveKeyPath      = require('dbjs/_setup/utils/resolve-key-path')
+  , resolve             = require('path').resolve
+  , mkdir               = require('fs2/mkdir')
+  , readFile            = require('fs2/read-file')
+  , readdir             = require('fs2/readdir')
+  , rename              = require('fs2/rename')
+  , rmdir               = require('fs2/rmdir')
+  , writeFile           = require('fs2/write-file')
+  , filterComputedValue = require('../lib/filter-computed-value')
+  , isObjectPart        = require('../lib/is-object-part')
+  , resolveValue        = require('../lib/resolve-direct-value')
+  , Storage             = require('../storage')
 
   , isDirectName = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
   , isComputedName = RegExp.prototype.test.bind(/^[a-z0-9A-Z=]+$/)
@@ -192,7 +193,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		if (keyPath) {
 			return this._getComputedStorage_(keyPath)(function (map) {
 				some(map, function (data, ownerId) {
-					if ((value != null) && (value !== data.value)) return;
+					if ((value != null) && !filterComputedValue(value, data.value)) return;
 					return callback(ownerId + '/' + keyPath, data);
 				});
 			});
@@ -200,7 +201,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 		return this._getAllComputedKeyPaths_.some(function (keyPath) {
 			return this._getComputedStorage_(keyPath)(function (map) {
 				return some(map, function (data, ownerId) {
-					if ((value != null) && (value !== data.value)) return;
+					if ((value != null) && !filterComputedValue(value, data.value)) return;
 					return callback(ownerId + '/' + keyPath, data);
 				});
 			});

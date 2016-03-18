@@ -38,6 +38,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
   , ensureStorage         = require('./ensure-storage')
   , getSearchValueFilter  = require('./lib/get-search-value-filter')
+  , filterComputedValue   = require('./lib/filter-computed-value')
   , isObjectPart          = require('./lib/is-object-part')
   , resolveValue          = require('./lib/resolve-direct-value')
   , resolveFilter         = require('./lib/resolve-filter')
@@ -929,14 +930,14 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			transient = transient[keyPath];
 			if (transient) {
 				forEach(transient, function (data, ownerId) {
-					if ((value != null) && (data.value !== value)) return;
+					if ((value != null) && !filterComputedValue(value, data.value)) return;
 					transientData.push({ id: ownerId + '/' + keyPath, data: data });
 				});
 			}
 		} else {
 			forEach(transient, function (data, keyPath) {
 				forEach(data, function (data, ownerId) {
-					if ((value != null) && (data.value !== value)) return;
+					if ((value != null) && !filterComputedValue(value, data.value)) return;
 					transientData.push({ id: ownerId + '/' + keyPath, data: data });
 				});
 			});
@@ -951,7 +952,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 						return this[ownerId](function (data) {
 							var result;
 							if (stream._isDestroyed) return;
-							if ((value != null) && (data.value !== value)) return;
+							if ((value != null) && !filterComputedValue(value, data.value)) return;
 							result = callback(id, data, stream);
 							if (result !== undefined) extPromises.push(result);
 						});
@@ -965,7 +966,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 						return this[ownerId](function (data) {
 							var result;
 							if (stream._isDestroyed) return;
-							if ((value != null) && (data.value !== value)) return;
+							if ((value != null) && !filterComputedValue(value, data.value)) return;
 							result = callback(id, data, stream);
 							if (result !== undefined) extPromises.push(result);
 						});
@@ -980,7 +981,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					var result;
 					if (done[data.id]) return;
 					done[data.id] = true;
-					if ((value != null) && (data.value !== value)) return;
 					result = callback(data.id, data.data, stream);
 					if (result !== undefined) extPromises.push(result);
 					return stream._isDestroyed;
