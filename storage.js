@@ -1033,7 +1033,8 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
 			if (event) stamp = event.stamp;
 			if (keyPath) {
-				obj = ensureObject(resolveObject(owner, names));
+				obj = resolveObject(owner, names);
+				if (!obj) throw new Error("Cannot resolve object for " + name + " at " + ownerId);
 				if (obj.isKeyStatic(key)) {
 					value = obj[key];
 				} else {
