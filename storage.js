@@ -743,15 +743,19 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			if (old) {
 				if (isArray(value)) {
 					if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
-						storedDef.resolve(resolvedDef.promise);
-						resolvedDef.resolve(old);
-						return;
+						if ((old.stamp > 100000) || (stamp < 100000)) { // let eventually overwrite model stamp
+							storedDef.resolve(resolvedDef.promise);
+							resolvedDef.resolve(old);
+							return;
+						}
 					}
 				} else {
 					if (old.value === value) {
-						storedDef.resolve(resolvedDef.promise);
-						resolvedDef.resolve(old);
-						return;
+						if ((old.stamp > 100000) || (stamp < 100000)) { // let eventually overwrite model stamp
+							storedDef.resolve(resolvedDef.promise);
+							resolvedDef.resolve(old);
+							return;
+						}
 					}
 				}
 			}
