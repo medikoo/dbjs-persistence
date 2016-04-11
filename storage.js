@@ -34,6 +34,7 @@ var aFrom                 = require('es5-ext/array/from')
   , unserializeValue      = require('dbjs/_setup/unserialize/value')
   , serializeValue        = require('dbjs/_setup/serialize/value')
   , serializeKey          = require('dbjs/_setup/serialize/key')
+  , isGetter              = require('dbjs/_setup/utils/is-getter')
   , resolveKeyPath        = require('dbjs/_setup/utils/resolve-key-path')
   , resolvePropertyPath   = require('dbjs/_setup/utils/resolve-property-path')
   , ensureStorage         = require('./ensure-storage')
@@ -661,8 +662,8 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	_handleStoreDirect: d(function (ns, path, value, stamp) {
 		return this._handleStore('direct', ns, path, value, stamp);
 	}),
-	_handleStoreComputed: d(function (ns, path, value, stamp) {
-		return this._handleStore('computed', ns, path, value, stamp);
+	_handleStoreComputed: d(function (ns, path, value, stamp, dbjsOwnEvent) {
+		return this._handleStore('computed', ns, path, value, stamp, dbjsOwnEvent);
 	}),
 	_handleStoreReduced: d(function (ns, path, value, stamp, directEvent) {
 		return this._handleStore('reduced', ns, path, value, stamp, directEvent);
@@ -733,25 +734,31 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			stored: storedDef.promise
 		};
 	}),
-	_storeComputed: d(function (ns, path, value, stamp) {
+	_storeComputed: d(function (ns, path, value, stamp, dbjsOwnEvent) {
 		var id = path + '/' + ns, resolvedDef, storedDef, promise;
 		promise = this._getRaw('computed', ns, path);
 		resolvedDef = deferred();
 		storedDef = deferred();
 		promise.done(function (old) {
-			var nu;
+			var nu, hasChanged = true;
 			if (old) {
 				if (isArray(value)) {
 					if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
-						if ((old.stamp > 100000) || (stamp < 100000)) { // let eventually overwrite model stamp
-							storedDef.resolve(resolvedDef.promise);
-							resolvedDef.resolve(old);
-							return;
-						}
+						hasChanged = false;
 					}
 				} else {
-					if (old.value === value) {
-						if ((old.stamp > 100000) || (stamp < 100000)) { // let eventually overwrite model stamp
+					if (old.value === value) hasChanged = false;
+				}
+				if (!hasChanged) {
+					if ((old.stamp > 100000) && !dbjsOwnEvent) {
+						// Non model stamp as current, and no direct event, take no action
+						storedDef.resolve(resolvedDef.promise);
+						resolvedDef.resolve(old);
+						return;
+					}
+					if (stamp && (typeof stamp !== 'function')) {
+						if ((old.stamp === stamp) || (stamp < 100000)) {
+							// Value and stamp are same, or stamp resolved from model, take no action
 							storedDef.resolve(resolvedDef.promise);
 							resolvedDef.resolve(old);
 							return;
@@ -761,6 +768,14 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			}
 			deferred((typeof stamp === 'function') ? stamp() : stamp).done(function (stamp) {
 				var driverEvent;
+				if (!hasChanged && stamp) {
+					if ((old.stamp === stamp) || (stamp < 100000)) {
+						// Value and stamp are same, or stamp resolved from model, take no action
+						storedDef.resolve(resolvedDef.promise);
+						resolvedDef.resolve(old);
+						return;
+					}
+				}
 				if (!stamp) stamp = genStamp();
 				if (old && (old.stamp >= stamp)) {
 					stamp = old.stamp + 1; // most likely model update
@@ -1022,8 +1037,15 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			keyPath: keyPath
 		};
 		listener = function (event) {
-			var sValue, stamp, ownerId = event.target.object.master.__id__;
-			stamp = event.dbjs ? event.dbjs.stamp : genStamp();
+			var sValue, stamp, ownerId = event.target.object.master.__id__, dbjsEvent = event.dbjs
+			  , dbjsOwnEvent, dbjsId;
+			stamp = dbjsEvent ? dbjsEvent.stamp : genStamp();
+			if (dbjsEvent) {
+				dbjsId = (dbjsEvent.object._kind_ === 'item')
+					? dbjsEvent.object.master.__id__ + '/' + dbjsEvent.object._pSKey_
+					: dbjsEvent.object.__valueId__;
+				if (dbjsId === (ownerId + '/' + keyPath)) dbjsOwnEvent = dbjsEvent;
+			}
 			if (isSet(event.target)) {
 				sValue = [];
 				event.target.forEach(function (value) { sValue.push(serializeKey(value)); });
@@ -1031,10 +1053,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				sValue = serializeValue(event.newValue);
 			}
 			++this._runningOperations;
-			this._handleStoreComputed(name, ownerId, sValue, stamp).finally(this._onOperationEnd).done();
+			this._handleStoreComputed(name, ownerId, sValue, stamp, dbjsOwnEvent)
+				.finally(this._onOperationEnd).done();
 		}.bind(this);
 		onAdd = function (owner, event) {
-			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue;
+			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue, desc
+			  , dbjsOwnEvent;
 			if (event) stamp = event.stamp;
 			if (keyPath) {
 				obj = resolveObject(owner, names);
@@ -1044,6 +1068,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				} else {
 					value = obj._get_(key);
 					observable = obj._getObservable_(key);
+					desc = obj._getDescriptor_(key);
+					if ((desc.__valueId__ === (ownerId + '/' + keyPath)) && desc.hasOwnProperty('_value') &&
+							!isGetter(desc._value_)) {
+						dbjsOwnEvent = desc._lastOwnEvent_;
+						if (dbjsOwnEvent) stamp = dbjsOwnEvent.stamp;
+					}
 					if (!stamp) {
 						stamp = function () { return observable.lastModified; };
 					}
@@ -1064,7 +1094,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			} else {
 				sValue = '11';
 			}
-			return this._handleStoreComputed(name, ownerId, sValue, stamp);
+			return this._handleStoreComputed(name, ownerId, sValue, stamp, dbjsOwnEvent);
 		}.bind(this);
 		onDelete = function (owner, event) {
 			var obj, stamp = 0;
