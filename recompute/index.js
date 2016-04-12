@@ -84,7 +84,8 @@ module.exports = function (driver, data) {
 									} else {
 										stamp = data.stamp;
 									}
-									return storage._handleStoreComputed(name, ownerId, data.value, stamp);
+									return storage._handleStoreComputed(name, ownerId, data.value, stamp,
+										data.isOwnEvent);
 								}, indexesData[storageName][name]),
 								deferred.map(directData, function (data) {
 									return driver.getStorage(data.name)

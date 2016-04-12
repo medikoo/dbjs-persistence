@@ -662,13 +662,13 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	_handleStoreDirect: d(function (ns, path, value, stamp) {
 		return this._handleStore('direct', ns, path, value, stamp);
 	}),
-	_handleStoreComputed: d(function (ns, path, value, stamp, dbjsOwnEvent) {
-		return this._handleStore('computed', ns, path, value, stamp, dbjsOwnEvent);
+	_handleStoreComputed: d(function (ns, path, value, stamp, isOwnEvent) {
+		return this._handleStore('computed', ns, path, value, stamp, isOwnEvent);
 	}),
 	_handleStoreReduced: d(function (ns, path, value, stamp, directEvent) {
 		return this._handleStore('reduced', ns, path, value, stamp, directEvent);
 	}),
-	_handleStore: d(function (cat, ns, path, value, stamp, directEvent) {
+	_handleStore: d(function (cat, ns, path, value, stamp, extraParam) {
 		var uncertain = this._uncertain[cat], resolvedDef, storedDef, result, uncertainPromise
 		  , methodName = '_store' + capitalize.call(cat);
 		if (!uncertain[ns]) uncertain[ns] = create(null);
@@ -677,14 +677,14 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			resolvedDef = deferred();
 			storedDef = deferred();
 			uncertain[path || ''].finally(function () {
-				var result = this[methodName](ns, path, value, stamp, directEvent);
+				var result = this[methodName](ns, path, value, stamp, extraParam);
 				resolvedDef.resolve(result.resolved);
 				storedDef.resolve(result.stored);
 			}.bind(this));
 			uncertainPromise = uncertain[path || ''] = resolvedDef.promise;
 			result = storedDef.promise;
 		} else {
-			result = this[methodName](ns, path, value, stamp, directEvent);
+			result = this[methodName](ns, path, value, stamp, extraParam);
 			uncertainPromise = uncertain[path || ''] = result.resolved;
 			result = result.stored;
 		}
@@ -734,8 +734,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			stored: storedDef.promise
 		};
 	}),
-	_storeComputed: d(function (ns, path, value, stamp, dbjsOwnEvent) {
+	_storeComputed: d(function (ns, path, value, stamp, isOwnEvent) {
 		var id = path + '/' + ns, resolvedDef, storedDef, promise;
+
 		promise = this._getRaw('computed', ns, path);
 		resolvedDef = deferred();
 		storedDef = deferred();
@@ -750,7 +751,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					if (old.value === value) hasChanged = false;
 				}
 				if (!hasChanged) {
-					if ((old.stamp > 100000) && !dbjsOwnEvent) {
+					if ((old.stamp > 100000) && !isOwnEvent) {
 						// Non model stamp as current, and no direct event, take no action
 						storedDef.resolve(resolvedDef.promise);
 						resolvedDef.resolve(old);
@@ -1038,13 +1039,13 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		};
 		listener = function (event) {
 			var sValue, stamp, ownerId = event.target.object.master.__id__, dbjsEvent = event.dbjs
-			  , dbjsOwnEvent, dbjsId;
+			  , isOwnEvent, dbjsId;
 			stamp = dbjsEvent ? dbjsEvent.stamp : genStamp();
 			if (dbjsEvent) {
 				dbjsId = (dbjsEvent.object._kind_ === 'item')
 					? dbjsEvent.object.master.__id__ + '/' + dbjsEvent.object._pSKey_
 					: dbjsEvent.object.__valueId__;
-				if (dbjsId === (ownerId + '/' + keyPath)) dbjsOwnEvent = dbjsEvent;
+				isOwnEvent = (dbjsId === (ownerId + '/' + keyPath));
 			}
 			if (isSet(event.target)) {
 				sValue = [];
@@ -1053,12 +1054,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				sValue = serializeValue(event.newValue);
 			}
 			++this._runningOperations;
-			this._handleStoreComputed(name, ownerId, sValue, stamp, dbjsOwnEvent)
+			this._handleStoreComputed(name, ownerId, sValue, stamp, isOwnEvent)
 				.finally(this._onOperationEnd).done();
 		}.bind(this);
 		onAdd = function (owner, event) {
 			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue, desc
-			  , dbjsOwnEvent;
+			  , isOwnEvent;
 			if (event) stamp = event.stamp;
 			if (keyPath) {
 				obj = resolveObject(owner, names);
@@ -1071,8 +1072,10 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					desc = obj._getDescriptor_(key);
 					if ((desc.__valueId__ === (ownerId + '/' + keyPath)) && desc.hasOwnProperty('_value') &&
 							!isGetter(desc._value_)) {
-						dbjsOwnEvent = desc._lastOwnEvent_;
-						if (dbjsOwnEvent) stamp = dbjsOwnEvent.stamp;
+						if (desc._lastOwnEvent_) {
+							stamp = desc._lastOwnEvent_.stamp;
+							isOwnEvent = true;
+						}
 					}
 					if (!stamp) {
 						stamp = function () { return observable.lastModified; };
@@ -1084,6 +1087,21 @@ ee(Object.defineProperties(Storage.prototype, assign({
 						observable.on('change', listener);
 						this._cleanupCalls.push(observable.off.bind(observable, 'change', listener));
 					}
+					owner.on('update', function (dbjsEvent) {
+						var dbjsId = (dbjsEvent.object._kind_ === 'item')
+							? ownerId + '/' + dbjsEvent.object._pSKey_ : dbjsEvent.object.__valueId__;
+						if (dbjsId !== (ownerId + '/' + keyPath)) return;
+						var value = obj._get_(key), sValue;
+						if (isSet(value)) {
+							sValue = [];
+							value.forEach(function (value) { sValue.push(serializeKey(value)); });
+						} else {
+							sValue = serializeValue(value);
+						}
+						++this._runningOperations;
+						this._handleStoreComputed(name, ownerId, sValue, dbjsEvent.stamp, true)
+							.finally(this._onOperationEnd).done();
+					}.bind(this));
 				}
 				if (isSet(value)) {
 					sValue = [];
@@ -1094,7 +1112,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			} else {
 				sValue = '11';
 			}
-			return this._handleStoreComputed(name, ownerId, sValue, stamp, dbjsOwnEvent);
+			return this._handleStoreComputed(name, ownerId, sValue, stamp, isOwnEvent);
 		}.bind(this);
 		onDelete = function (owner, event) {
 			var obj, stamp = 0;

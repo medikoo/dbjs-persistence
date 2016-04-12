@@ -25,13 +25,13 @@ EmitterStorage.prototype = Object.create(Storage.prototype, {
 		return this.handler._storeRecord({ driverName: this.driver.name, storageName: this.name,
 			type: 'direct', ns: ns, path: path, value: value, stamp: stamp });
 	}),
-	_handleStoreComputed: d(function (ns, path, value, stamp) {
+	_handleStoreComputed: d(function (ns, path, value, stamp, isOwnEvent) {
 		if (typeof stamp === 'function') {
 			this.handler._unresolvedStamps.set(path + '/' + ns, { time: now(), resolver: stamp });
 			stamp = 'async';
 		}
 		return this.handler._storeRecord({ driverName: this.driver.name, storageName: this.name,
-			type: 'computed', ns: ns, path: path, value: value, stamp: stamp });
+			type: 'computed', ns: ns, path: path, value: value, stamp: stamp, isOwnEvent: isOwnEvent });
 	}),
 
 	_trackSize: d(function (name, conf) {

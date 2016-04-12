@@ -25,9 +25,10 @@ RecomputeStorage.prototype = Object.create(Storage.prototype, {
 			{ type: 'direct', name: this.name, ns: ns, path: path, value: value, stamp: stamp });
 		return resolved;
 	}),
-	_handleStoreComputed: d(function (ns, path, value, stamp) {
+	_handleStoreComputed: d(function (ns, path, value, stamp, isOwnEvent) {
 		this.driver.emit('recordUpdate',
-			{ type: 'computed', name: this.name, ns: ns, path: path, value: value, stamp: stamp });
+			{ type: 'computed', name: this.name, ns: ns, path: path, value: value, stamp: stamp,
+				isOwnEvent: isOwnEvent });
 		return resolved;
 	}),
 

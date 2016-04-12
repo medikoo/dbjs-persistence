@@ -29,7 +29,7 @@ module.exports = function (getStorage, slaveProcess) {
 					stamp = data.stamp;
 				}
 				return getStorage(data.driverName, data.storageName)
-					._handleStoreComputed(data.ns, data.path, data.value, stamp);
+					._handleStoreComputed(data.ns, data.path, data.value, stamp, data.isOwnEvent);
 			}
 			throw new Error("Unrecognized request: ", stringify(data));
 		});
