@@ -751,15 +751,20 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					if (old.value === value) hasChanged = false;
 				}
 				if (!hasChanged) {
-					if ((old.stamp > 100000) && !isOwnEvent) {
-						// Non model stamp as current, and no direct event, take no action
-						storedDef.resolve(resolvedDef.promise);
-						resolvedDef.resolve(old);
-						return;
-					}
-					if (stamp && (typeof stamp !== 'function')) {
-						if ((old.stamp === stamp) || (stamp < 100000)) {
-							// Value and stamp are same, or stamp resolved from model, take no action
+					// Value didn't change
+					if (isOwnEvent) {
+						// Direct update to observed property
+						if (old.stamp === stamp) {
+							// Only if stamp hasn't change we do not proceed with update
+							// Otherwise we want the stamp to be on pair with direct record
+							storedDef.resolve(resolvedDef.promise);
+							resolvedDef.resolve(old);
+							return;
+						}
+					} else {
+						// Computed update
+						if ((old.stamp > 100000) || (typeof stamp === 'function')) {
+							// No model stamp, or expensive stamp calculation, therefore abort update
 							storedDef.resolve(resolvedDef.promise);
 							resolvedDef.resolve(old);
 							return;
