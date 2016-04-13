@@ -13,7 +13,7 @@ var map              = require('es5-ext/object/map')
 module.exports = function (db) {
 	var driver = new Driver(ensureDatabase(db))
 	  , stampResolvers = new Map()
-	  , promises;
+	  , promises, isProcessing = false;
 
 	var handlePromises = function self() {
 		var currentPromises = promises;
@@ -30,10 +30,12 @@ module.exports = function (db) {
 			receivers.push(registerReceiver('data', function (data) {
 				var cumulated;
 				records = [];
+				isProcessing = true;
 				driver.loadRawEvents(data);
 				return handlePromises()(function () {
 					cumulated = records;
 					records = null;
+					isProcessing = false;
 					return {
 						events: cumulated,
 						health: (process.memoryUsage().rss / 1048576)
@@ -70,6 +72,10 @@ module.exports = function (db) {
 			});
 		},
 		registerPromise: function (promise) {
+			if (!isProcessing) {
+				throw new Error("Promises must be registered synchronously (in same event loop in which " +
+					"data is loaded) or during lifespan of other registered promises");
+			}
 			if (!promises) promises = [];
 			promises.push(promise);
 		}
