@@ -1227,8 +1227,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			eventNames: uniq.call(flatten.call(sizeIndexes.map(function self(name) {
 				var meta = this._indexes[name];
 				if (meta.sizeType === 'multiple') return meta.sizeIndexes.map(self, this);
-				if (meta.sizeType === 'direct') return 'key:' + (meta.keyPath || '&');
-				return 'key:' + meta.keyPath;
+				return { name: 'key:' + (meta.keyPath || '&'), type: meta.sizeType };
 			}, this))),
 			meta: {
 				type: 'size',
@@ -1301,7 +1300,12 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		index = name.indexOf('/');
 		ownerId = (index !== -1) ? name.slice(0, index) : name;
 		path = (index !== -1) ? name.slice(index + 1) : null;
-		listener = function (event) {
+		listener = function (type, event) {
+			if (type === 'computed') {
+				if (event.type !== 'computed') return;
+			} else if (type === 'direct') {
+				if (event.type !== 'direct') return;
+			}
 			++this._runningOperations;
 			deferred(conf.resolveEvent(event))(function (result) {
 				var nu, old, oldData, nuData;
@@ -1318,7 +1322,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				nuData = current = { value: serializeValue(size), stamp: stamp };
 				return this._handleStoreReduced(ownerId, path, nuData.value, nuData.stamp, event);
 			}.bind(this)).finally(this._onOperationEnd).done();
-		}.bind(this);
+		};
 		var initialize = function (data) {
 			size = unserializeValue(data.value);
 			current = data;
@@ -1330,9 +1334,11 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		++this._runningOperations;
 		return (conf.meta.promise = deferred(conf.initPromise)(function () {
 			if (conf.eventNames) {
-				conf.eventNames.forEach(function (eventName) { this.on(eventName, listener); }, this);
+				conf.eventNames.forEach(function (data) {
+					this.on(data.name, listener.bind(this, data.type));
+				}, this);
 			} else {
-				this.on(conf.eventName, listener);
+				this.on(conf.eventName, listener.bind(this, conf.meta.sizeType));
 			}
 			return this._getRaw('reduced', ownerId, path)(function (data) {
 				if (data) {
