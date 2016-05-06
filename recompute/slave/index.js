@@ -21,6 +21,11 @@ module.exports = function (db) {
 		promises = null;
 		return deferred.map(currentPromises)(self);
 	};
+	var passNextTicks = function () {
+		var def = deferred();
+		setTimeout(def.resolve, 0);
+		return def.promise;
+	};
 	return {
 		driver: driver,
 		initialize: function () {
@@ -32,7 +37,7 @@ module.exports = function (db) {
 				records = [];
 				isProcessing = true;
 				driver.loadRawEvents(data);
-				return handlePromises()(function () {
+				return handlePromises()(passNextTicks)(function () {
 					cumulated = records;
 					records = null;
 					isProcessing = false;
