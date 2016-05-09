@@ -48,6 +48,7 @@ var aFrom                 = require('es5-ext/array/from')
   , resolveEventKeys      = require('./lib/resolve-event-keys')
 
   , isArray = Array.isArray, defineProperty = Object.defineProperty, stringify = JSON.stringify
+  , nextTick = process.nextTick
   , resolved = deferred(undefined)
   , isDigit = RegExp.prototype.test.bind(/[0-9]/)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
@@ -669,47 +670,44 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		return this._handleStore('reduced', ns, path, value, stamp, directEvent);
 	}),
 	_handleStore: d(function (cat, ns, path, value, stamp, extraParam) {
-		var uncertain = this._uncertain[cat], resolvedDef, storedDef, result, uncertainPromise
+		var uncertain = this._uncertain[cat], result, uncertainPromise
+		  , batchPromise = this._eventsBatchPromise
 		  , methodName = '_store' + capitalize.call(cat);
 		if (!uncertain[ns]) uncertain[ns] = create(null);
 		uncertain = uncertain[ns];
 		if (uncertain[path || '']) {
-			resolvedDef = deferred();
-			storedDef = deferred();
-			uncertain[path || ''].finally(function () {
-				var result = this[methodName](ns, path, value, stamp, extraParam);
-				resolvedDef.resolve(result.resolved);
-				storedDef.resolve(result.stored);
+			result = uncertain[path || ''].direct(function (result) {
+				return this[methodName](result.data, ns, path, value, stamp, extraParam);
 			}.bind(this));
-			uncertainPromise = uncertain[path || ''] = resolvedDef.promise;
-			result = storedDef.promise;
 		} else {
-			result = this[methodName](ns, path, value, stamp, extraParam);
-			uncertainPromise = uncertain[path || ''] = result.resolved;
-			result = result.stored;
+			result = this._getRaw(cat, ns, path)(function (data) {
+				return this[methodName](data, ns, path, value, stamp, extraParam);
+			}.bind(this));
 		}
-		uncertain[path || ''].finally(function () {
+		this._eventsBatchPool.push(result.catch(Function.prototype));
+		uncertainPromise = uncertain[path || ''] =
+			result(function (result) { return batchPromise(result.data); });
+		uncertainPromise.direct = result;
+		uncertainPromise.finally(function () {
 			if (uncertain[path || ''] === uncertainPromise) delete uncertain[path || ''];
 		});
-		return result;
+		return result(function (result) {
+			return batchPromise(function (storeMap) {
+				return storeMap[cat + ':' + result.id] || result.data;
+			});
+		});
 	}),
-	_storeDirect: d(function (ownerId, path, value, stamp) {
-		var id = ownerId + (path ? ('/' + path) : ''), nu, keyPath, resolvedDef, storedDef, promise;
-		nu = { value: value, stamp: stamp };
-		keyPath = path ? resolveKeyPath(id) : null;
-		promise = this._getRaw('direct', ownerId, path);
-		resolvedDef = deferred();
-		storedDef = deferred();
-		promise.done(function (old) {
-			var driverEvent;
-			if (old && (old.stamp >= nu.stamp)) {
-				storedDef.resolve(resolvedDef.promise);
-				resolvedDef.resolve(old);
-				return;
-			}
-			debug("%s update %s %s %s", this.name, id, trimValue(value), stamp);
-			storedDef.resolve(this._storeRaw('direct', ownerId, path, nu)(resolvedDef.promise));
-			driverEvent = {
+	_storeDirect: d(function (old, ownerId, path, value, stamp) {
+		var id = ownerId + (path ? ('/' + path) : '')
+		  , nu = { value: value, stamp: stamp }
+		  , keyPath = path ? resolveKeyPath(id) : null;
+
+		if (old && (old.stamp >= nu.stamp)) return { data: old, id: id };
+		debug("%s update %s %s %s", this.name, id, trimValue(value), stamp);
+		return {
+			data: nu,
+			id: id,
+			event: {
 				storage: this,
 				type: 'direct',
 				id: id,
@@ -718,81 +716,59 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				path: path,
 				data: nu,
 				old: old
-			};
-			this.emit('update', driverEvent);
-			this.driver.emit('update', driverEvent);
-			this.emit('key:' + (keyPath || '&'), driverEvent);
-			this.emit('owner:' + ownerId, driverEvent);
-			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
-			resolvedDef.resolve(nu);
-		}.bind(this), function (err) {
-			storedDef.resolve(resolvedDef.promise);
-			resolvedDef.reject(err);
-		});
-		return {
-			resolved: resolvedDef.promise,
-			stored: storedDef.promise
+			}
 		};
 	}),
-	_storeComputed: d(function (ns, path, value, stamp, isOwnEvent) {
-		var id = path + '/' + ns, resolvedDef, storedDef, promise;
+	_storeComputed: d(function (old, ns, path, value, stamp, isOwnEvent) {
+		var id = path + '/' + ns;
 
-		promise = this._getRaw('computed', ns, path);
-		resolvedDef = deferred();
-		storedDef = deferred();
-		promise.done(function (old) {
-			var nu, hasChanged = true;
-			if (old) {
-				if (isArray(value)) {
-					if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
-						hasChanged = false;
+		var nu, hasChanged = true;
+		if (old) {
+			if (isArray(value)) {
+				if (isArray(old.value) && isCopy.call(resolveEventKeys(old.value), value)) {
+					hasChanged = false;
+				}
+			} else {
+				if (old.value === value) hasChanged = false;
+			}
+			if (!hasChanged) {
+				// Value didn't change
+				if (isOwnEvent) {
+					// Direct update to observed property
+					if (old.stamp === stamp) {
+						// Only if stamp hasn't change we do not proceed with update
+						// Otherwise we want the stamp to be on pair with direct record
+						return { data: old, id: id };
 					}
 				} else {
-					if (old.value === value) hasChanged = false;
-				}
-				if (!hasChanged) {
-					// Value didn't change
-					if (isOwnEvent) {
-						// Direct update to observed property
-						if (old.stamp === stamp) {
-							// Only if stamp hasn't change we do not proceed with update
-							// Otherwise we want the stamp to be on pair with direct record
-							storedDef.resolve(resolvedDef.promise);
-							resolvedDef.resolve(old);
-							return;
-						}
-					} else {
-						// Computed update
-						if ((old.stamp > 100000) || (typeof stamp === 'function')) {
-							// No model stamp, or expensive stamp calculation, therefore abort update
-							storedDef.resolve(resolvedDef.promise);
-							resolvedDef.resolve(old);
-							return;
-						}
+					// Computed update
+					if ((old.stamp > 100000) || (typeof stamp === 'function')) {
+						// No model stamp, or expensive stamp calculation, therefore abort update
+						return { data: old, id: id };
 					}
 				}
 			}
-			deferred((typeof stamp === 'function') ? stamp() : stamp).done(function (stamp) {
-				var driverEvent;
-				if (!hasChanged && stamp) {
-					if ((old.stamp === stamp) || (stamp < 100000)) {
-						// Value and stamp are same, or stamp resolved from model, take no action
-						storedDef.resolve(resolvedDef.promise);
-						resolvedDef.resolve(old);
-						return;
-					}
+		}
+		return deferred((typeof stamp === 'function') ? stamp() : stamp)(function (stamp) {
+			if (!hasChanged && stamp) {
+				if ((old.stamp === stamp) || (stamp < 100000)) {
+					// Value and stamp are same, or stamp resolved from model, take no action
+					return { data: old, id: id };
 				}
-				if (!stamp) stamp = genStamp();
-				if (old && (old.stamp >= stamp)) {
-					stamp = old.stamp + 1; // most likely model update
-				}
-				nu = {
-					value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
-					stamp: stamp
-				};
-				debug("%s computed update %s %s %s", this.name, path + '/' + ns, trimValue(value), stamp);
-				storedDef.resolve(this._storeRaw('computed', ns, path, nu)(resolvedDef.promise));
-				driverEvent = {
+			}
+			if (!stamp) stamp = genStamp();
+			if (old && (old.stamp >= stamp)) {
+				stamp = old.stamp + 1; // most likely model update
+			}
+			nu = {
+				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
+				stamp: stamp
+			};
+			debug("%s computed update %s %s %s", this.name, path + '/' + ns, trimValue(value), stamp);
+			return {
+				data: nu,
+				id: id,
+				event: {
 					storage: this,
 					type: 'computed',
 					id: id,
@@ -801,70 +777,35 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					path: ns,
 					data: nu,
 					old: old
-				};
-				this.emit('update:computed', driverEvent);
-				this.driver.emit('update:computed', driverEvent);
-				this.emit('key:' + ns, driverEvent);
-				this.emit('owner:' + path, driverEvent);
-				this.emit('keyid:' + path  + '/' + ns, driverEvent);
-				resolvedDef.resolve(nu);
-			}.bind(this), function (err) {
-				storedDef.resolve(resolvedDef.promise);
-				resolvedDef.reject(err);
-			});
-		}.bind(this), function (err) {
-			storedDef.resolve(resolvedDef.promise);
-			resolvedDef.reject(err);
-		});
-		return {
-			resolved: resolvedDef.promise,
-			stored: storedDef.promise
-		};
-	}),
-	_storeReduced: d(function (ownerId, keyPath, value, stamp, directEvent) {
-		var key = ownerId + (keyPath ? ('/' + keyPath) : ''), resolvedDef, storedDef, promise;
-		promise = this._getRaw('reduced', ownerId, keyPath);
-		resolvedDef = deferred();
-		storedDef = deferred();
-		promise.done(function (old) {
-			var nu, driverEvent;
-			if (old) {
-				if (old.value === value) {
-					storedDef.resolve(resolvedDef.promise);
-					resolvedDef.resolve(old);
-					return;
 				}
-				if (!stamp || (stamp <= old.stamp)) stamp = old.stamp + 1;
-			} else if (!stamp) {
-				stamp = genStamp();
-			}
-			nu = { value: value, stamp: stamp };
-			debug("%s reduced update %s %s %s", this.name, key, trimValue(value), stamp);
-			storedDef.resolve(this._storeRaw('reduced', ownerId, keyPath, nu)(resolvedDef.promise));
-			driverEvent = {
+			};
+		}.bind(this));
+	}),
+	_storeReduced: d(function (old, ownerId, keyPath, value, stamp, directEvent) {
+		var id = ownerId + (keyPath ? ('/' + keyPath) : '');
+		var nu;
+		if (old) {
+			if (old.value === value) return { data: old, id: id };
+			if (!stamp || (stamp <= old.stamp)) stamp = old.stamp + 1;
+		} else if (!stamp) {
+			stamp = genStamp();
+		}
+		nu = { value: value, stamp: stamp };
+		debug("%s reduced update %s %s %s", this.name, id, trimValue(value), stamp);
+		return {
+			data: nu,
+			id: id,
+			event: {
 				storage: this,
 				type: 'reduced',
-				id: key,
+				id: id,
 				ownerId: ownerId,
 				keyPath: keyPath,
 				path: keyPath,
 				data: nu,
 				old: old,
 				directEvent: directEvent
-			};
-			this.emit('update:reduced', driverEvent);
-			this.driver.emit('update:reduced', driverEvent);
-			this.emit('key:' + (keyPath || '&'), driverEvent);
-			this.emit('owner:' + ownerId, driverEvent);
-			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
-			resolvedDef.resolve(nu);
-		}.bind(this), function (err) {
-			storedDef.resolve(resolvedDef.promise);
-			resolvedDef.reject(err);
-		});
-		return {
-			resolved: resolvedDef.promise,
-			stored: storedDef.promise
+			}
 		};
 	}),
 
@@ -1341,17 +1282,17 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				this.on(conf.eventName, listener.bind(this, conf.meta.sizeType));
 			}
 			return this._getRaw('reduced', ownerId, path)(function (data) {
-				if (data) {
-					if (!size) return initialize(data);
-					data = {
-						value: serializeValue(unserializeValue(data.value + size)),
-						stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
-					};
-					initialize(data);
-					return this._handleStoreReduced(ownerId, path, data.value, data.stamp)(getSize);
-				}
+				if (data) return data;
 				size = 0;
-				return this.recalculateSize(name, getSize)(initialize);
+				return this.recalculateSize(name);
+			}.bind(this))(function (data) {
+				if (!size) return initialize(data);
+				data = {
+					value: serializeValue(unserializeValue(data.value) + size),
+					stamp: (stamp < data.stamp) ? (data.stamp + 1) : stamp
+				};
+				initialize(data);
+				return this._handleStoreReduced(ownerId, path, data.value, data.stamp)(getSize);
 			}.bind(this));
 		}.bind(this)).finally(this._onOperationEnd));
 	}),
@@ -1476,5 +1417,47 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			reduced: d(function () { return create(null); })
 		}));
 	}),
-	_storeInProgress: d(function () { return create(null); })
+	_storeInProgress: d(function () { return create(null); }),
+	_eventsBatchPool: d(function () { return []; }),
+	_eventsBatchPromise: d(function () {
+		var def = deferred();
+		++this._runningOperations;
+		nextTick(function () {
+			var promises = this._eventsBatchPool;
+			delete this._eventsBatchPool;
+			delete this._eventsBatchPromise;
+			deferred.map(promises).done(function (results) {
+				var toStore = {};
+				results.forEach(function (result) {
+					var event = result && result.event, storePromise;
+					if (!event) return;
+					if (event.type === 'direct') {
+						this.emit('update', event);
+						this.driver.emit('update', event);
+					} else if (event.type === 'computed') {
+						this.emit('update:computed', event);
+						this.driver.emit('update:computed', event);
+					} else if (event.type === 'reduced') {
+						this.emit('update:reduced', event);
+						this.driver.emit('update:reduced', event);
+					}
+					this.emit('key:' + (event.keyPath || '&'), event);
+					this.emit('owner:' + event.ownerId, event);
+					this.emit('keyid:' + event.ownerId + (event.keyPath ? ('/' + event.keyPath) : ''), event);
+					if (event.type === 'computed') {
+						storePromise = this._storeRaw(event.type, event.path, event.ownerId, event.data);
+					} else {
+						storePromise = this._storeRaw(event.type, event.ownerId, event.path, event.data);
+					}
+					storePromise = storePromise(event.data);
+					if (toStore[event.type + ':' + event.id]) {
+						storePromise = toStore[event.type + ':' + event.id](storePromise);
+					}
+					toStore[event.type + ':' + event.id] = storePromise;
+				}, this);
+				def.resolve(toStore);
+			}.bind(this));
+		}.bind(this));
+		return def.promise.finally(this._onOperationEnd);
+	})
 }))));
