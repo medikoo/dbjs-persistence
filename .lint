@@ -16,16 +16,4 @@ regexp
 stupid
 vars
 
-predef+ setTimeout, setInterval
-
-./text-file/storage.js
-predef+ Buffer
-
-./test
-predef+ __dirname
-
-./recompute/slave/index.js
-./lib/emitter.js
-./lib/receiver.js
-./test/__playground
-predef+ process
+predef+ setTimeout, setInterval, __dirname, process, Buffer
