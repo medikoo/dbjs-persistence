@@ -576,9 +576,9 @@ ee(Object.defineProperties(Storage.prototype, assign({
 
 	_registerDatabase: d(function (autoSaveFilter) {
 		var listener, database = this.driver.database;
-		database.objects.on('update', listener = function (event) {
+		database.objects.on('update', listener = function (event, previous) {
 			if (event.sourceId === 'persistentLayer') return;
-			if (!autoSaveFilter(event)) return;
+			if (!autoSaveFilter(event, previous)) return;
 			this.driver._loadedEventsMap[event.object.__valueId__ + '.' + event.stamp] = true;
 			++this._runningOperations;
 			this._storeEvent(event).finally(this._onOperationEnd).done();

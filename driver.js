@@ -145,7 +145,14 @@ ee(Object.defineProperties(Driver.prototype, assign({
 	}),
 	_resolveAutoSaveFilter: d(function (name) {
 		var className = capitalize.call(name);
-		return function (event) { return event.object.master.constructor.__id__ === className; };
+		return function (event, previous) {
+			if (event.object.master.constructor.__id__ === className) return true;
+			if (event.value) return false;
+			if (!previous || !previous.value) return false;
+			if (event.object !== event.object.master) return false;
+			if (!previous.value.constructor) return false;
+			return (previous.value.constructor.__id__ === className);
+		};
 	}),
 
 	__resolveAllStorages: d(notImplemented),
