@@ -1005,7 +1005,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		}.bind(this);
 		onAdd = function (owner, event) {
 			var ownerId = owner.__id__, obj = owner, observable, value, stamp = 0, sValue, desc
-			  , isOwnEvent;
+			  , isOwnEvent, observableListener;
 			if (event) stamp = event.stamp;
 			if (keyPath) {
 				obj = resolveObject(owner, names);
@@ -1028,7 +1028,23 @@ ee(Object.defineProperties(Storage.prototype, assign({
 					}
 					if (isSet(value)) {
 						value.on('change', listener);
-						this._cleanupCalls.push(value.off.bind(value, 'change', listener));
+						observable.on('change', observableListener = function (event) {
+							if (value) value.off('change', listener);
+							if (isSet(event.newValue)) {
+								value = event.newValue;
+								value.on('change', listener);
+								listener({ target: value, dbjs: event.dbjs });
+							} else {
+								value = null;
+								listener(event);
+							}
+						});
+						this._cleanupCalls.push(
+							observable.off.bind(observable, 'change', observableListener),
+							function () {
+								if (value) value.off('change', listener);
+							}
+						);
 					} else {
 						observable.on('change', listener);
 						this._cleanupCalls.push(observable.off.bind(observable, 'change', listener));
