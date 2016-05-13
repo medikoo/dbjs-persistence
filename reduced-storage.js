@@ -358,7 +358,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 		return result;
 	}),
 	_storeReduced: d(function (ownerId, keyPath, value, stamp, directEvent) {
-		var key = ownerId + (keyPath ? ('/' + keyPath) : ''), resolvedDef, storedDef, promise;
+		var id = ownerId + (keyPath ? ('/' + keyPath) : ''), resolvedDef, storedDef, promise;
 		promise = this._get(ownerId, keyPath);
 		resolvedDef = deferred();
 		storedDef = deferred();
@@ -375,12 +375,12 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 				stamp = genStamp();
 			}
 			nu = { value: value, stamp: stamp };
-			debug("reduced update %s", key, stamp, trimValue(value));
+			debug("reduced update %s", id, stamp, trimValue(value));
 			storedDef.resolve(this._storeRaw(ownerId, keyPath, nu)(resolvedDef.promise));
 			driverEvent = {
 				storage: this,
 				type: 'reduced',
-				id: key,
+				id: id,
 				ownerId: ownerId,
 				keyPath: keyPath,
 				path: keyPath,
