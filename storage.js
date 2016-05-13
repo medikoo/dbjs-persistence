@@ -703,7 +703,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		  , keyPath = path ? resolveKeyPath(id) : null;
 
 		if (old && (old.stamp >= nu.stamp)) return { data: old, id: id };
-		debug("%s update %s %s %s", this.name, id, trimValue(value), stamp);
 		return {
 			data: nu,
 			id: id,
@@ -764,7 +763,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 				value: isArray(value) ? resolveMultipleEvents(stamp, value, old && old.value) : value,
 				stamp: stamp
 			};
-			debug("%s computed update %s %s %s", this.name, path + '/' + ns, trimValue(value), stamp);
 			return {
 				data: nu,
 				id: id,
@@ -791,7 +789,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			stamp = genStamp();
 		}
 		nu = { value: value, stamp: stamp };
-		debug("%s reduced update %s %s %s", this.name, id, trimValue(value), stamp);
 		return {
 			data: nu,
 			id: id,
@@ -1443,34 +1440,54 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			delete this._eventsBatchPool;
 			delete this._eventsBatchPromise;
 			deferred.map(promises).done(function (results) {
-				var toStore = {};
-				results.forEach(function (result) {
-					var event = result && result.event, storePromise;
-					if (!event) return;
-					if (event.type === 'direct') {
-						this.emit('update', event);
-						this.driver.emit('update', event);
-					} else if (event.type === 'computed') {
-						this.emit('update:computed', event);
-						this.driver.emit('update:computed', event);
-					} else if (event.type === 'reduced') {
-						this.emit('update:reduced', event);
-						this.driver.emit('update:reduced', event);
-					}
-					this.emit('key:' + (event.keyPath || '&'), event);
-					this.emit('owner:' + event.ownerId, event);
-					this.emit('keyid:' + event.ownerId + (event.keyPath ? ('/' + event.keyPath) : ''), event);
-					if (event.type === 'computed') {
-						storePromise = this._storeRaw(event.type, event.path, event.ownerId, event.data);
-					} else {
-						storePromise = this._storeRaw(event.type, event.ownerId, event.path, event.data);
-					}
-					storePromise = storePromise(event.data);
-					if (toStore[event.type + ':' + event.id]) {
-						storePromise = toStore[event.type + ':' + event.id](storePromise);
-					}
-					toStore[event.type + ':' + event.id] = storePromise;
-				}, this);
+				var toStore = {}, eventsMap = {};
+				results
+					.map(function (result) {
+						var event = result && result.event;
+						if (!event) return;
+						if (eventsMap[event.type + ':' + event.id]) {
+							event.old = eventsMap[event.type + ':' + event.id].old;
+						}
+						eventsMap[event.type + ':' + event.id] = event;
+						return event;
+					})
+					.filter(function (event) {
+						if (!event) return false;
+						return (eventsMap[event.type + ':' + event.id] === event);
+					})
+					.forEach(function (event) {
+						var storePromise;
+						if (!event) return;
+						if (event.type === 'direct') {
+							debug("%s update %s %s %s", this.name, event.id, trimValue(event.data.value),
+								event.data.stamp);
+							this.emit('update', event);
+							this.driver.emit('update', event);
+						} else if (event.type === 'computed') {
+							debug("%s computed update %s %s %s", this.name, event.id,
+								trimValue(isArray(event.data.value) ? resolveEventKeys(event.data.value)
+									: event.data.value),
+								event.data.stamp);
+							this.emit('update:computed', event);
+							this.driver.emit('update:computed', event);
+						} else if (event.type === 'reduced') {
+							debug("%s reduced update %s %s %s", this.name, event.id, trimValue(event.data.value),
+								event.data.stamp);
+							this.emit('update:reduced', event);
+							this.driver.emit('update:reduced', event);
+						}
+						this.emit('key:' + (event.keyPath || '&'), event);
+						this.emit('owner:' + event.ownerId, event);
+						this.emit('keyid:' + event.ownerId + (event.keyPath ? ('/' + event.keyPath) : ''),
+							event);
+						if (event.type === 'computed') {
+							storePromise = this._storeRaw(event.type, event.path, event.ownerId, event.data);
+						} else {
+							storePromise = this._storeRaw(event.type, event.ownerId, event.path, event.data);
+						}
+						storePromise = storePromise(event.data);
+						toStore[event.type + ':' + event.id] = storePromise;
+					}, this);
 				def.resolve(toStore);
 			}.bind(this));
 		}.bind(this));
