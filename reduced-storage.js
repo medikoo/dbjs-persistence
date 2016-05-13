@@ -27,7 +27,7 @@ var aFrom               = require('es5-ext/array/from')
   , ensureStorage       = require('./ensure-storage')
   , Storage             = require('./storage')
 
-  , isArray = Array.isArray, stringify = JSON.stringify
+  , nextTick = process.nextTick, isArray = Array.isArray, stringify = JSON.stringify
   , resolved = deferred(undefined)
   , isObjectId = RegExp.prototype.test.bind(/^[0-9a-z][0-9a-zA-Z]*$/)
   , compareNames = function (a, b) { return a.name.localeCompare(b.name); }
@@ -334,50 +334,43 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 	}),
 
 	_handleStore: d(function (ns, path, value, stamp, directEvent) {
-		var uncertain = this._uncertain, resolvedDef, storedDef, result, uncertainPromise;
+		var uncertain = this._uncertain, result, uncertainPromise
+		  , batchPromise = this._eventsBatchPromise;
 		if (!uncertain[ns]) uncertain[ns] = create(null);
 		uncertain = uncertain[ns];
 		if (uncertain[path || '']) {
-			resolvedDef = deferred();
-			storedDef = deferred();
-			uncertain[path || ''].finally(function () {
-				var result = this._storeReduced(ns, path, value, stamp, directEvent);
-				resolvedDef.resolve(result.resolved);
-				storedDef.resolve(result.stored);
+			result = uncertain[path || ''].direct(function (result) {
+				return this._storeReduced(result.data, ns, path, value, stamp, directEvent);
 			}.bind(this));
-			uncertainPromise = uncertain[path || ''] = resolvedDef.promise;
-			result = storedDef.promise;
 		} else {
-			result = this._storeReduced(ns, path, value, stamp, directEvent);
-			uncertainPromise = uncertain[path || ''] = result.resolved;
-			result = result.stored;
+			result = this._get(ns, path)(function (data) {
+				return this._storeReduced(data, ns, path, value, stamp, directEvent);
+			}.bind(this));
 		}
-		uncertain[path || ''].finally(function () {
+		this._eventsBatchPool.push(result.catch(Function.prototype));
+		uncertainPromise = uncertain[path || ''] =
+			result(function (result) { return batchPromise(result.data); });
+		uncertainPromise.direct = result;
+		uncertainPromise.finally(function () {
 			if (uncertain[path || ''] === uncertainPromise) delete uncertain[path || ''];
 		});
-		return result;
+		return result(function (result) {
+			return batchPromise(function (storeMap) { return storeMap[result.id] || result.data; });
+		});
 	}),
-	_storeReduced: d(function (ownerId, keyPath, value, stamp, directEvent) {
-		var id = ownerId + (keyPath ? ('/' + keyPath) : ''), resolvedDef, storedDef, promise;
-		promise = this._get(ownerId, keyPath);
-		resolvedDef = deferred();
-		storedDef = deferred();
-		promise.done(function (old) {
-			var nu, driverEvent;
-			if (old) {
-				if (old.value === value) {
-					storedDef.resolve(resolvedDef.promise);
-					resolvedDef.resolve(old);
-					return;
-				}
-				if (!stamp || (stamp <= old.stamp)) stamp = old.stamp + 1;
-			} else if (!stamp) {
-				stamp = genStamp();
-			}
-			nu = { value: value, stamp: stamp };
-			debug("reduced update %s", id, stamp, trimValue(value));
-			storedDef.resolve(this._storeRaw(ownerId, keyPath, nu)(resolvedDef.promise));
-			driverEvent = {
+	_storeReduced: d(function (old, ownerId, keyPath, value, stamp, directEvent) {
+		var id = ownerId + (keyPath ? ('/' + keyPath) : ''), nu;
+		if (old) {
+			if (old.value === value) return { data: old, id: id };
+			if (!stamp || (stamp <= old.stamp)) stamp = old.stamp + 1;
+		} else if (!stamp) {
+			stamp = genStamp();
+		}
+		nu = { value: value, stamp: stamp };
+		return {
+			data: nu,
+			id: id,
+			event: {
 				storage: this,
 				type: 'reduced',
 				id: id,
@@ -387,20 +380,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 				data: nu,
 				old: old,
 				directEvent: directEvent
-			};
-			this.emit('update:reduced', driverEvent);
-			this.driver.emit('update:reduced', driverEvent);
-			this.emit('key:' + (keyPath || '&'), driverEvent);
-			this.emit('owner:' + ownerId, driverEvent);
-			this.emit('keyid:' + ownerId + (keyPath ? ('/' + keyPath) : ''), driverEvent);
-			resolvedDef.resolve(nu);
-		}.bind(this), function (err) {
-			storedDef.resolve(resolvedDef.promise);
-			resolvedDef.reject(err);
-		});
-		return {
-			resolved: resolvedDef.promise,
-			stored: storedDef.promise
+			}
 		};
 	}),
 
@@ -487,5 +467,47 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 	_indexes: d(function () { return create(null); }),
 	_transient: d(function () { return create(null); }),
 	_uncertain: d(function () { return create(null); }),
-	_storeInProgress: d(function () { return create(null); })
+	_storeInProgress: d(function () { return create(null); }),
+	_eventsBatchPool: d(function () { return []; }),
+	_eventsBatchPromise: d(function () {
+		var def = deferred();
+		++this._runningOperations;
+		nextTick(function () {
+			var promises = this._eventsBatchPool;
+			delete this._eventsBatchPool;
+			delete this._eventsBatchPromise;
+			deferred.map(promises).done(function (results) {
+				var toStore = {}, eventsMap = {};
+				results
+					.map(function (result) {
+						var event = result && result.event;
+						if (!event) return;
+						if (eventsMap[event.id]) event.old = eventsMap[event.id].old;
+						eventsMap[event.id] = event;
+						return event;
+					})
+					.filter(function (event) {
+						if (!event) return false;
+						return (eventsMap[event.id] === event);
+					})
+					.forEach(function (event) {
+						var storePromise;
+						if (!event) return;
+						debug("reduced update %s %s %S", event.id, trimValue(event.data.value),
+							event.data.stamp);
+						this.emit('update:reduced', event);
+						this.driver.emit('update:reduced', event);
+						this.emit('key:' + (event.keyPath || '&'), event);
+						this.emit('owner:' + event.ownerId, event);
+						this.emit('keyid:' + event.ownerId + (event.keyPath ? ('/' + event.keyPath) : ''),
+							event);
+						storePromise = this._storeRaw(event.ownerId, event.path, event.data);
+						storePromise = storePromise(event.data);
+						toStore[event.id] = storePromise;
+					}, this);
+				def.resolve(toStore);
+			}.bind(this));
+		}.bind(this));
+		return def.promise.finally(this._onOperationEnd);
+	})
 }))));
