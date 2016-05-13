@@ -493,7 +493,7 @@ ee(Object.defineProperties(ReductionStorage.prototype, assign({
 					.forEach(function (event) {
 						var storePromise;
 						if (!event) return;
-						debug("reduced update %s %s %S", event.id, trimValue(event.data.value),
+						debug("reduced update %s %s %s", event.id, trimValue(event.data.value),
 							event.data.stamp);
 						this.emit('update:reduced', event);
 						this.driver.emit('update:reduced', event);
