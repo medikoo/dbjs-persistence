@@ -138,14 +138,18 @@ module.exports = function (driver, data) {
 				});
 			};
 			var sendData = function (poolHealth) {
+				var events = [];
 				if (poolError) throw poolError;
 				if (!ids.length) return clearPool();
 				if (!poolHealth || (poolHealth < 1500)) {
 					if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
-					return deferred.map(ids.splice(0, 10), function (objId) {
-						return getData(objId);
-					})(function (data) {
-						return flatten.call(data).sort(byStamp);
+					return getData(ids.shift())(function self(data) {
+						events = events.concat(flatten.call(data));
+						if (events.length > 10000) return;
+						if (!ids.length) return;
+						return getData(ids.shift())(self);
+					})(function () {
+						return events.sort(byStamp);
 					})(emitData)(function (data) {
 						data.events.forEach(function (data) {
 							if (data.type === 'direct') directData.push(data);
