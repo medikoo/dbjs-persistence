@@ -47,6 +47,14 @@ module.exports = function (driver, data) {
 	getData = ensureCallable(data.getData);
 	slaveScriptPath = ensureString(data.slaveScriptPath);
 	if (data.initialData != null) initialData = ensureObject(data.initialData);
+
+	var stats = {
+		mastersCount: 0,
+		recordsCount: 0,
+		maxRecordsPerMasterCount: 0,
+		minRecordsPerMasterCount: Infinity
+	};
+
 	promise = deferred(ids)(function (ids) {
 		var count = 0, indexes, processesCount, promises;
 		ids = toArray(ensureIterable(ids));
@@ -88,13 +96,6 @@ module.exports = function (driver, data) {
 					return storeEvents(driver.getStorage(storageName), eventsMap[storageName]);
 				}, null);
 			});
-		};
-
-		var stats = {
-			mastersCount: 0,
-			recordsCount: 0,
-			maxRecordsPerMasterCount: 0,
-			minRecordsPerMasterCount: Infinity
 		};
 
 		var initializePool = function (id) {
@@ -153,6 +154,7 @@ module.exports = function (driver, data) {
 					++stats.mastersCount;
 					return getData(ids.shift())(function self(data) {
 						var masterEvents = flatten.call(data);
+						stats.recordsCount += masterEvents.length;
 						if (stats.maxRecordsPerMasterCount < masterEvents.length) {
 							stats.maxRecordsPerMasterCount = masterEvents.length;
 						}
@@ -230,7 +232,7 @@ module.exports = function (driver, data) {
 		processesCount = min(cpus().length, ceil(ids.length / 10));
 		promises = [];
 		while (processesCount--) promises.push(initializePool());
-		return deferred.map(promises)(cleanup)(stats);
-	});
+		return deferred.map(promises)(cleanup);
+	})(stats);
 	return promise;
 };
