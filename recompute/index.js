@@ -56,7 +56,7 @@ module.exports = function (driver, data) {
 	};
 
 	promise = deferred(ids)(function (ids) {
-		var count = 0, indexes, processesCount, promises;
+		var indexes, processesCount, promises;
 		ids = toArray(ensureIterable(ids));
 		if (!ids.length) return;
 		var resolveOwners = memoize(function () {
@@ -150,7 +150,7 @@ module.exports = function (driver, data) {
 				if (poolError) throw poolError;
 				if (!ids.length) return clearPool();
 				if (!poolHealth || (poolHealth < 1500)) {
-					if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
+					promise.emit('progress', { type: 'nextObject' });
 					++stats.mastersCount;
 					return getData(ids.shift())(function self(data) {
 						var masterEvents = flatten.call(data);
