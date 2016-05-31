@@ -90,6 +90,13 @@ module.exports = function (driver, data) {
 			});
 		};
 
+		var stats = {
+			mastersCount: 0,
+			recordsCount: 0,
+			maxRecordsPerMasterCount: 0,
+			minRecordsPerMasterCount: Infinity
+		};
+
 		var initializePool = function (id) {
 			var pool, reinitializePool, indexesData, directData, emitData, getStamp, closeDef
 			  , poolError, events = [];
@@ -143,10 +150,19 @@ module.exports = function (driver, data) {
 				if (!ids.length) return clearPool();
 				if (!poolHealth || (poolHealth < 1500)) {
 					if (!(++count % 10)) promise.emit('progress', { type: 'nextObject' });
+					++stats.mastersCount;
 					return getData(ids.shift())(function self(data) {
-						events = events.concat(flatten.call(data));
+						var masterEvents = flatten.call(data);
+						if (stats.maxRecordsPerMasterCount < masterEvents.length) {
+							stats.maxRecordsPerMasterCount = masterEvents.length;
+						}
+						if (stats.minRecordsPerMasterCount > masterEvents.length) {
+							stats.minRecordsPerMasterCount = masterEvents.length;
+						}
+						events = events.concat(masterEvents);
 						if (events.length > 10000) return;
 						if (!ids.length) return;
+						++stats.mastersCount;
 						return getData(ids.shift())(self);
 					})(function () {
 						return events.sort(byStamp);
@@ -214,7 +230,7 @@ module.exports = function (driver, data) {
 		processesCount = min(cpus().length, ceil(ids.length / 10));
 		promises = [];
 		while (processesCount--) promises.push(initializePool());
-		return deferred.map(promises)(cleanup);
+		return deferred.map(promises)(cleanup)(stats);
 	});
 	return promise;
 };
