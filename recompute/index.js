@@ -22,6 +22,23 @@ var aFrom           = require('es5-ext/array/from')
   , create = Object.create, keys = Object.keys
   , byStamp = function (a, b) { return a.data.stamp - b.data.stamp; };
 
+var storeEvents = function (storage, events) {
+	var current = events.slice(0, 10000);
+	events = events.slice(10000);
+	return deferred.map(current, function (event, index) {
+		if (event.type === 'computed') {
+			return storage
+				._handleStoreComputed(event.ns, event.path, event.value, event.stamp, event.isOwnEvent);
+		}
+		if (event.type === 'direct') {
+			return storage._handleStoreDirect(event.ns, event.path, event.value, event.stamp);
+		}
+		throw new Error("Unrecognized event configuration");
+	})(function () {
+		if (events.length) return storeEvents(storage, events);
+	});
+};
+
 module.exports = function (driver, data) {
 	var promise, slaveScriptPath, ids, getData, initialData;
 	ensureDriver(driver);
@@ -51,51 +68,68 @@ module.exports = function (driver, data) {
 			})(owners);
 		});
 		var cleanup = function () {
+			var events = [];
 			return resolveOwners()(function (owners) {
-				return deferred.map(keys(indexes), function (storageName) {
-					return deferred.map(indexes[storageName], function (name) {
-						var storage = driver.getStorage(storageName);
+				forEach(indexes, function (index, storageName) {
+					index.forEach(function (name) {
 						// Delete not used ownerids
-						return deferred.map(aFrom(owners.get(storageName).get(name)), function (ownerId) {
-							return storage._handleStoreComputed(name, ownerId, '', genStamp());
+						aFrom(owners.get(storageName).get(name)).forEach(function (ownerId) {
+							events.push({ storage: storageName, type: 'computed', ns: name, path: ownerId,
+								value: '', stamp: genStamp() });
 						});
 					});
 				});
+				var eventsMap = events.reduce(function (map, event) {
+					if (!map[event.storage]) map[event.storage] = [];
+					map[event.storage].push(event);
+					return map;
+				}, {});
+				return deferred.reduce(keys(eventsMap), function (ignore, storageName) {
+					return storeEvents(driver.getStorage(storageName), eventsMap[storageName]);
+				}, null);
 			});
 		};
 
 		var initializePool = function (id) {
 			var pool, reinitializePool, indexesData, directData, emitData, getStamp, closeDef
-			  , poolError;
+			  , poolError, events = [];
 			var clearPool = function () {
 				return resolveOwners()(function (owners) {
-					return deferred.map(keys(indexes), function (storageName) {
-						var storage = driver.getStorage(storageName);
-						return deferred.map(indexes[storageName], function (name) {
+					forEach(indexes, function (index, storageName) {
+						index.forEach(function (name) {
 							var ownerIds = owners.get(storageName).get(name);
 							// Apply calculations
-							return deferred(
-								deferred.map(keys(indexesData[storageName][name]), function (ownerId) {
-									var data = this[ownerId], stamp;
-									ownerIds.delete(ownerId);
-									delete this[ownerId];
-									if (data.stamp === 'async') {
-										stamp = function () { return getStamp(ownerId + '/' + name); };
-									} else {
-										stamp = data.stamp;
-									}
-									return storage._handleStoreComputed(name, ownerId, data.value, stamp,
-										data.isOwnEvent);
-								}, indexesData[storageName][name]),
-								deferred.map(directData, function (data) {
-									return driver.getStorage(data.name)
-										._handleStoreDirect(data.ns, data.path, data.value, data.stamp);
-								})
-							);
+							forEach(indexesData[storageName][name], function (data, ownerId) {
+								var stamp;
+								ownerIds.delete(ownerId);
+								delete this[ownerId];
+								if (data.stamp === 'async') {
+									stamp = function () { return getStamp(ownerId + '/' + name); };
+								} else {
+									stamp = data.stamp;
+								}
+								events.push({ storage: storageName, type: 'computed', ns: name, path: ownerId,
+									value: data.value, stamp: stamp, isOwnEvent: data.isOwnEvent });
+							}, indexesData[storageName][name]);
+							directData.forEach(function (data) {
+								events.push({ storage: data.name, type: 'direct', ns: data.ns,
+									path: data.path, value: data.value, stamp: data.stamp });
+							});
 						});
 					});
 				})(function () {
 					if (poolError) throw poolError;
+					var eventsMap = events.reduce(function (map, event) {
+						if (!map[event.storage]) map[event.storage] = [];
+						map[event.storage].push(event);
+						return map;
+					}, {});
+					return deferred.reduce(keys(eventsMap), function (ignore, storageName) {
+						return storeEvents(driver.getStorage(storageName), eventsMap[storageName]);
+					}, null);
+				})(function () {
+					if (poolError) throw poolError;
+					events = [];
 					closeDef = deferred();
 					emitData.destroy();
 					getStamp.destroy();
