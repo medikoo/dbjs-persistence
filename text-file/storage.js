@@ -108,6 +108,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			}.bind(this));
 		}
 		return this._getDirectStorage_(ns)(function (map) {
+			this._objectIds_[ns] = map['.'] || null;
 			map[path || '.'] = data;
 			return this._writeStorage_('direct/' + ns, map);
 		}.bind(this));
@@ -119,19 +120,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 			return resolveObjectMap(ownerId, objectPath, map, keyPaths);
 		});
 	}),
-	__getAllObjectIds: d(function () {
-		return this.dbDir()(function () {
-			var data = create(null);
-			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
-				return deferred.map(names, function (id) {
-					if (!isDirectName(id)) return;
-					return this._getDirectStorage_(id)(function (map) { data[id] = map['.'] || null; });
-				}, this);
-			}.bind(this), function (e) {
-				if (e.code !== 'ENOENT') throw e;
-			})(data);
-		}.bind(this));
-	}),
+	__getAllObjectIds: d(function () { return this._allObjectIdsPromise_; }),
 	__getAll: d(function () {
 		return this.getAllObjectIds().map(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
@@ -308,6 +297,22 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 	}),
 	_writePromise_: d(function () {
 		return this.dbDir(function () { return this._getInitializeWrite_(); }.bind(this));
+	}),
+	_objectIds_: d(function () { return create(null); }),
+	_allObjectIdsPromise_: d(function () {
+		var data = this._objectIds_;
+		return this.dbDir()(function () {
+			return readdir(resolve(this.dirPath, 'direct'), { type: { file: true } })(function (names) {
+				return deferred.map(names, function (id) {
+					if (!isDirectName(id)) return;
+					return this._getDirectStorage_(id)(function (map) {
+						data[id] = map['.'] || null;
+					});
+				}, this);
+			}.bind(this), function (e) {
+				if (e.code !== 'ENOENT') throw e;
+			}.bind(this));
+		}.bind(this))(data);
 	})
 }), memoizeMethods({
 	_getDirectStorage_: d(function (ownerId) {
