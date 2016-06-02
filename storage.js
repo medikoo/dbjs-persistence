@@ -981,8 +981,15 @@ ee(Object.defineProperties(Storage.prototype, assign({
 			keyPath: keyPath
 		};
 		listener = function (event) {
-			var sValue, stamp, ownerId = event.target.object.master.__id__, dbjsEvent = event.dbjs
+			var sValue, stamp, owner = event.target.object.master, ownerId = owner.__id__
+			  , dbjsEvent = event.dbjs
 			  , isOwnEvent, dbjsId;
+			if (!set.has(owner)) {
+				// Can happen if deletion from set was invoked by event from observable we were attached to
+				// (even though we've unbound listener, listener will still  be called, as unbinding
+				// was done after event was emitted, but before all listeners have propagated)
+				return;
+			}
 			stamp = dbjsEvent ? dbjsEvent.stamp : genStamp();
 			if (dbjsEvent) {
 				dbjsId = (dbjsEvent.object._kind_ === 'item')
