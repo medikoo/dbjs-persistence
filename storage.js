@@ -289,8 +289,7 @@ ee(Object.defineProperties(Storage.prototype, assign({
 		value = ensureString(value);
 		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : genStamp();
 		++this._runningOperations;
-		return this._handleStoreComputed(name, ownerId, value, stamp)
-			.finally(this._onOperationEnd);
+		return this._handleStoreComputed(name, ownerId, value, stamp).finally(this._onOperationEnd);
 	}),
 	storeReduced: d(function (id, value, stamp, directEvent) {
 		var index, ownerId, path;
