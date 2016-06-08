@@ -284,13 +284,6 @@ ee(Object.defineProperties(Storage.prototype, assign({
 	storeMany: d(function (data) {
 		return this._storeMany(data, this._handleStoreDirect);
 	}),
-	storeComputed: d(function (id, value, stamp) {
-		var ownerId = ensureString(id).split('/', 1)[0], name = id.slice(ownerId.length + 1);
-		value = ensureString(value);
-		stamp = (stamp != null) ? ensureNaturalNumber(stamp) : genStamp();
-		++this._runningOperations;
-		return this._handleStoreComputed(name, ownerId, value, stamp).finally(this._onOperationEnd);
-	}),
 	storeReduced: d(function (id, value, stamp, directEvent) {
 		var index, ownerId, path;
 		id = ensureString(id);
