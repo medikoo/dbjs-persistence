@@ -70,7 +70,7 @@ module.exports = function (driver, data) {
 					storageOwners.set(name, ownerIds);
 					// Get all owner ids for saved records
 					return storage.searchComputed({ keyPath: name }, function (id) {
-						ownerIds.add(id.split('/', 1)[0]);
+						ownerIds.add(id.slice(0, -(name.length + 1)));
 					});
 				});
 			})(owners);
