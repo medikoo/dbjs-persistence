@@ -1,3 +1,20 @@
+v0.0.21  --  2016.07.01
+* Improve and reorganize changes propagation
+* Improve cross process error reportings
+* Intelligent detection and handling of stamps coming from model and ones coming from data
+* Improve resolution of computed stamps
+* Strict events validation in recompute
+* Fix internal handling of events
+* Fix computed sets events handling
+* More controlled events propagation in recompute (they're batched into max 10000 at once)
+* Introduce stats for recompute
+* Improve data propagation queue resolution for recompute
+* Fix listener unregistration race condition
+* Optimise getAllObjectsId in text storage
+* Decrease safe memory limit for recompute
+* Fix resolution of owner ids in recompute
+* Improve logs
+
 v0.0.20  --  2016.03.18
 Changes:
   * Update `searchComputed` to use same API as `search`, it also now supports just value or both

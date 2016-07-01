@@ -1,6 +1,6 @@
 {
   "name": "dbjs-persistence",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Persistence for dbjs",
   "author": "Mariusz Nowak <medyk@medikoo.com> (http://www.medikoo.com/)",
   "keywords": [
@@ -19,7 +19,7 @@
     "debug-ext": "1",
     "deferred": "^0.7.5",
     "dbjs": "git://github.com/medikoo/dbjs.git#ef13052828a6475e47de828125e08fbf8787ac97",
-    "es5-ext": "^0.10.11",
+    "es5-ext": "^0.10.12",
     "es6-map": "^0.1.4",
     "es6-set": "^0.1.4",
     "es6-symbol": "^3.1",
