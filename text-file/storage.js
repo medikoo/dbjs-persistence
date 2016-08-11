@@ -205,7 +205,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 				readdir(resolve(this.dirPath, 'direct'), { type: { file: true } }).catch(function (e) {
 					if (e.code === 'ENOENT') return [];
 					throw e;
-				}).map(function (filename) {
+				}).map(deferred.gate(function (filename) {
 					if (!isDirectName(filename)) return;
 					var ownerId = filename;
 					return this._getDirectStorage_(ownerId)(function (map) {
@@ -216,11 +216,11 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 							return destDriver._storeRaw('direct', ownerId, path, data);
 						}, map);
 					});
-				}.bind(this)),
+				}.bind(this), 100)),
 				readdir(resolve(this.dirPath, 'computed'), { type: { file: true } }).catch(function (e) {
 					if (e.code === 'ENOENT') return [];
 					throw e;
-				}).map(function (filename) {
+				}).map(deferred.gate(function (filename) {
 					if (!isComputedName(filename)) return;
 					var keyPath = fromComputedFilename(filename);
 					return this._getComputedStorage_(keyPath)(function (map) {
@@ -229,11 +229,11 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 							return destDriver._storeRaw('computed', keyPath, ownerId, this[ownerId]);
 						}, map);
 					});
-				}.bind(this)),
+				}.bind(this), 100)),
 				readdir(resolve(this.dirPath, 'reduced'), { type: { file: true } }).catch(function (e) {
 					if (e.code === 'ENOENT') return [];
 					throw e;
-				}).map(function (ns) {
+				}).map(deferred.gate(function (ns) {
 					if (!isReducedName(ns)) return;
 					return this._getReducedStorage_(ns)(function (map) {
 						return deferred.map(keys(map), function (path) {
@@ -241,7 +241,7 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 							return destDriver._storeRaw('reduced', ns, (path === '.') ? null : path, this[path]);
 						}, map);
 					});
-				}.bind(this))
+				}.bind(this), 100))
 			);
 		}.bind(this));
 		return promise;

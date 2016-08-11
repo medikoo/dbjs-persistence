@@ -71,7 +71,7 @@ TextFileReducedStorage.prototype = Object.create(ReducedStorage.prototype, assig
 			return readdir(this.dirPath, { type: { file: true } }).catch(function (e) {
 				if (e.code === 'ENOENT') return [];
 				throw e;
-			}).map(function (ns) {
+			}).map(deferred.gate(function (ns) {
 				if (!isReducedName(ns)) return;
 				return this._getStorage_(ns)(function (map) {
 					return deferred.map(keys(map), function (path) {
@@ -79,7 +79,7 @@ TextFileReducedStorage.prototype = Object.create(ReducedStorage.prototype, assig
 						return destStorage._storeRaw(ns, (path === '.') ? null : path, this[path]);
 					}, map);
 				});
-			}.bind(this));
+			}.bind(this), 100));
 		}.bind(this));
 		return promise;
 	}),
