@@ -23,9 +23,9 @@ var aFrom           = require('es5-ext/array/from')
   , byStamp = function (a, b) { return a.data.stamp - b.data.stamp; };
 
 var storeEvents = function (storage, events) {
-	var current = events.slice(0, 10000);
+	var current = events.slice(0, 10000), def = deferred();
 	events = events.slice(10000);
-	return deferred.map(current, function (event, index) {
+	deferred.map(current, function (event, index) {
 		if (event.type === 'computed') {
 			return storage
 				._handleStoreComputed(event.ns, event.path, event.value, event.stamp, event.isOwnEvent);
@@ -34,9 +34,11 @@ var storeEvents = function (storage, events) {
 			return storage._handleStoreDirect(event.ns, event.path, event.value, event.stamp);
 		}
 		throw new Error("Unrecognized event configuration");
-	})(function () {
-		if (events.length) return storeEvents(storage, events);
-	});
+	}).done(function () {
+		if (!events.length) def.resolve();
+		else storeEvents(storage, events).done(def.resolve, def.reject);
+	}, def.reject);
+	return def.promise;
 };
 
 module.exports = function (driver, data) {
