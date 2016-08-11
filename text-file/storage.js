@@ -28,7 +28,7 @@ var assign              = require('es5-ext/object/assign')
   , Storage             = require('../storage')
 
   , isDirectName = RegExp.prototype.test.bind(/^[a-z0-9][a-z0-9A-Z]*$/)
-  , isComputedName = RegExp.prototype.test.bind(/^[a-z0-9A-Z=]+$/)
+  , isComputedName = RegExp.prototype.test.bind(/^[a-z0-9A-Z-=]+$/)
   , isReducedName = RegExp.prototype.test.bind(/^[$_a-z0-9][a-z0-9A-Z]*$/)
   , isArray = Array.isArray, keys = Object.keys, create = Object.create
   , parse = JSON.parse, stringify = JSON.stringify;
