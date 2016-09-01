@@ -37,7 +37,8 @@ module.exports = function (opts, copyOpts) {
 	};
 	return function (t, a, d) {
 		var db = getDatabase()
-		  , storage = t(assign({ database: db }, opts)).getStorage('base')
+		  , driver = t(assign({ database: db }, opts))
+		  , storage = driver.getStorage('base')
 		  , aaa = db.SomeType.newNamed('aaa')
 		  , bbb = db.SomeType.newNamed('bbb')
 		  , ccc = db.SomeType.newNamed('ccc')
@@ -47,6 +48,7 @@ module.exports = function (opts, copyOpts) {
 		  , fooBar = db.SomeType.newNamed('fooBar')
 		  , zzz = db.SomeType.newNamed('zzz');
 
+		driver.on('error', d);
 		zzz.delete('bar');
 		aaa.bar = null;
 		return deferred(
@@ -173,7 +175,9 @@ module.exports = function (opts, copyOpts) {
 			return storage.driver.close();
 		})(function () {
 			var db = getDatabase()
-			  , storage = t(assign({ database: db }, opts)).getStorage('base');
+			  , driver = t(assign({ database: db }, opts))
+			  , storage = driver.getStorage('base');
+			driver.on('error', d);
 			return storage.indexKeyPath('computed', db.SomeType.instances)(function () {
 				return deferred(storage.getComputed('fooBar/computed')(function (data) {
 					a(data.value, '3fooelo', "Computed: initial #1");
@@ -260,7 +264,9 @@ module.exports = function (opts, copyOpts) {
 			});
 		})(function () {
 			var db = getDatabase()
-			  , storage = t(assign({ database: db }, opts)).getStorage('base');
+			  , driver = t(assign({ database: db }, opts))
+			  , storage = driver.getStorage('base');
+			driver.on('error', d);
 			return storage.loadAll()(function () {
 				a(db.fooBar.constructor, db.SomeType);
 				a(db.fooBar.raz, 'marko');
@@ -274,8 +280,12 @@ module.exports = function (opts, copyOpts) {
 			});
 		})(function () {
 			var db = getDatabase()
-			  , storage = t(opts).getStorage('base')
-			  , storageCopy = t(assign({ database: db }, copyOpts)).getStorage('base');
+			  , driver = t(opts)
+			  , storage = driver.getStorage('base')
+			  , driverCopy = t(assign({ database: db }, copyOpts))
+			  , storageCopy = driverCopy.getStorage('base');
+			driver.on('error', d);
+			driverCopy.on('error', d);
 			return storage.export(storageCopy)(function () {
 				return storageCopy.loadAll()(function () {
 					a(db.fooBar.constructor, db.SomeType);
@@ -313,6 +323,7 @@ module.exports = function (opts, copyOpts) {
 			  , driver = t(assign({ database: db }, opts))
 			  , objects, extObjects, reducedStorage = driver.getReducedStorage();
 
+			driver.on('error', d);
 			var getInstances = function (type) {
 				return type.instances.filter(function (obj) { return obj.constructor === type; });
 			};
