@@ -1,3 +1,10 @@
+v0.1.0  --  2016.09.01
+* Reduce call stack at recompute operation (try to avoid RangeErrors)
+* Implement error handling on driver
+* TextDriver:
+  * Limit number of concurrent store operations
+  * Fix export functionality (for computed tables)
+
 v0.0.21  --  2016.07.01
 * Improve and reorganize changes propagation
 * Improve cross process error reportings
