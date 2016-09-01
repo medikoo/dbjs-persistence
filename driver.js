@@ -10,7 +10,9 @@ var aFrom            = require('es5-ext/array/from')
   , capitalize       = require('es5-ext/string/#/capitalize')
   , d                = require('d')
   , lazy             = require('d/lazy')
+  , autoBind         = require('d/auto-bind')
   , ee               = require('event-emitter')
+  , emitError        = require('event-emitter/emit-error')
   , deferred         = require('deferred')
   , ensureDatabase   = require('dbjs/valid-dbjs')
   , Event            = require('dbjs/_setup/event')
@@ -157,7 +159,9 @@ ee(Object.defineProperties(Driver.prototype, assign({
 
 	__resolveAllStorages: d(notImplemented),
 	__close: d(notImplemented)
-}, lazy({
+}, autoBind({
+	emitError: d(emitError)
+}), lazy({
 	_loadedEventsMap: d(function () { return create(null); }),
 	_storages: d(function () { return create(null); }),
 	_resolveAllStorages: d(function () {
