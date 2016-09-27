@@ -67,7 +67,13 @@ module.exports = function (opts, copyOpts) {
 					a.deep(resolveEventKeys(data.value), ['elo', 'fooelo'], "Computed set: initial #1");
 				}), storage.getComputed('aaa/computedSet')(function (data) {
 					a.deep(resolveEventKeys(data.value), ['foo'], "Computed set: initial #2");
-				}));
+				}))(function () {
+					var query = { keyPath: 'computedSet', value: '3foo' };
+					return storage.searchComputed(query, function (id, record) {
+						a.deep(resolveEventKeys(record.value), ['foo'], "Computed set: search");
+						return true;
+					})(function (result) { a.deep(result, [true]); });
+				});
 			}),
 			storage.indexKeyPath('someBoolComputed', db.SomeType.instances),
 			storage.indexCollection('barByCol', db.SomeType.find('bar', 'elo'))(function () {
