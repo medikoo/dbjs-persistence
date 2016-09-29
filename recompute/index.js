@@ -151,7 +151,7 @@ module.exports = function (driver, data) {
 				var events = [];
 				if (poolError) throw poolError;
 				if (!ids.length) return clearPool();
-				if (!poolHealth || (poolHealth < 1100)) {
+				if (!poolHealth || (poolHealth < 1050)) {
 					promise.emit('progress', { type: 'nextObject' });
 					++stats.mastersCount;
 					return getData(ids.shift())(function self(data) {
