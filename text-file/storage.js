@@ -151,14 +151,18 @@ TextFileStorage.prototype = Object.create(Storage.prototype, assign({
 	__search: d(function (keyPath, value, callback) {
 		return this.getAllObjectIds().some(function (ownerId) {
 			return this._getDirectStorage_(ownerId)(function (map) {
-				if (keyPath !== undefined) {
-					if (!keyPath) {
-						if (map['.']) {
+				if (map['.']) {
+					if (keyPath !== undefined) {
+						if (!keyPath) {
 							if (value != null) {
 								if (map['.'].value !== value) return;
 							}
 							return callback(ownerId, map['.']);
 						}
+					} else if (value != null) {
+						if (map['.'].value === value) callback(ownerId, map['.']);
+					} else {
+						callback(ownerId, map['.']);
 					}
 				}
 				return some(map, function (data, path) {

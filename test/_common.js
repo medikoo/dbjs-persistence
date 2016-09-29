@@ -415,6 +415,9 @@ module.exports = function (opts, copyOpts) {
 					]))(function (size) {
 						a(size, getInstances(db.SomeType).size + getInstances(db.SomeTypeExt).size);
 					}),
+					driver.getStorage('someType').searchOne(function (id, record) {
+						if (id.indexOf('/') === -1) return true;
+					})(function (result) { a(result, true); }),
 					driver.getStorage('someType').search({ value: '3ejo' }, function (id, data) {
 						searchResults.push({ id: id, data: { stamp: data.stamp, value: data.value } });
 					})(function () {
