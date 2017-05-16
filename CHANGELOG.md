@@ -4,3 +4,8 @@ All notable changes to this project will be documented in this file. See [standa
 
 <a name="0.1.2"></a>
 ## [0.1.2](https://github.com/medikoo/dbjs-persistence/compare/v0.1.1...v0.1.2) (2017-05-16)
+
+
+## Old changelog
+
+Can be seen at `CHANGES`

@@ -1,3 +1,5 @@
+For new changes log see CHANGELOG.md
+
 v0.1.1  --  2017.05.16
 * Fix multiple value support in searchComputed
 * Ensure object construction records in search
