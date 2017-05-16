@@ -1,3 +1,8 @@
+v0.1.1  --  2017.05.16
+* Fix multiple value support in searchComputed
+* Ensure object construction records in search
+* Reduce memory limit in recomputer
+
 v0.1.0  --  2016.09.01
 * Reduce call stack at recompute operation (try to avoid RangeErrors)
 * Implement error handling on driver
