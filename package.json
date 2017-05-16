@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "d": "1",
-    "debug-ext": "1",
+    "debug": "^2.6.6",
     "deferred": "^0.7.6",
     "dbjs": "^0.1.1",
     "es5-ext": "^0.10.18",
