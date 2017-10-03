@@ -14,11 +14,11 @@ var aFrom           = require('es5-ext/array/from')
   , deferred        = require('deferred')
   , genStamp        = require('time-uuid/time')
   , fork            = require('child_process').fork
-  , cpus            = require('os').cpus
+  , os              = require('os')
   , ensureDriver    = require('../ensure-driver')
   , registerEmitter = require('../lib/emitter')
 
-  , ceil = Math.ceil, min = Math.min
+  , ceil = Math.ceil, min = Math.min, max = Math.max, floor = Math.floor
   , create = Object.create, keys = Object.keys
   , byStamp = function (a, b) { return a.data.stamp - b.data.stamp; };
 
@@ -231,7 +231,17 @@ module.exports = function (driver, data) {
 			return reinitializePool();
 		};
 
-		processesCount = min(cpus().length, ceil(ids.length / 10));
+		processesCount = min(
+			os.cpus().length,
+			ceil(ids.length / 10),
+			// Note: Although there is a freemem function available it's reporting only unallocated
+			// memory count (that is: total - used - buff/cache) and not actually available one.
+			// That number (unallocated memory) on long running machines, eg. server, will tend to
+			// be very low compared to available memory due to heavy buffering done by system kernels.
+			// The approach here is to check how many 2GB processes will fit into available memory
+			// minus one (master recompute process).
+			max(floor(os.totalmem() / (2048 * 1024 * 1024)) - 1, 1)
+		);
 		promises = [];
 		while (processesCount--) promises.push(initializePool());
 		return deferred.map(promises)(cleanup);
